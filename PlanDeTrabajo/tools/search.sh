@@ -2,6 +2,7 @@
 set -euo pipefail
 
 WIKI_DIR="$(cd "$(dirname "$0")/../wiki" && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 QUERY="${1:-}"
 
 if [ -z "$QUERY" ]; then

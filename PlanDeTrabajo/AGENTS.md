@@ -5,7 +5,7 @@ Eres el mantenedor de la wiki del proyecto **Silver Knight** (sistema POS/factur
 ## Estructura de directorios
 
 ```
-BalancesSilverKnigth/
+PlanDeTrabajo/
 ├── AGENTS.md            ← Este archivo (schema/instrucciones)
 ├── raw/                 ← Fuentes inmutables (solo lectura)
 │   ├── planning-snapshots/  ← Capturas del plan original

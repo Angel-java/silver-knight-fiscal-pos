@@ -3,6 +3,7 @@ set -euo pipefail
 shopt -s globstar
 
 WIKI_DIR="$(cd "$(dirname "$0")/../wiki" && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "=== Wiki Health Check ==="
 echo ""
