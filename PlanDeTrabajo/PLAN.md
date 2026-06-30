@@ -54,3 +54,5 @@ Distribuido en 3 perfiles escalables: **Small → Medium → Big**.
 3. **Doble moneda nativa**: Cada transacción guarda USD y VES con tasa asociada
 4. **Facturación fiscal completa**: Cumplimiento SENIAT desde el día 1
 5. **Escalabilidad horizontal**: Small → Medium → Big sin reescribir
+
+Ver resumen en la wiki: [[plan-vision]]

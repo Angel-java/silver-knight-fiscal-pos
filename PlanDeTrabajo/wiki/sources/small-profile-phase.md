@@ -8,7 +8,7 @@ source: planning/small-profile-phase.md
 
 # Plan — Small Profile Phase (Detallado + API)
 
-Fuente original: `planning/small-profile-phase.md`
+Fuente original: [[planning/small-profile-phase]]
 
 Plan de ejecución detallado para Phase 1 (Small profile), incluyendo dependencias entre stages y endpoints REST.
 

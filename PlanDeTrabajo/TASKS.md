@@ -177,3 +177,5 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 | 🔄 En progreso | 0 |
 | ✅ Completado | 0 |
 | **Total** | **60** |
+
+Ver resumen en la wiki: [[tasks]]

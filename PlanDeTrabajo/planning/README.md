@@ -10,3 +10,5 @@
 | `architectural-decisions.md` | Decisiones técnicas y su justificación |
 | `database-schema.md` | Diagrama y descripción del schema de datos |
 | `small-profile-phase.md` | Plan detallado de la Fase 1 (Small) |
+
+Ver resúmenes en la wiki: [[plan-vision]], [[roadmap]], [[tasks]], [[architectural-decisions]], [[db-schema]], [[small-profile-phase]]

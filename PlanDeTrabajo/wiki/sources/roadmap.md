@@ -8,7 +8,7 @@ source: ROADMAP.md
 
 # Plan — Roadmap de 4 Fases
 
-Fuente original: `ROADMAP.md`
+Fuente original: [[ROADMAP|ROADMAP.md]]
 
 Roadmap de desarrollo con 4 fases progresivas que corresponden a los perfiles de distribución.
 

@@ -8,7 +8,7 @@ source: planning/architectural-decisions.md
 
 # Plan — Architectural Decision Records (ADRs)
 
-Fuente original: `planning/architectural-decisions.md`
+Fuente original: [[planning/architectural-decisions]]
 
 Cinco ADRs que definen la arquitectura del sistema.
 

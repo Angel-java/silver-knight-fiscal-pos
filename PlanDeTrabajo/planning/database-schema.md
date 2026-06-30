@@ -178,3 +178,5 @@ Invoice ── pertenece ──> Customer (opcional)
 Invoice ── creada por ──> User
 CashRegister ── pertenece ──> User
 ```
+
+Ver resumen en la wiki: [[db-schema]]

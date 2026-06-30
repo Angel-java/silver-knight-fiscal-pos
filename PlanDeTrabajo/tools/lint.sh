@@ -33,7 +33,7 @@ all_links=$(rg --no-filename -o '\[\[([^\|\]]+)(\|[^\]]+)?\]\]' "$WIKI_DIR" -g '
 while IFS= read -r link; do
     [ -z "$link" ] && continue
     found=false
-    for dir in "$WIKI_DIR" "$WIKI_DIR/entities" "$WIKI_DIR/concepts" "$WIKI_DIR/sources" "$WIKI_DIR/queries"; do
+    for dir in "$WIKI_DIR" "$WIKI_DIR/entities" "$WIKI_DIR/concepts" "$WIKI_DIR/sources" "$WIKI_DIR/queries" "$ROOT_DIR" "$ROOT_DIR/planning"; do
         if [ -f "$dir/$link.md" ]; then
             found=true
             break

@@ -81,3 +81,5 @@ Toda factura generada es fiscalmente válida.
 - Más complejidad inicial, pero cero deuda técnica fiscal
 - El cliente Small tiene un sistema 100% legal desde el día 1
 - No hay que migrar datos de facturas no-fiscales a fiscales después
+
+Ver resumen en la wiki: [[architectural-decisions]]

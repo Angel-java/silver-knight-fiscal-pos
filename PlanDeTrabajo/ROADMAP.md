@@ -61,3 +61,5 @@
 | 🔄 En progreso | Trabajando actualmente |
 | ✅ Completado | Terminado y verificado |
 | 🚧 Bloqueado | Esperando dependencia |
+
+Ver resumen en la wiki: [[roadmap]]

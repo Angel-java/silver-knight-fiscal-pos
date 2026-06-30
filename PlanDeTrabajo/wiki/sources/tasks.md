@@ -8,7 +8,7 @@ source: TASKS.md
 
 # Plan — 60 Tareas de Phase 1 (Small)
 
-Fuente original: `TASKS.md`
+Fuente original: [[TASKS|TASKS.md]]
 
 Desglose detallado de las 60 tareas para el perfil Small, organizadas en 10 stages.
 

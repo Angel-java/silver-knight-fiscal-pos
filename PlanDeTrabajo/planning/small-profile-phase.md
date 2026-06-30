@@ -98,3 +98,5 @@ GET    /api/exchange-rates      ?latest=true
 POST   /api/exchange-rates      { rate, source }
 POST   /api/exchange-rates/fetch-bcv  (auto desde BCV)
 ```
+
+Ver resumen en la wiki: [[small-profile-phase]]

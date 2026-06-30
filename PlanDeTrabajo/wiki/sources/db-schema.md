@@ -8,7 +8,7 @@ source: planning/database-schema.md
 
 # Plan — Database Schema
 
-Fuente original: `planning/database-schema.md`
+Fuente original: [[planning/database-schema]]
 
 Schema completo de base de datos con 9 modelos Prisma.
 
