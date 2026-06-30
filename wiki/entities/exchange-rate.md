@@ -10,6 +10,8 @@ sources: [db-schema]
 
 Registro histórico de tasas de cambio USD/VES.
 
+Un **[[exchange-rate|ExchangeRate]]** captura la tasa de cambio en un momento dado. Es fundamental para el sistema de [[dual-currency|doble moneda]]: cada [[invoice|factura]] congela la tasa al momento de la transacción en lugar de referenciarla dinámicamente.
+
 ## Atributos
 
 | Campo | Tipo | Descripción |
@@ -18,7 +20,8 @@ Registro histórico de tasas de cambio USD/VES.
 | source | enum | manual / bcv |
 | date | datetime | Fecha de la tasa |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[exchange-rate]] <-> [[company]]: N:1 (una empresa tiene muchas tasas históricas)
-- [[exchange-rate]] <-> [[dual-currency]]: cada transacción congela la tasa al momento de facturar
+- Un **ExchangeRate** pertenece al historial de una **[[company|Company]]**
+- Las **[[invoice|facturas]]** congelan la tasa al momento de emitirse ([[dual-currency]])
+- Puede obtenerse automáticamente del BCV (source: bcv) o ingresarse manualmente

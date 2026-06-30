@@ -12,23 +12,19 @@ Mecanismo nativo de doble moneda (USD/VES) en Silver Knight.
 
 ## Principio
 
-Toda transacción financiera guarda **ambas monedas** con la tasa de cambio congelada al momento de la transacción. No se usan tasas en tiempo real.
+Toda transacción financiera guarda **ambas monedas** con la tasa de cambio congelada al momento de la transacción (ver [[exchange-rate]] y [[architectural-decision-003|ADR-003]]). No se usan tasas en tiempo real.
 
-## Implementación
+## ¿Qué entidades implementan esto?
 
-- Cada tabla financiera tiene columnas tanto en USD como en VES
-- La [[exchange-rate]] se captura por transacción (no se referencia dinámicamente)
-- El campo `currency` en [[invoice]] indica la moneda primaria usada en el cobro
-- Los totales, subtotales e IVA se almacenan en ambas monedas
+- La **[[company|Company]]** define la moneda por defecto
+- El **[[product|Product]]** tiene precios y costos en USD y VES
+- La **[[invoice|Invoice]]** guarda subtotales, IVA y totales en ambas monedas
+- El **[[customer|Customer]]** tiene límites de crédito en USD y VES
+- El **[[exchange-rate|ExchangeRate]]** registra la tasa histórica congelada en cada factura
 
-## ADR-003
+## Relación con otros conceptos
 
-Decisión arquitectónica formal: [[architectural-decision-003|ADR-003: Native Dual Currency]]
-
-## Relaciones
-
-- [[dual-currency]] <-> [[exchange-rate]]: la tasa se congela por transacción
-- [[dual-currency]] <-> [[product]]: precios en ambas monedas
-- [[dual-currency]] <-> [[invoice]]: totales en ambas monedas
-- [[dual-currency]] <-> [[company]]: moneda por defecto de la empresa
-- [[dual-currency]] <-> [[fiscal-compliance]]: la factura fiscal requiere doble moneda
+- [[dual-currency]] es requisito para [[fiscal-compliance]] (SENIAT requiere facturación en ambas monedas)
+- [[fiscal-compliance]] necesita [[dual-currency]] para emitir facturas válidas
+- [[architectural-decision-003|ADR-003]] formaliza esta decisión arquitectónica
+- [[offline-first]] no interfiere: las tasas se capturan localmente sin necesidad de API externa

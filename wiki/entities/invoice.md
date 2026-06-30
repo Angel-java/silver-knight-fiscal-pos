@@ -10,6 +10,8 @@ sources: [db-schema, fiscal-compliance]
 
 Factura emitida por el sistema. Toda factura es fiscalmente válida ([[fiscal-compliance|ADR-005]]).
 
+Una **[[invoice|Invoice]]** es el documento central del sistema. Registra una venta con todos los datos fiscales requeridos por el SENIAT, en la moneda que el cliente elija ([[dual-currency]]), y queda asociada al [[user|operador]] que la creó y al [[customer|cliente]] que la recibe.
+
 ## Atributos clave
 
 | Campo | Tipo | Descripción |
@@ -24,10 +26,10 @@ Factura emitida por el sistema. Toda factura es fiscalmente válida ([[fiscal-co
 | totalUsd/TotalVes | decimal | Total en ambas monedas |
 | status | enum | active / cancelled |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[invoice]] -> [[user]]: N:1 (creada por un operador)
-- [[invoice]] -> [[customer]]: N:1 (cliente asociado)
-- [[invoice]] -> [[invoice-item]]: 1:N (líneas de la factura)
-- [[invoice]] <-> [[dual-currency]]: aplica doble moneda
-- [[invoice]] <-> [[fiscal-compliance]]: cumple requisitos SENIAT
+- Una **Invoice** es creada por un **[[user|User]]** (operador)
+- Una **Invoice** pertenece a un **[[customer|Customer]]** (receptor fiscal)
+- Una **Invoice** contiene líneas (**[[invoice-item|InvoiceItems]]**) con productos, cantidades y montos
+- Una **Invoice** aplica **[[dual-currency|doble moneda]]**: guarda todo en USD y VES
+- Una **Invoice** cumple **[[fiscal-compliance|requisitos SENIAT]]**: NCF, IVA, RIF, etc.

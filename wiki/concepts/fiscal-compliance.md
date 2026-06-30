@@ -8,7 +8,15 @@ sources: [adr-005, db-schema, small-profile-phase]
 
 # Fiscal Compliance (SENIAT)
 
-Cumplimiento de la normativa fiscal venezolana del SENIAT (Servicio Nacional Integrado de Administración Aduanera y Tributaria).
+Cumplimiento de la normativa fiscal venezolana del SENIAT.
+
+## ¿Qué entidades participan?
+
+- La **[[company|Company]]** es el ente emisor (su RIF aparece en cada factura)
+- El **[[customer|Customer]]** es el receptor (su RIF es obligatorio)
+- La **[[invoice|Invoice]]** es el documento fiscal: lleva NCF, IVA, montos en ambas monedas
+- El **[[product|Product]]** tiene IVA configurable por ítem
+- Cada [[invoice-item|renglón de factura]] lleva su propio cálculo de IVA
 
 ## Requisitos clave
 
@@ -19,18 +27,11 @@ Cumplimiento de la normativa fiscal venezolana del SENIAT (Servicio Nacional Int
 - **Documentos anulados**: trazabilidad completa de cancelaciones
 - **Formato impreso**: formato fiscal aprobado por SENIAT
 
-## ADR-005
+## Relación con otros conceptos
 
-Facturación fiscal desde el día 1 — todas las facturas son fiscalmente válidas. No existe una versión "no fiscal". Esto aplica incluso en el perfil Small.
-
-## Relaciones
-
-- [[fiscal-compliance]] <-> [[invoice]]: toda factura es fiscalmente válida
-- [[fiscal-compliance]] <-> [[product]]: IVA configurable por producto
-- [[fiscal-compliance]] <-> [[customer]]: datos fiscales obligatorios
-- [[fiscal-compliance]] <-> [[company]]: RIF de la empresa emisora
-- [[fiscal-compliance]] <-> [[dual-currency]]: facturación en USD/VES
-- [[fiscal-compliance]] <-> [[architectural-decision-003]]: ADR-005 formaliza esta decisión
+- [[fiscal-compliance]] requiere [[dual-currency]] (facturación en USD/VES)
+- [[architectural-decision-003|ADR-005]] formaliza: facturación fiscal desde el día 1
+- [[offline-first]] aplica: la facturación fiscal funciona sin internet
 
 ## Estado
 

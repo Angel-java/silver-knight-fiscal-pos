@@ -10,6 +10,14 @@ sources: [plan-vision]
 
 Principio arquitectónico: el sistema funciona 100% sin conexión a internet.
 
+## ¿Qué entidades operan offline?
+
+- La **[[company|Company]]** completa: configuración, datos, todo local
+- El **[[user|User]]** puede facturar sin internet
+- La **[[invoice|Invoice]]** se emite y almacena 100% local
+- El **[[product|Product]]** y el inventario se gestionan localmente
+- El **[[cash-register|CashRegister]]** abre y cierra jornadas sin conexión
+
 ## Implicaciones
 
 - La base de datos principal es local (SQLite en Small, SQLite en cada nodo en Medium)
@@ -17,15 +25,7 @@ Principio arquitectónico: el sistema funciona 100% sin conexión a internet.
 - Todas las operaciones críticas (facturación, inventario, caja) son locales
 - El sync es asíncrono cuando hay conexión
 
-## Relaciones
+## Relación con otros conceptos
 
-- [[offline-first]] <-> [[company]]: la empresa opera sin internet
-- [[offline-first]] <-> [[invoice]]: facturación 100% local
-- [[offline-first]] <-> [[product]]: inventario local
-- [[offline-first]] <-> [[cash-register]]: caja local
-
-## Estrategia
-
-1. Small: 100% local, sin necesidad de internet nunca
-2. Medium: red local, servidor central con SQLite
-3. Big: cloud opcional con sync engine vía WebSockets + colas
+- [[offline-first]] no afecta [[dual-currency]]: las tasas se capturan localmente
+- [[offline-first]] es compatible con [[fiscal-compliance]]: la facturación fiscal es local

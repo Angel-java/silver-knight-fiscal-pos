@@ -10,6 +10,8 @@ sources: [db-schema]
 
 Apertura y cierre de caja del sistema POS.
 
+Un **[[cash-register|CashRegister]]** registra el inicio y fin de la jornada de un [[user|operador]]. Controla los montos en [[dual-currency|ambas monedas]] y puede operar sin conexión ([[offline-first]]).
+
 ## Atributos
 
 | Campo | Tipo | Descripción |
@@ -20,6 +22,8 @@ Apertura y cierre de caja del sistema POS.
 | closedAt | datetime | Fecha/hora de cierre |
 | status | enum | open / closed |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[cash-register]] -> [[user]]: N:1 (operador que abrió/cerró la caja)
+- Un **CashRegister** es abierto/cerrado por un **[[user|User]]**
+- Opera con **[[dual-currency|doble moneda]]**: montos en USD y VES
+- Funciona sin conexión gracias al principio **[[offline-first]]**

@@ -10,6 +10,8 @@ sources: [db-schema]
 
 Producto o servicio del inventario.
 
+Un **[[product|Product]]** es la unidad básica del inventario. Tiene precios en ambas monedas ([[dual-currency]]), un porcentaje de IVA configurable ([[fiscal-compliance]]), y control de stock mínimo.
+
 ## Atributos clave
 
 | Campo | Tipo | Descripción |
@@ -23,9 +25,9 @@ Producto o servicio del inventario.
 | minStock | decimal | Stock mínimo |
 | ivaPercent | decimal | Porcentaje de IVA |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[product]] -> [[category]]: N:1 (pertenece a una categoría)
-- [[product]] -> [[invoice-item]]: 1:N (aparece en múltiples facturas)
-- [[product]] <-> [[dual-currency]]: precios y costos en USD/VES
-- [[product]] <-> [[fiscal-compliance]]: IVA configurable por producto
+- Un **Product** pertenece a una **[[category|Category]]**
+- Un **Product** aparece en múltiples **[[invoice-item|InvoiceItems]]** (líneas de factura)
+- Un **Product** tiene precios en **[[dual-currency|ambas monedas]]**
+- Un **Product** tiene IVA configurable para **[[fiscal-compliance|cumplimiento fiscal]]**

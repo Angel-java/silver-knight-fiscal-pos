@@ -10,6 +10,8 @@ sources: [db-schema]
 
 Categoría o familia de productos.
 
+Una **[[category|Category]]** agrupa [[product|productos]] relacionados para facilitar la organización del inventario y la búsqueda en el POS.
+
 ## Atributos
 
 | Campo | Tipo | Descripción |
@@ -17,6 +19,6 @@ Categoría o familia de productos.
 | name | string | Nombre de la categoría |
 | description | string | Descripción opcional |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[category]] -> [[product]]: 1:N (una categoría tiene muchos productos)
+- Una **Category** contiene muchos **[[product|Products]]**

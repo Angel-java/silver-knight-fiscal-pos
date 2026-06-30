@@ -15,19 +15,20 @@ for page in "$WIKI_DIR"/**/*.md; do
     filename=$(basename "$page" .md)
     [ "$filename" = "index" ] && continue
     [ "$filename" = "log" ] && continue
-    link_count=$(rg -c "\[\[$filename\]\]" "$WIKI_DIR" -g '*.md' -g '!index.md' -g '!log.md' 2>/dev/null | wc -l || true)
+    # Count [[filename]] and [[filename|alias]]
+    link_count=$(rg -c "\[\[$filename(\|[^\]]+)?\]\]" "$WIKI_DIR" -g '*.md' -g '!index.md' -g '!log.md' 2>/dev/null | wc -l || true)
     if [ "$link_count" -eq 0 ]; then
         echo "  ⚠ $filename"
         orphan_count=$((orphan_count + 1))
     fi
 done
-echo "  Total: $orphant_count"
+echo "  Total: $orphan_count"
 echo ""
 
 # 2. Broken wikilinks
 echo "--- Enlaces rotos ---"
 broken_count=0
-all_links=$(rg -o '\[\[([^\]]+)\]\]' "$WIKI_DIR" -g '*.md' -r '$1' 2>/dev/null | sort -u)
+all_links=$(rg --no-filename -o '\[\[([^\|\]]+)(\|[^\]]+)?\]\]' "$WIKI_DIR" -g '*.md' -r '$1' 2>/dev/null | sort -u)
 while IFS= read -r link; do
     [ -z "$link" ] && continue
     found=false

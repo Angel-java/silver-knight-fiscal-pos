@@ -10,6 +10,8 @@ sources: [db-schema]
 
 Almacenamiento clave-valor para configuración del sistema.
 
+Un **[[setting|Setting]]** guarda opciones de configuración de la [[company|Company]] en formato JSON. Permite almacenar cualquier ajuste sin modificar el schema de la base de datos.
+
 ## Atributos
 
 | Campo | Tipo | Descripción |
@@ -17,6 +19,6 @@ Almacenamiento clave-valor para configuración del sistema.
 | key | string (PK) | Identificador único |
 | value | JSON | Valor serializado |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[setting]] -> [[company]]: N:1 (configuración por empresa)
+- Un **Setting** pertenece a una **[[company|Company]]** (configuración por empresa)

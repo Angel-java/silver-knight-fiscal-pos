@@ -10,6 +10,8 @@ sources: [db-schema]
 
 Cliente o receptor de factura.
 
+Un **[[customer|Customer]]** es la persona o empresa que recibe una [[invoice|factura]]. Sus datos fiscales (RIF, dirección) son obligatorios para el [[fiscal-compliance|cumplimiento SENIAT]].
+
 ## Atributos
 
 | Campo | Tipo | Descripción |
@@ -19,9 +21,10 @@ Cliente o receptor de factura.
 | address | string | Dirección fiscal |
 | phone | string | Teléfono |
 | email | string | Correo electrónico |
-| creditLimitUsd/CreditLimitVes | decimal | Límite de crédito en ambas monedas |
+| creditLimitUsd/CreditLimitVes | decimal | Límite de crédito en ambas monedas ([[dual-currency]]) |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[customer]] -> [[invoice]]: 1:N (historial de compras)
-- [[customer]] <-> [[fiscal-compliance]]: datos fiscales obligatorios para facturación
+- Un **Customer** tiene muchas **[[invoice|facturas]]** (historial de compras)
+- Un **Customer** requiere datos fiscales para **[[fiscal-compliance|cumplimiento SENIAT]]**
+- Un **Customer** tiene límites de crédito en **[[dual-currency|ambas monedas]]**

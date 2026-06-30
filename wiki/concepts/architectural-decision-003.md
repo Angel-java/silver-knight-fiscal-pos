@@ -14,15 +14,16 @@ sources: [architectural-decisions]
 
 Venezuela opera con dos monedas (USD y VES) de facto. El sistema debe soportar ambas sin depender de tasas en tiempo real.
 
-## Consecuencias
+## Consecuencias en entidades y conceptos
 
-- Cada tabla financiera tiene columnas en ambas monedas
-- [[exchange-rate]] se captura por transacción (no se referencia dinámicamente)
-- [[invoice]] guarda subtotales, IVA y totales en USD y VES
-- [[product]] tiene precios y costos en ambas monedas
-- [[customer]] tiene límites de crédito en ambas monedas
+- La [[company|Company]] define la moneda por defecto
+- La [[invoice|Invoice]] guarda subtotales, IVA y totales en USD y VES
+- El [[product|Product]] tiene precios y costos en ambas monedas
+- El [[customer|Customer]] tiene límites de crédito en ambas monedas
+- El [[exchange-rate|ExchangeRate]] registra la tasa al momento de cada transacción
+- Todo esto implementa el concepto de [[dual-currency]]
 
-## Relaciones
+## Relación con otros conceptos
 
-- [[architectural-decision-003]] <-> [[dual-currency]]: esta ADR formaliza el concepto
-- [[architectural-decision-003]] <-> [[fiscal-compliance]]: complementa la facturación fiscal
+- [[architectural-decision-003|ADR-003]] formaliza [[dual-currency]]
+- [[fiscal-compliance]] se apoya en esta decisión para emitir facturas en ambas monedas

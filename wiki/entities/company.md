@@ -10,6 +10,8 @@ sources: [db-schema]
 
 Entidad que representa la empresa propietaria del sistema Silver Knight.
 
+Una [[company|Company]] es la raíz del sistema. Cada instancia de Silver Knight pertenece a una sola empresa, y todos los [[user|usuarios]], [[product|productos]], [[invoice|facturas]] y configuraciones están asociados a ella.
+
 ## Atributos
 
 | Campo | Tipo | Descripción |
@@ -19,14 +21,16 @@ Entidad que representa la empresa propietaria del sistema Silver Knight.
 | address | string | Dirección fiscal |
 | phone | string | Teléfono |
 | email | string | Correo electrónico |
-| defaultCurrency | enum | Moneda por defecto (USD/VES) |
+| defaultCurrency | enum | Moneda por defecto (USD/VES) — ver [[dual-currency]] |
 | logo | string? | Logo de la empresa |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[company]] -> [[user]]: 1:N (una empresa tiene muchos usuarios)
-- [[company]] -> [[setting]]: 1:N (configuración por empresa)
-- [[company]] -> [[exchange-rate]]: 1:N (tasas de cambio histórico)
+- Una **Company** tiene muchos **[[user|Users]]** (operadores del sistema)
+- Una **Company** tiene muchas **[[setting|Settings]]** (configuración clave-valor)
+- Una **Company** tiene un historial de **[[exchange-rate|Exchange Rates]]** (tasas de cambio)
+- La **Company** define la moneda por defecto, concepto manejado por [[dual-currency]]
+- El RIF de la Company es el emisor fiscal para [[fiscal-compliance]]
 
 ## Reglas de negocio
 

@@ -10,6 +10,8 @@ sources: [db-schema]
 
 Línea individual de una factura.
 
+Un **[[invoice-item|InvoiceItem]]** representa un renglón dentro de una [[invoice|factura]]. Contiene el [[product|producto]] vendido (con datos denormalizados), la cantidad, los precios en [[dual-currency|ambas monedas]] y el IVA aplicado.
+
 ## Atributos clave
 
 | Campo | Tipo | Descripción |
@@ -19,7 +21,8 @@ Línea individual de una factura.
 | subtotalUsd/SubtotalVes | decimal | Subtotal del renglón |
 | ivaUsd/IvaVes | decimal | IVA del renglón |
 
-## Relaciones
+## Relaciones con otras entidades
 
-- [[invoice-item]] -> [[invoice]]: N:1 (pertenece a una factura)
-- [[invoice-item]] -> [[product]]: N:1 (producto facturado, con datos denormalizados)
+- Un **InvoiceItem** pertenece a una **[[invoice|Invoice]]**
+- Un **InvoiceItem** referencia un **[[product|Product]]** (con datos denormalizados)
+- Un **InvoiceItem** maneja montos en **[[dual-currency|ambas monedas]]**
