@@ -8,7 +8,7 @@ sources: [db-schema]
 
 # Category
 
-Categoría o familia de productos.
+Categoría o familia de productos. Fuente: [[db-schema]].
 
 Una **[[category|Category]]** agrupa [[product|productos]] relacionados para facilitar la organización del inventario y la búsqueda en el POS.
 

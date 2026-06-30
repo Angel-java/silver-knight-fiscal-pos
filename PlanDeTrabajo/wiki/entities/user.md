@@ -8,7 +8,7 @@ sources: [db-schema]
 
 # User
 
-Representa un operador del sistema Silver Knight.
+Representa un operador del sistema Silver Knight. Fuente: [[db-schema]].
 
 Un **[[user|User]]** es una persona que opera el sistema. Pertenece a una [[company|Company]] y puede crear [[invoice|facturas]], abrir/cerrar [[cash-register|caja]], y gestionar el inventario según su rol.
 

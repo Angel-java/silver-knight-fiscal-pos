@@ -8,7 +8,7 @@ sources: [db-schema]
 
 # Product
 
-Producto o servicio del inventario.
+Producto o servicio del inventario. Fuente: [[db-schema]].
 
 Un **[[product|Product]]** es la unidad básica del inventario. Tiene precios en ambas monedas ([[dual-currency]]), un porcentaje de IVA configurable ([[fiscal-compliance]]), y control de stock mínimo.
 

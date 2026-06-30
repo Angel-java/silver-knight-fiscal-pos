@@ -30,12 +30,12 @@ updated: 2026-06-30
 - [[offline-first|Offline-first]] — Arquitectura sin dependencia de internet
 
 ## Fuentes ingeridas
-- `raw/planning-snapshots/plan-vision.md` — Visión del proyecto
-- `raw/planning-snapshots/roadmap.md` — Roadmap de 4 fases
-- `raw/planning-snapshots/tasks.md` — 60 tareas Phase 1
-- `raw/planning-snapshots/architectural-decisions.md` — 5 ADRs
-- `raw/planning-snapshots/db-schema.md` — Schema completo de BD
-- `raw/planning-snapshots/small-profile-phase.md` — Plan detallado + API
+- [[plan-vision|Plan — Visión del Proyecto]]
+- [[roadmap|Plan — Roadmap de 4 Fases]]
+- [[tasks|Plan — 60 Tareas Phase 1]]
+- [[architectural-decisions|Plan — ADRs]]
+- [[db-schema|Plan — Database Schema]]
+- [[small-profile-phase|Plan — Small Profile Phase + API]]
 
 ## Queries y análisis
 <!-- Pendiente -->

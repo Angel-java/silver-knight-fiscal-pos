@@ -8,7 +8,7 @@ sources: [db-schema, fiscal-compliance]
 
 # Invoice
 
-Factura emitida por el sistema. Toda factura es fiscalmente válida ([[fiscal-compliance|ADR-005]]).
+Factura emitida por el sistema. Toda factura es fiscalmente válida ([[fiscal-compliance|ADR-005]]). Fuentes: [[db-schema]], [[tasks]], [[small-profile-phase]].
 
 Una **[[invoice|Invoice]]** es el documento central del sistema. Registra una venta con todos los datos fiscales requeridos por el SENIAT, en la moneda que el cliente elija ([[dual-currency]]), y queda asociada al [[user|operador]] que la creó y al [[customer|cliente]] que la recibe.
 

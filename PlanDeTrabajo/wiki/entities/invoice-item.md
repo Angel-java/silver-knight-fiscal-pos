@@ -8,7 +8,7 @@ sources: [db-schema]
 
 # InvoiceItem
 
-Línea individual de una factura.
+Línea individual de una factura. Fuente: [[db-schema]].
 
 Un **[[invoice-item|InvoiceItem]]** representa un renglón dentro de una [[invoice|factura]]. Contiene el [[product|producto]] vendido (con datos denormalizados), la cantidad, los precios en [[dual-currency|ambas monedas]] y el IVA aplicado.
 

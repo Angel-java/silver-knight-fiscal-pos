@@ -8,7 +8,7 @@ sources: [db-schema]
 
 # Customer
 
-Cliente o receptor de factura.
+Cliente o receptor de factura. Fuente: [[db-schema]].
 
 Un **[[customer|Customer]]** es la persona o empresa que recibe una [[invoice|factura]]. Sus datos fiscales (RIF, dirección) son obligatorios para el [[fiscal-compliance|cumplimiento SENIAT]].
 

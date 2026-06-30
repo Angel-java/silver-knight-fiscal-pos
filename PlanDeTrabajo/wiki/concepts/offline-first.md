@@ -8,7 +8,7 @@ sources: [plan-vision]
 
 # Offline-first
 
-Principio arquitectónico: el sistema funciona 100% sin conexión a internet.
+Principio arquitectónico: el sistema funciona 100% sin conexión a internet. Fuente: [[plan-vision]].
 
 ## ¿Qué entidades operan offline?
 

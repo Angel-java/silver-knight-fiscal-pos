@@ -8,7 +8,7 @@ sources: [adr-005, db-schema, small-profile-phase]
 
 # Fiscal Compliance (SENIAT)
 
-Cumplimiento de la normativa fiscal venezolana del SENIAT.
+Cumplimiento de la normativa fiscal venezolana del SENIAT. Fuentes: [[architectural-decisions]], [[db-schema]], [[small-profile-phase]].
 
 ## ¿Qué entidades participan?
 

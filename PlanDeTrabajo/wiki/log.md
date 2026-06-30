@@ -18,3 +18,9 @@ updated: 2026-06-30
 - **Páginas creadas**: [[category]], [[customer]], [[exchange-rate]], [[invoice]], [[invoice-item]], [[cash-register]], [[product]], [[setting]], [[architectural-decision-003]]
 - **Páginas actualizadas**: [[overview]], [[dual-currency]], [[fiscal-compliance]], [[offline-first]], [[company]], [[user]], [[index]]
 - **Resultado lint**: 0 huérfanos, 0 enlaces rotos
+
+## [2026-06-30] ingest | Ingesta de 6 planning snapshots como fuentes wiki
+- **Fuentes**: `raw/planning-snapshots/plan-vision.md`, `roadmap.md`, `tasks.md`, `architectural-decisions.md`, `db-schema.md`, `small-profile-phase.md`
+- **Páginas creadas**: [[plan-vision]], [[roadmap]], [[tasks]], [[architectural-decisions]], [[db-schema]], [[small-profile-phase]]
+- **Páginas actualizadas**: [[index]]
+- **Notas**: Ahora cada fuente tiene su propia página en wiki/sources/ con enlaces a las entidades y conceptos que documenta

@@ -8,7 +8,7 @@ sources: [architectural-decisions]
 
 # ADR-003: Native Dual Currency
 
-**Decisión**: Toda transacción financiera guarda montos tanto en USD como en VES, con la tasa de cambio congelada al momento de la transacción.
+**Decisión**: Toda transacción financiera guarda montos tanto en USD como en VES, con la tasa de cambio congelada al momento de la transacción. Fuente: [[architectural-decisions]].
 
 ## Contexto
 

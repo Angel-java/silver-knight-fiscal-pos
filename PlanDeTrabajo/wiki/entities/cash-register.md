@@ -8,7 +8,7 @@ sources: [db-schema]
 
 # Cash Register
 
-Apertura y cierre de caja del sistema POS.
+Apertura y cierre de caja del sistema POS. Fuente: [[db-schema]].
 
 Un **[[cash-register|CashRegister]]** registra el inicio y fin de la jornada de un [[user|operador]]. Controla los montos en [[dual-currency|ambas monedas]] y puede operar sin conexión ([[offline-first]]).
 

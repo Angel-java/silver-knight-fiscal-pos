@@ -8,7 +8,7 @@ sources: [db-schema]
 
 # Company
 
-Entidad que representa la empresa propietaria del sistema Silver Knight.
+Entidad que representa la empresa propietaria del sistema Silver Knight. Fuente: [[db-schema]].
 
 Una [[company|Company]] es la raíz del sistema. Cada instancia de Silver Knight pertenece a una sola empresa, y todos los [[user|usuarios]], [[product|productos]], [[invoice|facturas]] y configuraciones están asociados a ella.
 

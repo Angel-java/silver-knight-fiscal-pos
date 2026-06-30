@@ -8,7 +8,7 @@ sources: [db-schema]
 
 # Exchange Rate
 
-Registro histórico de tasas de cambio USD/VES.
+Registro histórico de tasas de cambio USD/VES. Fuentes: [[db-schema]], [[small-profile-phase]].
 
 Un **[[exchange-rate|ExchangeRate]]** captura la tasa de cambio en un momento dado. Es fundamental para el sistema de [[dual-currency|doble moneda]]: cada [[invoice|factura]] congela la tasa al momento de la transacción en lugar de referenciarla dinámicamente.
 

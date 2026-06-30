@@ -8,7 +8,7 @@ sources: [adr-003, db-schema]
 
 # Dual Currency
 
-Mecanismo nativo de doble moneda (USD/VES) en Silver Knight.
+Mecanismo nativo de doble moneda (USD/VES) en Silver Knight. Fuentes: [[architectural-decisions]], [[db-schema]].
 
 ## Principio
 

@@ -8,9 +8,9 @@ sources: [plan-vision]
 
 # Silver Knight — Visión General
 
-**Silver Knight** es un sistema POS (Point of Sale) y facturación fiscal electrónica diseñado para el mercado venezolano.
+**Silver Knight** es un sistema POS (Point of Sale) y facturación fiscal electrónica diseñado para el mercado venezolano. Documentado en [[plan-vision]].
 
-## Perfiles de distribución
+## Perfiles de distribución ([[roadmap]])
 
 | Perfil | Alcance | Base de datos |
 |--------|---------|---------------|
