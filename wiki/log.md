@@ -12,3 +12,9 @@ updated: 2026-06-30
 - **Páginas creadas**: [[index]], [[log]], [[overview]], [[company]], [[user]], [[dual-currency]], [[fiscal-compliance]], [[offline-first]]
 - **Herramientas**: `tools/lint.sh`, `tools/search.sh`, `tools/stats.sh`
 - **Notas**: Proyecto en fase de planificación pre-desarrollo. 60 tareas definidas en Phase 1 (Small). PlanDeTrabajo/ copiado a raw/planning-snapshots/ como fuentes inmutables.
+
+## [2026-06-30] fix | Tejer relaciones entre páginas
+- **Descripción**: Creación de páginas faltantes y wikilinks entre todas las páginas
+- **Páginas creadas**: [[category]], [[customer]], [[exchange-rate]], [[invoice]], [[invoice-item]], [[cash-register]], [[product]], [[setting]], [[architectural-decision-003]]
+- **Páginas actualizadas**: [[overview]], [[dual-currency]], [[fiscal-compliance]], [[offline-first]], [[company]], [[user]], [[index]]
+- **Resultado lint**: 0 huérfanos, 0 enlaces rotos

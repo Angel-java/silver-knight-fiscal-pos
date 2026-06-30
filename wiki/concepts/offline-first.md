@@ -17,6 +17,13 @@ Principio arquitectónico: el sistema funciona 100% sin conexión a internet.
 - Todas las operaciones críticas (facturación, inventario, caja) son locales
 - El sync es asíncrono cuando hay conexión
 
+## Relaciones
+
+- [[offline-first]] <-> [[company]]: la empresa opera sin internet
+- [[offline-first]] <-> [[invoice]]: facturación 100% local
+- [[offline-first]] <-> [[product]]: inventario local
+- [[offline-first]] <-> [[cash-register]]: caja local
+
 ## Estrategia
 
 1. Small: 100% local, sin necesidad de internet nunca

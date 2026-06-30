@@ -20,10 +20,10 @@ sources: [plan-vision]
 
 ## Principios arquitectónicos
 
-1. **Offline-first** — el core funciona 100% sin internet
+1. [[offline-first|Offline-first]] — el core funciona 100% sin internet
 2. **Misma lógica de negocio** — Small/Medium/Big comparten el mismo core
-3. **Dual currency nativo** — USD/VES en cada transacción
-4. **Facturación fiscal** — cumplimiento SENIAT desde el día 1
+3. [[dual-currency|Dual currency nativo]] — USD/VES en cada transacción
+4. [[fiscal-compliance|Facturación fiscal]] — cumplimiento SENIAT desde el día 1
 5. **Escalabilidad horizontal** — crece sin reescribir
 
 ## Tech stack
@@ -44,4 +44,4 @@ sources: [plan-vision]
 - **Fase**: Planificación pre-desarrollo
 - **Documentos**: Plan de trabajo completo (PlanDeTrabajo/)
 - **Tareas**: 60 tareas definidas para Phase 1 (Small), todas pendientes
-- **Próximo paso**: Scaffolding del proyecto (Electron + Vite + React + Express + Prisma)
+- **Próximo paso**: [[company|Configuración de empresa]], [[user|usuarios]], y scaffolding del proyecto (Electron + Vite + React + Express + Prisma)

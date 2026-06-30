@@ -23,4 +23,12 @@ Toda transacción financiera guarda **ambas monedas** con la tasa de cambio cong
 
 ## ADR-003
 
-Decisión arquitectónica formal: [[architectural-decision-003]]
+Decisión arquitectónica formal: [[architectural-decision-003|ADR-003: Native Dual Currency]]
+
+## Relaciones
+
+- [[dual-currency]] <-> [[exchange-rate]]: la tasa se congela por transacción
+- [[dual-currency]] <-> [[product]]: precios en ambas monedas
+- [[dual-currency]] <-> [[invoice]]: totales en ambas monedas
+- [[dual-currency]] <-> [[company]]: moneda por defecto de la empresa
+- [[dual-currency]] <-> [[fiscal-compliance]]: la factura fiscal requiere doble moneda

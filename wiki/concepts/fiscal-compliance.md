@@ -23,6 +23,15 @@ Cumplimiento de la normativa fiscal venezolana del SENIAT (Servicio Nacional Int
 
 Facturación fiscal desde el día 1 — todas las facturas son fiscalmente válidas. No existe una versión "no fiscal". Esto aplica incluso en el perfil Small.
 
+## Relaciones
+
+- [[fiscal-compliance]] <-> [[invoice]]: toda factura es fiscalmente válida
+- [[fiscal-compliance]] <-> [[product]]: IVA configurable por producto
+- [[fiscal-compliance]] <-> [[customer]]: datos fiscales obligatorios
+- [[fiscal-compliance]] <-> [[company]]: RIF de la empresa emisora
+- [[fiscal-compliance]] <-> [[dual-currency]]: facturación en USD/VES
+- [[fiscal-compliance]] <-> [[architectural-decision-003]]: ADR-005 formaliza esta decisión
+
 ## Estado
 
 Pendiente de recibir ejemplos de factura fiscal actual del usuario para validar el formato.
