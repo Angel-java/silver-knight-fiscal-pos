@@ -3,12 +3,12 @@ type: source
 tags: [plan, adr, architecture, decisions]
 created: 2026-06-30
 updated: 2026-06-30
-source: raw/planning-snapshots/architectural-decisions.md
+source: planning/architectural-decisions.md
 ---
 
 # Plan — Architectural Decision Records (ADRs)
 
-Fuente original: `raw/planning-snapshots/architectural-decisions.md`
+Fuente original: `planning/architectural-decisions.md`
 
 Cinco ADRs que definen la arquitectura del sistema.
 

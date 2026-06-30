@@ -3,12 +3,12 @@ type: source
 tags: [plan, vision, architecture]
 created: 2026-06-30
 updated: 2026-06-30
-source: raw/planning-snapshots/plan-vision.md
+source: PLAN.md
 ---
 
 # Plan — Visión del Proyecto
 
-Fuente original: `raw/planning-snapshots/plan-vision.md`
+Fuente original: `PLAN.md`
 
 Define la visión general de Silver Knight: sistema POS con facturación fiscal venezolana, tres perfiles de distribución (Small/Medium/Big) y principios arquitectónicos como [[offline-first]], [[dual-currency]] y [[fiscal-compliance]].
 

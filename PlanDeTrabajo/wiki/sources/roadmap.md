@@ -3,12 +3,12 @@ type: source
 tags: [plan, roadmap, phases]
 created: 2026-06-30
 updated: 2026-06-30
-source: raw/planning-snapshots/roadmap.md
+source: ROADMAP.md
 ---
 
 # Plan — Roadmap de 4 Fases
 
-Fuente original: `raw/planning-snapshots/roadmap.md`
+Fuente original: `ROADMAP.md`
 
 Roadmap de desarrollo con 4 fases progresivas que corresponden a los perfiles de distribución.
 

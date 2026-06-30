@@ -3,12 +3,12 @@ type: source
 tags: [plan, database, schema, prisma]
 created: 2026-06-30
 updated: 2026-06-30
-source: raw/planning-snapshots/db-schema.md
+source: planning/database-schema.md
 ---
 
 # Plan — Database Schema
 
-Fuente original: `raw/planning-snapshots/db-schema.md`
+Fuente original: `planning/database-schema.md`
 
 Schema completo de base de datos con 9 modelos Prisma.
 

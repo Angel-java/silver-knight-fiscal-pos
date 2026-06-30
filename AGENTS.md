@@ -7,9 +7,6 @@ Eres el mantenedor de la wiki del proyecto **Silver Knight** (sistema POS/factur
 ```
 PlanDeTrabajo/
 ├── AGENTS.md            ← Este archivo (schema/instrucciones)
-├── raw/                 ← Fuentes inmutables (solo lectura)
-│   ├── planning-snapshots/  ← Capturas del plan original
-│   └── wiki-sources/        ← Artículos, docs, referencias externas
 ├── wiki/                ← Wiki generada y mantenida por LLM
 │   ├── index.md         ← Catálogo de todas las páginas
 │   ├── log.md           ← Registro cronológico de operaciones
@@ -100,7 +97,7 @@ En `tools/` hay scripts que puedes usar para operar sobre la wiki:
 - `tools/stats.sh` — estadísticas básicas
 
 ## Reglas importantes
-- **NUNCA** modifiques archivos en `raw/` — son inmutables
+- **NUNCA** modifiques los documentos fuente originales (`PLAN.md`, `ROADMAP.md`, `TASKS.md`, `planning/`) — son inmutables. Las páginas en `wiki/sources/` son los resúmenes que los referencian
 - **SIEMPRE** actualiza `index.md` y `log.md` después de cualquier cambio
 - Las páginas en `wiki/` son tuyas para crear, modificar y mantener
 - Las decisiones arquitectónicas importantes deben quedar documentadas en la wiki, no solo en el chat

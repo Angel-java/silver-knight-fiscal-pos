@@ -3,12 +3,12 @@ type: source
 tags: [plan, tasks, phase-1, small]
 created: 2026-06-30
 updated: 2026-06-30
-source: raw/planning-snapshots/tasks.md
+source: TASKS.md
 ---
 
 # Plan — 60 Tareas de Phase 1 (Small)
 
-Fuente original: `raw/planning-snapshots/tasks.md`
+Fuente original: `TASKS.md`
 
 Desglose detallado de las 60 tareas para el perfil Small, organizadas en 10 stages.
 

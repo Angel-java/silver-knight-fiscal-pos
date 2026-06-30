@@ -3,12 +3,12 @@ type: source
 tags: [plan, small, phase-1, api, endpoints]
 created: 2026-06-30
 updated: 2026-06-30
-source: raw/planning-snapshots/small-profile-phase.md
+source: planning/small-profile-phase.md
 ---
 
 # Plan — Small Profile Phase (Detallado + API)
 
-Fuente original: `raw/planning-snapshots/small-profile-phase.md`
+Fuente original: `planning/small-profile-phase.md`
 
 Plan de ejecución detallado para Phase 1 (Small profile), incluyendo dependencias entre stages y endpoints REST.
 
