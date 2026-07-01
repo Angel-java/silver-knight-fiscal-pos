@@ -30,7 +30,7 @@ Cumplimiento de la normativa fiscal venezolana del SENIAT. Fuentes: [[architectu
 ## Relación con otros conceptos
 
 - [[fiscal-compliance]] requiere [[dual-currency]] (facturación en USD/VES)
-- [[architectural-decision-003|ADR-005]] formaliza: facturación fiscal desde el día 1
+- [[architectural-decisions|ADR-005]] formaliza: facturación fiscal desde el día 1
 - [[offline-first]] aplica: la facturación fiscal funciona sin internet
 
 ## Estado

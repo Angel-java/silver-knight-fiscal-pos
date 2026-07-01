@@ -24,7 +24,7 @@ updated: 2026-06-30
 - [[user|User]] — Operador del sistema
 
 ## Conceptos
-- [[architectural-decision-003|ADR-003: Native Dual Currency]] — Decisión formal de doble moneda
+- [[architectural-decision-003|ADR-003: Native Dual Currency]] — Decisión formal (stub, ver [[dual-currency]])
 - [[dual-currency|Dual Currency]] — Manejo nativo de USD/VES
 - [[fiscal-compliance|Fiscal Compliance (SENIAT)]] — Cumplimiento fiscal venezolano
 - [[offline-first|Offline-first]] — Arquitectura sin dependencia de internet

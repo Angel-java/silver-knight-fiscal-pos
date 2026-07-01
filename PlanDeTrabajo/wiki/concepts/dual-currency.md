@@ -25,6 +25,5 @@ Toda transacción financiera guarda **ambas monedas** con la tasa de cambio cong
 ## Relación con otros conceptos
 
 - [[dual-currency]] es requisito para [[fiscal-compliance]] (SENIAT requiere facturación en ambas monedas)
-- [[fiscal-compliance]] necesita [[dual-currency]] para emitir facturas válidas
-- [[architectural-decision-003|ADR-003]] formaliza esta decisión arquitectónica
+- [[architectural-decision-003|ADR-003]] formaliza la decisión arquitectónica que implementa dual-currency
 - [[offline-first]] no interfiere: las tasas se capturan localmente sin necesidad de API externa

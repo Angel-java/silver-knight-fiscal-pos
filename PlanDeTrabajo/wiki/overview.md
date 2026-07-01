@@ -10,34 +10,19 @@ sources: [plan-vision]
 
 **Silver Knight** es un sistema POS (Point of Sale) y facturación fiscal electrónica diseñado para el mercado venezolano. Documentado en [[plan-vision]].
 
-## Perfiles de distribución ([[roadmap]])
-
-| Perfil | Alcance | Base de datos |
-|--------|---------|---------------|
-| **Small** | Single desktop (Electron) | SQLite local |
-| **Medium** | Red local (servidor + clientes) | SQLite + sync |
-| **Big** | Multi-sucursal en la nube | PostgreSQL |
+Tres perfiles de distribución: [[roadmap|Small (single machine) → Medium (LAN) → Big (multi-sucursal)]].
 
 ## Principios arquitectónicos
 
-1. [[offline-first|Offline-first]] — el core funciona 100% sin internet
-2. **Misma lógica de negocio** — Small/Medium/Big comparten el mismo core
-3. [[dual-currency|Dual currency nativo]] — USD/VES en cada transacción
-4. [[fiscal-compliance|Facturación fiscal]] — cumplimiento SENIAT desde el día 1
-5. **Escalabilidad horizontal** — crece sin reescribir
+- [[offline-first]] — el core funciona 100% sin internet
+- [[dual-currency]] — USD/VES nativo en cada transacción
+- [[fiscal-compliance]] — cumplimiento SENIAT desde el día 1
+- Misma lógica de negocio en todos los perfiles
+- Escalabilidad horizontal sin reescribir
 
 ## Tech stack
 
-| Capa | Tecnología |
-|------|-----------|
-| Shell | Electron + Vite |
-| Frontend | React 18 + TypeScript + TailwindCSS + Radix UI |
-| Backend | Express (Node.js, embebido en Electron) |
-| DB local | SQLite via better-sqlite3 + Prisma ORM |
-| DB cloud | PostgreSQL (fase 2) |
-| Data fetching | TanStack React Query |
-| Mobile | React Native (post-Big) |
-| Sync | WebSockets + queues (post-Small) |
+Ver detalle completo en [[plan-vision]]. Resumen: Electron + Vite + React 18 + TypeScript + TailwindCSS + Radix UI + Express embebido + SQLite (Prisma ORM) → PostgreSQL en fase 2.
 
 ## Estado actual
 

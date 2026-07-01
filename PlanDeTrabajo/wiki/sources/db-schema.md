@@ -14,18 +14,18 @@ Schema completo de base de datos con 9 modelos Prisma.
 
 ## Modelos y sus páginas wiki
 
-| Modelo | Página wiki |
-|--------|-------------|
-| Company | [[company]] |
-| User | [[user]] |
+| Modelo       | Página wiki       |
+| ------------ | ----------------- |
+| Company      | [[company]]       |
+| User         | [[user]]          |
 | ExchangeRate | [[exchange-rate]] |
-| Category | [[category]] |
-| Product | [[product]] |
-| Customer | [[customer]] |
-| Invoice | [[invoice]] |
-| InvoiceItem | [[invoice-item]] |
+| Category     | [[category]]      |
+| Product      | [[product]]       |
+| Customer     | [[customer]]      |
+| Invoice      | [[invoice]]       |
+| InvoiceItem  | [[invoice-item]]  |
 | CashRegister | [[cash-register]] |
-| Setting | [[setting]] |
+| Setting      | [[setting]]       |
 
 ## Conceptos reflejados en el schema
 

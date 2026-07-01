@@ -24,3 +24,8 @@ updated: 2026-06-30
 - **Páginas creadas**: [[plan-vision]], [[roadmap]], [[tasks]], [[architectural-decisions]], [[db-schema]], [[small-profile-phase]]
 - **Páginas actualizadas**: [[index]]
 - **Notas**: Ahora cada fuente tiene su propia página en wiki/sources/ con enlaces a las entidades y conceptos que documenta
+
+## [2026-06-30] fix | Eliminar nodos duplicados en la wiki
+- **Descripción**: Se corrigieron 4 casos de duplicación — (1) architectural-decision-003.md simplificado a stub que delega en dual-currency.md, (2) referencia circular eliminada en dual-currency.md, (3) wikilink ADR-005 corregido en fiscal-compliance.md, (4) overview.md reducido eliminando tablas duplicadas de PLAN.md
+- **Páginas actualizadas**: [[architectural-decision-003]], [[dual-currency]], [[fiscal-compliance]], [[overview]], [[index]]
+- **Resultado lint**: 0 huérfanos, 0 enlaces rotos
