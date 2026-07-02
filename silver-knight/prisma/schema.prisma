@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  rif       String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  pin       String
+  role      String   @default("operator")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  date      DateTime @default(now())
+  rate      Float
+  source    String   @default("manual")
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  code          String?  @unique
+  barcode       String?  @unique
+  description   String?
+  priceUsd      Float
+  priceVes      Float
+  costUsd       Float?
+  costVes       Float?
+  ivaRate       Float    @default(16)
+  stock         Float    @default(0)
+  minStock      Float    @default(0)
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id])
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Customer {
+  id            String    @id @default(cuid())
+  name          String
+  rif           String?   @unique
+  address       String?
+  phone         String?
+  email         String?
+  creditLimitUsd Float?
+  creditLimitVes Float?
+  invoices      Invoice[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  number        String        @unique
+  controlNumber String?
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  items         InvoiceItem[]
+  totalUsd      Float
+  totalVes      Float
+  ivaUsd        Float
+  ivaVes        Float
+  currency      String        @default("USD")
+  exchangeRate  Float
+  status        String        @default("active")
+  payments      String?       // JSON string with payment methods
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId   String?
+  productName String
+  quantity    Float
+  unitPriceUsd Float
+  unitPriceVes Float
+  ivaRate     Float
+  totalUsd    Float
+  totalVes    Float
+}
+
+model CashRegister {
+  id          String    @id @default(cuid())
+  openedAt    DateTime  @default(now())
+  closedAt    DateTime?
+  openedBy    String
+  closedBy    String?
+  openingUsd  Float
+  openingVes  Float
+  closingUsd  Float?
+  closingVes  Float?
+  salesUsd    Float     @default(0)
+  salesVes    Float     @default(0)
+  isOpen      Boolean   @default(true)
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}

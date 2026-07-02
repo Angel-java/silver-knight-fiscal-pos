@@ -9,14 +9,14 @@
 
 **Objetivo**: Inicializar el proyecto con Electron + Vite + React + Express embebido + Prisma SQLite, asegurando que todo compile y corra.
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
-| 1.1.1 | Inicializar proyecto con `electron-vite` | Crear estructura base con Electron + Vite + React + TypeScript | Alta |
-| 1.1.2 | Configurar TailwindCSS + PostCSS | Estilos utilitarios listos para usar | Alta |
-| 1.1.3 | Instalar y configurar Express embebido | Servidor HTTP dentro del proceso main de Electron | Alta |
-| 1.1.4 | Configurar Prisma con SQLite | Schema inicial, migración, cliente generado | Alta |
-| 1.1.5 | Verificar que la app corre en dev | `npm run dev` debe abrir ventana con React + Express funcionando | Alta |
-| 1.1.6 | Configurar carpetas del proyecto | `electron/`, `src/`, `prisma/`, `resources/` | Media |
+| # | Tarea | Descripción | Prioridad | Estado |
+|---|-------|-------------|-----------|--------|
+| 1.1.1 | Inicializar proyecto con `electron-vite` | Crear estructura base con Electron + Vite + React + TypeScript | Alta | ✅ |
+| 1.1.2 | Configurar TailwindCSS + PostCSS | Estilos utilitarios listos para usar | Alta | ✅ |
+| 1.1.3 | Instalar y configurar Express embebido | Servidor HTTP dentro del proceso main de Electron | Alta | ✅ |
+| 1.1.4 | Configurar Prisma con SQLite | Schema inicial, migración, cliente generado | Alta | ✅ |
+| 1.1.5 | Verificar que la app corre en dev | `npm run dev` debe abrir ventana con React + Express funcionando | Alta | ✅ |
+| 1.1.6 | Configurar carpetas del proyecto | `electron/`, `src/`, `prisma/`, `resources/` | Media | ✅ |
 
 ---
 
@@ -24,19 +24,19 @@
 
 **Objetivo**: Definir el schema completo de Prisma con todas las tablas necesarias para el perfil Small.
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
-| 1.2.1 | Crear modelo `Company` | Datos de la empresa (nombre, RIF, dirección, etc.) | Alta |
-| 1.2.2 | Crear modelo `User` | Operadores del sistema (username, PIN, rol) | Alta |
-| 1.2.3 | Crear modelo `ExchangeRate` | Histórico de tasas USD/VES (fecha, valor, fuente) | Alta |
-| 1.2.4 | Crear modelo `Category` | Categorías de productos | Alta |
-| 1.2.5 | Crear modelo `Product` | Productos con precio dual, stock, código de barra | Alta |
-| 1.2.6 | Crear modelo `Customer` | Clientes con RIF, datos de contacto, límite de crédito | Alta |
-| 1.2.7 | Crear modelo `Invoice` | Facturas, NC, ND con totales duales | Alta |
-| 1.2.8 | Crear modelo `InvoiceItem` | Líneas de detalle de factura | Alta |
-| 1.2.9 | Crear modelo `CashRegister` | Apertura/cierre de caja | Alta |
-| 1.2.10 | Crear modelo `Setting` | Configuraciones clave/valor del sistema | Alta |
-| 1.2.11 | Ejecutar migración inicial | `prisma migrate dev` para crear las tablas | Alta |
+| # | Tarea | Descripción | Prioridad | Estado |
+|-------|-------|-------------|-----------|--------|
+| 1.2.1 | Crear modelo `Company` | Datos de la empresa (nombre, RIF, dirección, etc.) | Alta | ✅ |
+| 1.2.2 | Crear modelo `User` | Operadores del sistema (username, PIN, rol) | Alta | ✅ |
+| 1.2.3 | Crear modelo `ExchangeRate` | Histórico de tasas USD/VES (fecha, valor, fuente) | Alta | ✅ |
+| 1.2.4 | Crear modelo `Category` | Categorías de productos | Alta | ✅ |
+| 1.2.5 | Crear modelo `Product` | Productos con precio dual, stock, código de barra | Alta | ✅ |
+| 1.2.6 | Crear modelo `Customer` | Clientes con RIF, datos de contacto, límite de crédito | Alta | ✅ |
+| 1.2.7 | Crear modelo `Invoice` | Facturas, NC, ND con totales duales | Alta | ✅ |
+| 1.2.8 | Crear modelo `InvoiceItem` | Líneas de detalle de factura | Alta | ✅ |
+| 1.2.9 | Crear modelo `CashRegister` | Apertura/cierre de caja | Alta | ✅ |
+| 1.2.10 | Crear modelo `Setting` | Configuraciones clave/valor del sistema | Alta | ✅ |
+| 1.2.11 | Ejecutar migración inicial | `prisma migrate dev` para crear las tablas | Alta | ✅ |
 
 ---
 
@@ -173,9 +173,9 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 | Estado | Cantidad |
 |--------|----------|
-| ⏳ Pendiente | 60 |
+| ⏳ Pendiente | 43 |
 | 🔄 En progreso | 0 |
-| ✅ Completado | 0 |
+| ✅ Completado | 17 |
 | **Total** | **60** |
 
 Ver resumen en la wiki: [[tasks]]

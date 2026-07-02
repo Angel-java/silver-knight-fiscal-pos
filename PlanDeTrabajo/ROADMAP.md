@@ -6,8 +6,8 @@
 
 | Etapa | Módulo | Dependencias | Estado |
 |-------|--------|-------------|--------|
-| 1.1 | Scaffolding del proyecto | — | ⏳ Pendiente |
-| 1.2 | Base de datos (Prisma SQLite) | 1.1 | ⏳ Pendiente |
+| 1.1 | Scaffolding del proyecto | — | ✅ Completado |
+| 1.2 | Base de datos (Prisma SQLite) | 1.1 | ✅ Completado |
 | 1.3 | Autenticación local + Setup empresa | 1.2 | ⏳ Pendiente |
 | 1.4 | Módulo de productos e inventario | 1.2, 1.3 | ⏳ Pendiente |
 | 1.5 | POS (Punto de Venta) | 1.4 | ⏳ Pendiente |

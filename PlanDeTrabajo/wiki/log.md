@@ -2,7 +2,7 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-06-30
+updated: 2026-07-01
 ---
 
 # Log de operaciones — Silver Knight
@@ -29,3 +29,13 @@ updated: 2026-06-30
 - **Descripción**: Se corrigieron 4 casos de duplicación — (1) architectural-decision-003.md simplificado a stub que delega en dual-currency.md, (2) referencia circular eliminada en dual-currency.md, (3) wikilink ADR-005 corregido en fiscal-compliance.md, (4) overview.md reducido eliminando tablas duplicadas de PLAN.md
 - **Páginas actualizadas**: [[architectural-decision-003]], [[dual-currency]], [[fiscal-compliance]], [[overview]], [[index]]
 - **Resultado lint**: 0 huérfanos, 0 enlaces rotos
+
+## [2026-07-01] build | Etapa 1.1 y 1.2 completadas
+- **Descripción**: Scaffolding del proyecto completado — Electron + Vite + React + TypeScript + TailwindCSS + Express embebido + Prisma SQLite
+- **Páginas actualizadas**: [[tasks]], [[roadmap]], [[index]], [[log]]
+- **Archivos creados**:
+  - `silver-knight/src/main/server/index.ts` — Servidor Express embebido
+  - `silver-knight/src/main/database/prisma.ts` — Cliente Prisma singleton
+  - `silver-knight/prisma/schema.prisma` — Schema con 10 modelos (Company, User, ExchangeRate, Category, Product, Customer, Invoice, InvoiceItem, CashRegister, Setting)
+- **Detalle**: Proyecto inicializado con `npm create @quick-start/electron` (template react-ts). Express en puerto 3001 dentro del proceso main. Migración Prisma ejecutada (`prisma/migrations/`). Tailwind v3 con PostCSS. Build y typecheck pasan limpios.
+- **Tareas completadas**: 17 de 60 (Etapa 1.1 y 1.2)
