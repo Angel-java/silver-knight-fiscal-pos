@@ -78,15 +78,14 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 | # | Tarea | Descripción | Prioridad |
 |---|-------|-------------|-----------|
-| 1.5.1 | Interfaz POS principal | Layout tipo POS: productos a la izquierda, carrito a la derecha | Alta |
-| 1.5.2 | Buscador rápido de productos | Buscar por código, nombre o escáner (input enfocado) | Alta |
-| 1.5.3 | Carrito de compras | Agregar/quitar items, modificar cantidad, ver subtotal | Alta |
-| 1.5.4 | Selector de moneda (USD/VES) | Elegir moneda de la factura, mostrar totales en ambas | Alta |
-| 1.5.5 | Cálculo de IVA | Porcentaje de IVA por producto, subtotal IVA 0 e IVA | Alta |
-| 1.5.6 | Selector rápido de cliente | Buscar cliente o crear uno rápido desde el POS | Alta |
-| 1.5.7 | Métodos de pago | Efectivo (USD/VES), transferencia, punto de venta, mixto | Alta |
-| 1.5.8 | Cálculo de vuelto | Calcular vuelto en la moneda de la factura | Alta |
-| 1.5.9 | Finalizar factura | Guardar factura, generar número de control, imprimir | Alta |
+| 1.5.1 | Interfaz POS principal | Layout tipo POS: productos a la izquierda, carrito a la derecha | Alta | ✅ |
+| 1.5.2 | Buscador rápido de productos | Buscar por código, nombre o escáner (input enfocado) | Alta | ✅ |
+| 1.5.3 | Carrito de compras | Agregar/quitar items, modificar cantidad, ver subtotal | Alta | ✅ |
+| 1.5.4 | Selector de moneda (USD/VES) | Elegir moneda de la factura, mostrar totales en ambas | Alta | ✅ |
+| 1.5.5 | Cálculo de IVA | Porcentaje de IVA por producto, subtotal IVA 0 e IVA | Alta | ✅ |
+| 1.5.7 | Métodos de pago | Efectivo (USD/VES), transferencia, punto de venta, mixto | Alta | ✅ |
+| 1.5.8 | Cálculo de vuelto | Calcular vuelto en la moneda de la factura | Alta | ✅ |
+| 1.5.9 | Finalizar factura | Guardar factura, generar número de control, imprimir | Alta | ✅ |
 | 1.5.10 | Historial de facturas del POS | Últimas facturas creadas, opción de reimprimir | Media |
 
 ---
@@ -173,9 +172,9 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 | Estado | Cantidad |
 |--------|----------|
-| ⏳ Pendiente | 29 |
+| ⏳ Pendiente | 22 |
 | 🔄 En progreso | 0 |
-| ✅ Completado | 31 |
+| ✅ Completado | 38 |
 | **Total** | **60** |
 
 Ver resumen en la wiki: [[tasks]]

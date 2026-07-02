@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
 import CategoriesPage from './pages/CategoriesPage'
 import SettingsPage from './pages/SettingsPage'
+import POSPage from './pages/POSPage'
 
 function App(): React.JSX.Element {
   const { user, company, loading } = useAuth()
@@ -41,6 +42,7 @@ function App(): React.JSX.Element {
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/categories" element={<CategoriesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/pos" element={<POSPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

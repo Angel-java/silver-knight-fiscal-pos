@@ -67,6 +67,59 @@ export interface ProductInput {
   categoryId?: string | null
 }
 
+export interface Customer {
+  id: string
+  name: string
+  rif: string | null
+  address: string | null
+  phone: string | null
+}
+
+export interface InvoiceItem {
+  id: string
+  productId: string | null
+  productName: string
+  quantity: number
+  unitPriceUsd: number
+  unitPriceVes: number
+  ivaRate: number
+  totalUsd: number
+  totalVes: number
+}
+
+export interface Invoice {
+  id: string
+  number: string
+  controlNumber: string | null
+  customerId: string | null
+  customer: Customer | null
+  items: InvoiceItem[]
+  totalUsd: number
+  totalVes: number
+  ivaUsd: number
+  ivaVes: number
+  currency: string
+  exchangeRate: number
+  status: string
+  payments: string | null
+  createdAt: string
+}
+
+export interface InvoiceInput {
+  customerId?: string | null
+  items: Array<{
+    productId?: string
+    productName: string
+    quantity: number
+    unitPriceUsd: number
+    unitPriceVes: number
+    ivaRate: number
+  }>
+  currency: string
+  exchangeRate: number
+  payments?: Array<{ method: string; amount: number; currency: string }>
+}
+
 export const api = {
   login: (username: string, pin: string) =>
     request<{ token: string; user: User }>('/auth/login', {
@@ -143,6 +196,16 @@ export const api = {
       request<{ setting: { id: string; key: string; value: string } }>(`/settings/${key}`, {
         method: 'PUT',
         body: JSON.stringify({ value })
+      })
+  },
+
+  invoices: {
+    list: () => request<{ invoices: Invoice[] }>('/invoices'),
+
+    create: (data: InvoiceInput) =>
+      request<{ invoice: Invoice }>('/invoices', {
+        method: 'POST',
+        body: JSON.stringify(data)
       })
   },
 

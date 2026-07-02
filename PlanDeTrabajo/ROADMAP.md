@@ -10,7 +10,7 @@
 | 1.2 | Base de datos (Prisma SQLite) | 1.1 | ✅ Completado |
 | 1.3 | Autenticación local + Setup empresa | 1.2 | ✅ Completado |
 | 1.4 | Módulo de productos e inventario | 1.2, 1.3 | ✅ Completado |
-| 1.5 | POS (Punto de Venta) | 1.4 | ⏳ Pendiente |
+| 1.5 | POS (Punto de Venta) | 1.4 | 🔄 En progreso |
 | 1.6 | Módulo de clientes | 1.2 | ⏳ Pendiente |
 | 1.7 | Facturación fiscal (SENIAT) | 1.5, 1.6 | ⏳ Pendiente |
 | 1.8 | Reportes básicos + Dashboard | 1.5 | ⏳ Pendiente |

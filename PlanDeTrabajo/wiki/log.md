@@ -68,3 +68,9 @@ updated: 2026-07-01
 - **Archivos creados**: `src/main/server/routes/settings.ts`
 - **Archivos modificados**: `App.tsx`, `DashboardPage.tsx`, `ProductFormPage.tsx`, `ProductsPage.tsx`, `SettingsPage.tsx`, `api.ts`, `server/index.ts`
 - **Tareas completadas**: 31 de 60 (Etapas 1.1 a 1.4 + 1.9.1)
+
+## [2026-07-01] build | Etapa 1.5 — POS (Punto de Venta)
+- **Descripción**: Interfaz POS completa con buscador de productos, carrito, selector de moneda USD/VES, cálculo de IVA, métodos de pago (efectivo/transferencia/punto/mixto), cálculo de vuelto, finalización de factura con descuento de stock y generación de número secuencial
+- **Archivos creados**: `src/main/server/routes/invoices.ts`, `src/renderer/src/pages/POSPage.tsx`
+- **Archivos modificados**: `server/index.ts`, `App.tsx`, `api.ts`
+- **Tareas completadas**: 38 de 60 (Etapas 1.1 a 1.5 parcial + 1.9.1)

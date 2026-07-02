@@ -6,6 +6,7 @@ import categoriesRoutes from './routes/categories'
 import productsRoutes from './routes/products'
 import exchangeRatesRoutes from './routes/exchangeRates'
 import settingsRoutes from './routes/settings'
+import invoicesRoutes from './routes/invoices'
 
 export function createServer(): ReturnType<typeof express> {
   const app = express()
@@ -23,6 +24,7 @@ export function createServer(): ReturnType<typeof express> {
   app.use('/api/products', productsRoutes)
   app.use('/api/exchange-rates', exchangeRatesRoutes)
   app.use('/api/settings', settingsRoutes)
+  app.use('/api/invoices', invoicesRoutes)
 
   return app
 }
