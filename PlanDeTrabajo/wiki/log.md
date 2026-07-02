@@ -39,3 +39,32 @@ updated: 2026-07-01
   - `silver-knight/prisma/schema.prisma` — Schema con 10 modelos (Company, User, ExchangeRate, Category, Product, Customer, Invoice, InvoiceItem, CashRegister, Setting)
 - **Detalle**: Proyecto inicializado con `npm create @quick-start/electron` (template react-ts). Express en puerto 3001 dentro del proceso main. Migración Prisma ejecutada (`prisma/migrations/`). Tailwind v3 con PostCSS. Build y typecheck pasan limpios.
 - **Tareas completadas**: 17 de 60 (Etapa 1.1 y 1.2)
+
+## [2026-07-01] build | Etapa 1.3 completada — Auth + Setup
+- **Descripción**: Sistema de autenticación local con JWT + login con PIN, wizard de primer uso (empresa + admin), dashboard placeholder con navegación
+- **Archivos creados**:
+  - `src/main/server/routes/auth.ts` — Endpoints POST /login, POST /setup, GET /me, GET /company
+  - `src/main/server/middleware/auth.ts` — JWT middleware + generación de tokens
+  - `src/renderer/src/contexts/AuthContext.tsx` — Contexto de sesión global
+  - `src/renderer/src/lib/api.ts` — Cliente API con fetch
+  - `src/renderer/src/pages/LoginPage.tsx` — Pantalla de login con username + PIN
+  - `src/renderer/src/pages/SetupWizardPage.tsx` — Wizard de 2 pasos (empresa → admin)
+  - `src/renderer/src/pages/DashboardPage.tsx` — Dashboard con menú y resumen
+- **Dependencias**: react-router-dom, @tanstack/react-query, bcryptjs, jsonwebtoken
+- **Tareas completadas**: 23 de 60 (Etapas 1.1, 1.2, 1.3)
+
+## [2026-07-01] build | Etapa 1.4 completada — Productos e Inventario
+- **Descripción**: CRUD completo de categorías y productos con búsqueda, stock con alerta de mínimo, ajustes de inventario
+- **Archivos creados**:
+  - `src/main/server/routes/categories.ts` — API CRUD de categorías
+  - `src/main/server/routes/products.ts` — API CRUD de productos + ajuste de stock
+  - `src/renderer/src/pages/CategoriesPage.tsx` — Gestión de categorías con modal
+  - `src/renderer/src/pages/ProductsPage.tsx` — Lista con búsqueda, paginación, stock, ajuste
+  - `src/renderer/src/pages/ProductFormPage.tsx` — Formulario con precio dual, costo, IVA, categoría
+- **Tareas completadas**: 30 de 60 (Etapas 1.1 a 1.4)
+
+## [2026-07-01] build | Mejoras en Settings, costos y UI
+- **Descripción**: API de settings (GET/PUT /api/settings), margen de ganancia configurable en SettingsPage, auto-cálculo de precio desde costo + margen en ProductFormPage, reorden de campos (costo antes que precio), reemplazo de emojis rotos por SVGs en Dashboard y ProductsPage, fix de teclado numérico (type="number" → text+inputMode)
+- **Archivos creados**: `src/main/server/routes/settings.ts`
+- **Archivos modificados**: `App.tsx`, `DashboardPage.tsx`, `ProductFormPage.tsx`, `ProductsPage.tsx`, `SettingsPage.tsx`, `api.ts`, `server/index.ts`
+- **Tareas completadas**: 31 de 60 (Etapas 1.1 a 1.4 + 1.9.1)

@@ -44,14 +44,14 @@
 
 **Objetivo**: Pantalla de login, creación del primer usuario, wizard de configuración inicial de la empresa.
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
-| 1.3.1 | Pantalla de login | Login con username + PIN/contraseña | Alta |
-| 1.3.2 | Protección de rutas | Redirección si no hay sesión activa | Alta |
-| 1.3.3 | Wizard de primer uso | Detectar si hay empresa creada, si no → wizard | Alta |
-| 1.3.4 | Formulario de datos de empresa | Nombre, RIF, dirección, teléfono, moneda por defecto | Alta |
-| 1.3.5 | Creación de usuario admin inicial | Primer usuario con rol admin | Alta |
-| 1.3.6 | Página de Dashboard (placeholder) | Pantalla principal con menú de navegación | Media |
+| # | Tarea | Descripción | Prioridad | Estado |
+|-------|-------|-------------|-----------|--------|
+| 1.3.1 | Pantalla de login | Login con username + PIN/contraseña | Alta | ✅ |
+| 1.3.2 | Protección de rutas | Redirección si no hay sesión activa | Alta | ✅ |
+| 1.3.3 | Wizard de primer uso | Detectar si hay empresa creada, si no → wizard | Alta | ✅ |
+| 1.3.4 | Formulario de datos de empresa | Nombre, RIF, dirección, teléfono, moneda por defecto | Alta | ✅ |
+| 1.3.5 | Creación de usuario admin inicial | Primer usuario con rol admin | Alta | ✅ |
+| 1.3.6 | Página de Dashboard (placeholder) | Pantalla principal con menú de navegación | Media | ✅ |
 
 ---
 
@@ -59,15 +59,15 @@
 
 **Objetivo**: CRUD completo de productos, categorías, búsqueda y control de stock.
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
-| 1.4.1 | CRUD de categorías | Listar, crear, editar, eliminar categorías | Alta |
-| 1.4.2 | CRUD de productos | Formulario completo con precio dual, costo, IVA, stock | Alta |
-| 1.4.3 | Lista de productos con búsqueda | Buscar por nombre, código, código de barra | Alta |
-| 1.4.4 | Asignar código de barra a producto | Campo opcional de código de barras | Media |
-| 1.4.5 | Control de stock básico | Mostrar stock disponible, alerta de stock mínimo | Alta |
-| 1.4.6 | Ajustes de inventario | Entrada/salida manual de productos (ajuste por conteo) | Media |
-| 1.4.7 | API REST de productos | Endpoints CRUD en Express para productos | Alta |
+| # | Tarea | Descripción | Prioridad | Estado |
+|-------|-------|-------------|-----------|--------|
+| 1.4.1 | CRUD de categorías | Listar, crear, editar, eliminar categorías | Alta | ✅ |
+| 1.4.2 | CRUD de productos | Formulario completo con precio dual, costo, IVA, stock | Alta | ✅ |
+| 1.4.3 | Lista de productos con búsqueda | Buscar por nombre, código, código de barra | Alta | ✅ |
+| 1.4.4 | Asignar código de barra a producto | Campo opcional de código de barras | Media | ✅ |
+| 1.4.5 | Control de stock básico | Mostrar stock disponible, alerta de stock mínimo | Alta | ✅ |
+| 1.4.6 | Ajustes de inventario | Entrada/salida manual de productos (ajuste por conteo) | Media | ✅ |
+| 1.4.7 | API REST de productos | Endpoints CRUD en Express para productos | Alta | ✅ |
 
 ---
 
@@ -146,7 +146,7 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 | # | Tarea | Descripción | Prioridad |
 |---|-------|-------------|-----------|
-| 1.9.1 | Gestión de tasa de cambio | Ingreso manual de tasa USD/VES | Alta |
+| 1.9.1 | Gestión de tasa de cambio | Ingreso manual de tasa USD/VES | Alta | ✅ |
 | 1.9.2 | Auto-obtener tasa BCV | Fetch automático desde el portal del BCV | Alta |
 | 1.9.3 | Configuración de impresora térmica | Seleccionar impresora, ancho de papel, encabezado/pie | Alta |
 | 1.9.4 | Configuración del perfil | Seleccionar Small/Medium/Big (solo Small por ahora) | Media |
@@ -173,9 +173,9 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 | Estado | Cantidad |
 |--------|----------|
-| ⏳ Pendiente | 43 |
+| ⏳ Pendiente | 29 |
 | 🔄 En progreso | 0 |
-| ✅ Completado | 17 |
+| ✅ Completado | 31 |
 | **Total** | **60** |
 
 Ver resumen en la wiki: [[tasks]]

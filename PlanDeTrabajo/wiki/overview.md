@@ -26,7 +26,6 @@ Ver detalle completo en [[plan-vision]]. Resumen: Electron + Vite + React 18 + T
 
 ## Estado actual
 
-- **Fase**: Planificación pre-desarrollo
-- **Documentos**: Plan de trabajo completo (PlanDeTrabajo/)
-- **Tareas**: 60 tareas definidas para Phase 1 (Small), todas pendientes
-- **Próximo paso**: [[company|Configuración de empresa]], [[user|usuarios]], y scaffolding del proyecto (Electron + Vite + React + Express + Prisma)
+- **Fase**: Desarrollo activo — Etapas 1.1 a 1.4 + 1.9.1 completadas
+- **Tareas**: 31/60 completadas
+- **Próximo paso**: [[pos|Etapa 1.5 — POS (Punto de Venta)]]
