@@ -2,7 +2,7 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-07-01
+updated: 2026-07-02
 ---
 
 # Log de operaciones — Silver Knight
@@ -74,3 +74,51 @@ updated: 2026-07-01
 - **Archivos creados**: `src/main/server/routes/invoices.ts`, `src/renderer/src/pages/POSPage.tsx`
 - **Archivos modificados**: `server/index.ts`, `App.tsx`, `api.ts`
 - **Tareas completadas**: 38 de 60 (Etapas 1.1 a 1.5 parcial + 1.9.1)
+
+## [2026-07-02] build | Etapa 1.7 completada — Facturación Fiscal SENIAT
+- **Descripción**: Implementación completa de requisitos fiscales venezolanos. Migración de DB con modelo FiscalControl + campos fiscales en Invoice. Numeración por talonario con control SECUENCIAL. Generación de número CF (Comprobante Fiscal) con formato SENIAT. Soporte para Factura, Nota de Crédito y Nota de Débito. Anulación de facturas con restitución de stock y registro de motivo. Libros IVA de Ventas y Compras con filtro por período. Vista de factura con todos los datos fiscales (número CF, resolución, RIFs). Página de gestión de talonarios en Ajustes.
+- **Archivos creados**:
+  - `prisma/migrations/20260702232936_add_fiscal_control/` — Migración: modelo FiscalControl + campos documentType, cancelReason, cancelledAt, fiscalControlId en Invoice
+  - `src/main/server/routes/fiscalControl.ts` — API CRUD de talonarios + auto-creación de default
+  - `src/main/server/routes/ivaBooks.ts` — API libros IVA de Ventas y Compras
+  - `src/renderer/src/pages/FiscalControlPage.tsx` — Gestión de talonarios
+  - `src/renderer/src/pages/IvaBooksPage.tsx` — Consulta de libros IVA
+- **Archivos modificados**: `schema.prisma`, `invoices.ts`, `server/index.ts`, `api.ts`, `InvoiceViewPage.tsx`, `App.tsx`, `SettingsPage.tsx`, `TASKS.md`, `overview.md`, `index.md`
+- **Tareas completadas**: 51 de 60 (Etapas 1.1 a 1.7 + 1.9.1)
+
+## [2026-07-02] build | Etapa 1.6 completada — Módulo de Clientes
+- **Descripción**: CRUD completo de clientes con datos fiscales (RIF), historial de compras por cliente, límites de crédito USD/VES. Integración con POS para seleccionar cliente en tiempo real. Menú Clientes restaurado en el Dashboard.
+- **Archivos creados**:
+  - `src/main/server/routes/customers.ts` — API CRUD con búsqueda, paginación, validación de duplicados
+  - `src/renderer/src/pages/CustomersPage.tsx` — Lista con búsqueda, modal de crear/editar, detalle con historial de facturas
+- **Archivos modificados**: `server/index.ts`, `api.ts`, `App.tsx`, `DashboardPage.tsx`, `POSPage.tsx`, `TASKS.md`, `overview.md`, `index.md`
+- **Tareas completadas**: 42 de 60 (Etapas 1.1 a 1.6 + 1.9.1)
+
+## [2026-07-02] fix | Mantenimiento — menús rotos y wiki desactualizada
+- **Descripción**: Se removieron los enlaces del Dashboard a "Clientes" y "Reportes" que navegaban a rutas inexistentes (caían en redirect al inicio). Se actualizó overview.md (31→38 tareas) e index.md.
+- **Archivos modificados**: `DashboardPage.tsx`, `overview.md`, `index.md`
+- **Notas**: Clientes (etapa 1.6) y Reportes (etapa 1.8) se agregarán de vuelta al menú cuando se implementen sus respectivos módulos.
+
+## [2026-07-02] build | Etapa 1.8 completada — Reportes y Dashboard
+- **Descripción**: Implementación completa de reportes con 5 tabs (Ventas Diarias, Ventas por Período, Inventario, Top Productos, Cierre de Caja) con datos en tiempo real desde la API. ReportsPage con tabla de facturas navegable, desglose por método de pago, filtros de fecha, y botón Imprimir/PDF. Reportes API endpoints creados en ruta `/reports`. Menú Reportes restaurado en DashboardPage.
+- **Archivos creados**:
+  - `src/main/server/routes/reports.ts` — 5 endpoints: sales-daily, sales-range, inventory, top-products, cash-close
+  - `src/renderer/src/pages/ReportsPage.tsx` — UI completa con 5 tabs, summaries, tablas de datos
+- **Archivos modificados**: `server/index.ts`, `api.ts`, `App.tsx`, `DashboardPage.tsx`, `TASKS.md`, `overview.md`, `index.md`
+- **Tareas completadas**: 58 de 60 (Etapas 1.1 a 1.8 + 1.9.1)
+
+## [2026-07-02] build | Etapa 1.9 completada — Configuración del Sistema
+- **Descripción**: Implementación completa de la configuración del sistema. BCV auto-fetch (POST /api/exchange-rates/bcv con parser HTML). Configuración de impresión (ancho de papel, encabezado/pie). Selector de perfil Small/Medium/Big. Edición de datos de empresa (PUT /api/auth/company). Gestión de usuarios (CRUD completo con ruta /api/users y página UsersPage con tabla, crear/editar modal, activar/desactivar).
+- **Archivos creados**:
+  - `src/main/server/routes/users.ts` — API CRUD de usuarios (list, create, update con cambio de PIN/rol/estado)
+  - `src/renderer/src/pages/UsersPage.tsx` — UI completa con tabla, modal de crear/editar, toggle activo/inactivo
+- **Archivos modificados**: `exchangeRates.ts` (BCV fetch + parser), `auth.ts` (PUT /company), `server/index.ts`, `api.ts`, `SettingsPage.tsx`, `App.tsx`, `DashboardPage.tsx`, `TASKS.md`, `overview.md`, `index.md`
+- **Tareas completadas**: 64 de 70 (Etapas 1.1 a 1.9)
+
+## [2026-07-02] build | Etapa 1.10 completada — Impresión Térmica + Fase 1 terminada
+- **Descripción**: Implementación completa de impresión térmica ESC/POS. Generación de comandos ESC/POS raw con formato de ticket fiscal (encabezado, items, totales, IVA, desglose por moneda, métodos de pago, corte de papel). Comunicación con impresora vía `lp` (Linux/macOS). API de listado de impresoras (`lpstat`). Vista previa del ticket en modal con tipografía mono. Reimpresión desde InvoiceViewPage. Prueba de impresión en SettingsPage con selección de impresora.
+- **Archivos creados**:
+  - `src/main/server/printer.ts` — Generador ESC/POS (`buildThermalTicket`) + comunicación (`printRaw`, `printInvoice`, `getAvailablePrinters`)
+  - `src/main/server/routes/print.ts` — API endpoints: GET /printers, POST /invoice/:id
+- **Archivos modificados**: `server/index.ts`, `api.ts`, `InvoiceViewPage.tsx`, `SettingsPage.tsx`, `TASKS.md`, `overview.md`, `index.md`
+- **Tareas completadas**: 70 de 70 — **Fase 1 Small Profile terminada** 🎉

@@ -73,6 +73,11 @@ export interface Customer {
   rif: string | null
   address: string | null
   phone: string | null
+  email: string | null
+  creditLimitUsd: number | null
+  creditLimitVes: number | null
+  invoices?: Invoice[]
+  createdAt: string
 }
 
 export interface InvoiceItem {
@@ -87,12 +92,29 @@ export interface InvoiceItem {
   totalVes: number
 }
 
+export interface FiscalControl {
+  id: string
+  documentType: string
+  resolution: string
+  prefix: string
+  startNumber: number
+  endNumber: number
+  currentNumber: number
+  isActive: boolean
+  issuedAt: string
+}
+
 export interface Invoice {
   id: string
   number: string
+  documentType: string
   controlNumber: string | null
+  fiscalControlId: string | null
+  fiscalControl: FiscalControl | null
   customerId: string | null
   customer: Customer | null
+  cancelReason: string | null
+  cancelledAt: string | null
   items: InvoiceItem[]
   totalUsd: number
   totalVes: number
@@ -117,6 +139,7 @@ export interface InvoiceInput {
   }>
   currency: string
   exchangeRate: number
+  documentType?: string
   payments?: Array<{ method: string; amount: number; currency: string }>
 }
 
@@ -127,7 +150,10 @@ export const api = {
       body: JSON.stringify({ username, pin })
     }),
 
-  setup: (company: { name: string; rif: string; address?: string; phone?: string; email?: string }, adminUser: { username: string; pin: string }) =>
+  setup: (
+    company: { name: string; rif: string; address?: string; phone?: string; email?: string },
+    adminUser: { username: string; pin: string }
+  ) =>
     request<{ token: string; user: User; company: Company }>('/auth/setup', {
       method: 'POST',
       body: JSON.stringify({ company, adminUser })
@@ -154,8 +180,7 @@ export const api = {
         body: JSON.stringify(data)
       }),
 
-    delete: (id: string) =>
-      request<{ ok: boolean }>(`/categories/${id}`, { method: 'DELETE' })
+    delete: (id: string) => request<{ ok: boolean }>(`/categories/${id}`, { method: 'DELETE' })
   },
 
   products: {
@@ -165,7 +190,9 @@ export const api = {
       if (params?.category) q.set('category', params.category)
       if (params?.page) q.set('page', String(params.page))
       const qs = q.toString()
-      return request<{ products: Product[]; total: number; page: number; pages: number }>(`/products${qs ? '?' + qs : ''}`)
+      return request<{ products: Product[]; total: number; page: number; pages: number }>(
+        `/products${qs ? '?' + qs : ''}`
+      )
     },
 
     get: (id: string) => request<{ product: Product }>(`/products/${id}`),
@@ -200,22 +227,267 @@ export const api = {
   },
 
   invoices: {
-    list: () => request<{ invoices: Invoice[] }>('/invoices'),
+    list: (params?: { documentType?: string; status?: string; search?: string; page?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.documentType) q.set('documentType', params.documentType)
+      if (params?.status) q.set('status', params.status)
+      if (params?.search) q.set('search', params.search)
+      if (params?.page) q.set('page', String(params.page))
+      const qs = q.toString()
+      return request<{ invoices: Invoice[]; total: number; page: number; pages: number }>(
+        `/invoices${qs ? '?' + qs : ''}`
+      )
+    },
+
+    get: (id: string) => request<{ invoice: Invoice }>(`/invoices/${id}`),
 
     create: (data: InvoiceInput) =>
       request<{ invoice: Invoice }>('/invoices', {
         method: 'POST',
         body: JSON.stringify(data)
+      }),
+
+    cancel: (id: string, reason: string) =>
+      request<{ invoice: Invoice }>(`/invoices/${id}/cancel`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason })
       })
   },
 
+  fiscalControl: {
+    list: () => request<{ controls: FiscalControl[] }>('/fiscal-control'),
+
+    create: (data: {
+      documentType: string
+      resolution: string
+      prefix?: string
+      startNumber?: number
+      endNumber?: number
+      issuedAt?: string
+    }) =>
+      request<{ control: FiscalControl }>('/fiscal-control', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    update: (id: string, data: Partial<{
+      resolution: string
+      prefix: string
+      startNumber: number
+      endNumber: number
+      issuedAt: string
+      isActive: boolean
+    }>) =>
+      request<{ control: FiscalControl }>(`/fiscal-control/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      })
+  },
+
+  iva: {
+    ventas: (from?: string, to?: string) => {
+      const q = new URLSearchParams()
+      if (from) q.set('from', from)
+      if (to) q.set('to', to)
+      const qs = q.toString()
+      return request<{
+        invoices: Invoice[]
+        summary: { totalUsd: number; totalVes: number; ivaUsd: number; ivaVes: number; count: number }
+      }>(`/iva/ventas${qs ? '?' + qs : ''}`)
+    },
+
+    compras: (from?: string, to?: string) => {
+      const q = new URLSearchParams()
+      if (from) q.set('from', from)
+      if (to) q.set('to', to)
+      const qs = q.toString()
+      return request<{ invoices: Invoice[]; summary: { count: number } }>(
+        `/iva/compras${qs ? '?' + qs : ''}`
+      )
+    }
+  },
+
+  dashboard: {
+    summary: () =>
+      request<{
+        summary: {
+          invoicesCount: number
+          totalUsd: number
+          totalVes: number
+          ivaUsd: number
+          ivaVes: number
+          productsSold: number
+        }
+      }>('/dashboard/summary')
+  },
+
+  customers: {
+    list: (params?: { search?: string; page?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      if (params?.page) q.set('page', String(params.page))
+      const qs = q.toString()
+      return request<{ customers: Customer[]; total: number; page: number; pages: number }>(
+        `/customers${qs ? '?' + qs : ''}`
+      )
+    },
+
+    get: (id: string) => request<{ customer: Customer }>(`/customers/${id}`),
+
+    create: (data: {
+      name: string
+      rif?: string
+      address?: string
+      phone?: string
+      email?: string
+      creditLimitUsd?: number
+      creditLimitVes?: number
+    }) =>
+      request<{ customer: Customer }>('/customers', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    update: (
+      id: string,
+      data: {
+        name: string
+        rif?: string | null
+        address?: string | null
+        phone?: string | null
+        email?: string | null
+        creditLimitUsd?: number | null
+        creditLimitVes?: number | null
+      }
+    ) =>
+      request<{ customer: Customer }>(`/customers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      }),
+
+    delete: (id: string) => request<{ ok: boolean }>(`/customers/${id}`, { method: 'DELETE' })
+  },
+
+  reports: {
+    salesDaily: () =>
+      request<{
+        invoices: Invoice[]
+        summary: {
+          totalUsd: number; totalVes: number; ivaUsd: number; ivaVes: number
+          productsSold: number; count: number
+          paymentsBreakdown: Record<string, { usd: number; ves: number }>
+        }
+      }>('/reports/sales-daily'),
+
+    salesRange: (from: string, to: string) => {
+      const q = new URLSearchParams()
+      q.set('from', from); q.set('to', to)
+      return request<{
+        invoices: Invoice[]
+        summary: {
+          totalUsd: number; totalVes: number; ivaUsd: number; ivaVes: number
+          productsSold: number; count: number; cancelledCount: number
+          usdInvoices: number; vesInvoices: number
+        }
+      }>(`/reports/sales-range?${q.toString()}`)
+    },
+
+    inventory: () =>
+      request<{
+        products: Product[]
+        summary: {
+          totalProducts: number; totalValueUsd: number; totalValueVes: number
+          totalPriceUsd: number; totalPriceVes: number
+          lowStockCount: number; outOfStockCount: number
+        }
+      }>('/reports/inventory'),
+
+    topProducts: (from?: string, to?: string, limit?: number) => {
+      const q = new URLSearchParams()
+      if (from) q.set('from', from)
+      if (to) q.set('to', to)
+      if (limit) q.set('limit', String(limit))
+      const qs = q.toString()
+      return request<{
+        top: Array<{ productId: string | null; productName: string; quantity: number; totalUsd: number; totalVes: number }>
+        summary: { totalQty: number; totalUsd: number; count: number }
+      }>(`/reports/top-products${qs ? '?' + qs : ''}`)
+    },
+
+    cashClose: (date?: string) =>
+      request<{
+        date: string
+        invoices: Invoice[]
+        summary: {
+          totalUsd: number; totalVes: number
+          count: number; cancelledCount: number
+          paymentsBreakdown: Record<string, { usd: number; ves: number; count: number }>
+        }
+      }>(`/reports/cash-close${date ? '?date=' + date : ''}`)
+  },
+
   exchangeRates: {
-    getLatest: () => request<{ rate: { id: string; rate: number; source: string; date: string } | null }>('/exchange-rates?latest=true'),
+    getLatest: () =>
+      request<{
+        rate: { id: string; rate: number; source: string; date: string } | null
+      }>('/exchange-rates?latest=true'),
 
     create: (rate: number, source?: string) =>
-      request<{ rate: { id: string; rate: number; source: string; date: string } }>('/exchange-rates', {
-        method: 'POST',
-        body: JSON.stringify({ rate, source })
+      request<{ rate: { id: string; rate: number; source: string; date: string } }>(
+        '/exchange-rates',
+        {
+          method: 'POST',
+          body: JSON.stringify({ rate, source })
+        }
+      ),
+
+    fetchBcv: () =>
+      request<{ rate: { id: string; rate: number; source: string; date: string } }>(
+        '/exchange-rates/bcv',
+        { method: 'POST' }
+      )
+  },
+
+  company: {
+    get: () => request<{ company: Company | null }>('/auth/company'),
+
+    update: (data: {
+      name: string
+      rif: string
+      address?: string | null
+      phone?: string | null
+      email?: string | null
+    }) =>
+      request<{ company: Company }>('/auth/company', {
+        method: 'PUT',
+        body: JSON.stringify(data)
       })
+  },
+
+  users: {
+    list: () =>
+      request<{
+        users: Array<{ id: string; username: string; role: string; isActive: boolean; createdAt: string }>
+      }>('/users'),
+
+    create: (data: { username: string; pin: string; role?: string }) =>
+      request<{
+        user: { id: string; username: string; role: string; isActive: boolean }
+      }>('/users', { method: 'POST', body: JSON.stringify(data) }),
+
+    update: (
+      id: string,
+      data: { username?: string; pin?: string; role?: string; isActive?: boolean }
+    ) =>
+      request<{
+        user: { id: string; username: string; role: string; isActive: boolean }
+      }>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+
+  print: {
+    listPrinters: () => request<{ printers: string[] }>('/print/printers'),
+
+    invoice: (id: string) =>
+      request<{ ok: boolean }>(`/print/invoice/${id}`, { method: 'POST' })
   }
 }

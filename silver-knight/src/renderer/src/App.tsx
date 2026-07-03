@@ -5,8 +5,14 @@ import SetupWizardPage from './pages/SetupWizardPage'
 import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
 import CategoriesPage from './pages/CategoriesPage'
+import CustomersPage from './pages/CustomersPage'
 import SettingsPage from './pages/SettingsPage'
+import FiscalControlPage from './pages/FiscalControlPage'
+import IvaBooksPage from './pages/IvaBooksPage'
+import ReportsPage from './pages/ReportsPage'
+import UsersPage from './pages/UsersPage'
 import POSPage from './pages/POSPage'
+import InvoiceViewPage from './pages/InvoiceViewPage'
 
 function App(): React.JSX.Element {
   const { user, company, loading } = useAuth()
@@ -41,8 +47,14 @@ function App(): React.JSX.Element {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/categories" element={<CategoriesPage />} />
+        <Route path="/customers" element={<CustomersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/fiscal-control" element={<FiscalControlPage />} />
+        <Route path="/iva" element={<IvaBooksPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/users" element={<UsersPage />} />
         <Route path="/pos" element={<POSPage />} />
+        <Route path="/invoices/:id" element={<InvoiceViewPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

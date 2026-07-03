@@ -7,6 +7,14 @@ import productsRoutes from './routes/products'
 import exchangeRatesRoutes from './routes/exchangeRates'
 import settingsRoutes from './routes/settings'
 import invoicesRoutes from './routes/invoices'
+import dashboardRoutes from './routes/dashboard'
+import customersRoutes from './routes/customers'
+import fiscalControlRoutes from './routes/fiscalControl'
+import ivaBooksRoutes from './routes/ivaBooks'
+import reportsRoutes from './routes/reports'
+import usersRoutes from './routes/users'
+import printRoutes from './routes/print'
+import { startBcvScheduler } from './scheduler'
 
 export function createServer(): ReturnType<typeof express> {
   const app = express()
@@ -25,6 +33,15 @@ export function createServer(): ReturnType<typeof express> {
   app.use('/api/exchange-rates', exchangeRatesRoutes)
   app.use('/api/settings', settingsRoutes)
   app.use('/api/invoices', invoicesRoutes)
+  app.use('/api/dashboard', dashboardRoutes)
+  app.use('/api/customers', customersRoutes)
+  app.use('/api/fiscal-control', fiscalControlRoutes)
+  app.use('/api/iva', ivaBooksRoutes)
+  app.use('/api/reports', reportsRoutes)
+  app.use('/api/users', usersRoutes)
+  app.use('/api/print', printRoutes)
+
+  startBcvScheduler()
 
   return app
 }

@@ -104,4 +104,32 @@ router.get('/company', async (_req: Request, res: Response) => {
   }
 })
 
+router.put('/company', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { name, rif, address, phone, email } = req.body
+    if (!name || !rif) {
+      res.status(400).json({ error: 'Nombre y RIF son requeridos' })
+      return
+    }
+    const existing = await prisma.company.findFirst()
+    if (!existing) {
+      res.status(404).json({ error: 'Empresa no encontrada' })
+      return
+    }
+    const dupRif = await prisma.company.findFirst({ where: { rif, id: { not: existing.id } } })
+    if (dupRif) {
+      res.status(409).json({ error: 'Ya existe otra empresa con ese RIF' })
+      return
+    }
+    const company = await prisma.company.update({
+      where: { id: existing.id },
+      data: { name, rif, address: address || null, phone: phone || null, email: email || null }
+    })
+    res.json({ company })
+  } catch (error) {
+    console.error('[auth] company update error:', error)
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+})
+
 export default router

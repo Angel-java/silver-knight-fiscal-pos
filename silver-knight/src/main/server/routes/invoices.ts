@@ -1,29 +1,83 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
 import { authMiddleware } from '../middleware/auth'
+import { ensureDefaultControl } from './fiscalControl'
 
 const router = Router()
 router.use(authMiddleware)
 
-async function nextInvoiceNumber(): Promise<string> {
-  const now = new Date()
-  const prefix = `F${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-`
-  const last = await prisma.invoice.findFirst({
-    where: { number: { startsWith: prefix } },
-    orderBy: { number: 'desc' }
+async function nextControlNumber(documentType: string): Promise<{ number: string; fiscalControlId: string }> {
+  await ensureDefaultControl()
+
+  const control = await prisma.fiscalControl.findFirst({
+    where: { documentType, isActive: true }
   })
-  const seq = last ? parseInt(last.number.split('-')[1] || '0', 10) + 1 : 1
-  return `${prefix}${String(seq).padStart(4, '0')}`
+  if (!control) {
+    throw new Error(`No hay un control fiscal activo para ${documentType}. Configúralo en Ajustes > Control Fiscal.`)
+  }
+
+  const nextNum = control.currentNumber + 1
+  if (nextNum > control.endNumber) {
+    throw new Error(`Rango de numeración agotado para ${documentType} (resolución ${control.resolution})`)
+  }
+
+  const cfNumber = `${control.prefix}${String(nextNum).padStart(10, '0')}`
+
+  await prisma.fiscalControl.update({
+    where: { id: control.id },
+    data: { currentNumber: nextNum }
+  })
+
+  return { number: cfNumber, fiscalControlId: control.id }
 }
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const invoices = await prisma.invoice.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      include: { customer: true, items: true }
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: req.params.id as string },
+      include: { items: true, customer: true }
     })
-    res.json({ invoices })
+    if (!invoice) {
+      res.status(404).json({ error: 'Factura no encontrada' })
+      return
+    }
+    res.json({ invoice })
+  } catch (error) {
+    console.error('[invoices] get error:', error)
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+})
+
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const documentType = req.query.documentType as string | undefined
+    const status = req.query.status as string | undefined
+    const search = (req.query.search as string) || ''
+    const page = Math.max(1, parseInt(req.query.page as string) || 1)
+    const limit = 50
+    const skip = (page - 1) * limit
+
+    const where: Record<string, unknown> = {}
+    if (documentType) where.documentType = documentType
+    if (status) where.status = status
+    if (search) {
+      where.OR = [
+        { number: { contains: search } },
+        { controlNumber: { contains: search } }
+      ]
+    }
+
+    const [invoices, total] = await Promise.all([
+      prisma.invoice.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { customer: true, items: true }
+      }),
+      prisma.invoice.count({ where })
+    ])
+    res.json({ invoices, total, page, pages: Math.ceil(total / limit) })
   } catch (error) {
     console.error('[invoices] list error:', error)
     res.status(500).json({ error: 'Error interno del servidor' })
@@ -32,52 +86,63 @@ router.get('/', async (_req: Request, res: Response) => {
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { customerId, items, currency, exchangeRate, payments } = req.body
+    const { customerId, items, currency, exchangeRate, payments, documentType } = req.body
     if (!items || !items.length) {
       res.status(400).json({ error: 'La factura debe tener al menos un item' })
       return
     }
 
-    const number = await nextInvoiceNumber()
+    const docType = documentType || 'FACT'
+    const { number: controlNumber, fiscalControlId } = await nextControlNumber(docType)
+
+    const now = new Date()
+    const seqPrefix = `F${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-`
+    const docLabel = docType === 'FACT' ? 'F' : docType === 'NCR' ? 'NC' : 'ND'
+    const number = `${docLabel}-${seqPrefix}${controlNumber.slice(-4)}`
 
     let totalUsd = 0
     let totalVes = 0
     let ivaUsd = 0
     let ivaVes = 0
 
-    const invoiceItems = items.map((item: {
-      productId?: string
-      productName: string
-      quantity: number
-      unitPriceUsd: number
-      unitPriceVes: number
-      ivaRate: number
-    }) => {
-      const qty = Number(item.quantity) || 1
-      const lineUsd = Number(item.unitPriceUsd) * qty
-      const lineVes = Number(item.unitPriceVes) * qty
-      const ivaRate = Number(item.ivaRate) || 0
-      const lineIvaUsd = lineUsd * (ivaRate / 100)
-      const lineIvaVes = lineVes * (ivaRate / 100)
-      totalUsd += lineUsd
-      totalVes += lineVes
-      ivaUsd += lineIvaUsd
-      ivaVes += lineIvaVes
-      return {
-        productId: item.productId || null,
-        productName: item.productName,
-        quantity: qty,
-        unitPriceUsd: Number(item.unitPriceUsd),
-        unitPriceVes: Number(item.unitPriceVes),
-        ivaRate,
-        totalUsd: lineUsd,
-        totalVes: lineVes
+    const invoiceItems = items.map(
+      (item: {
+        productId?: string
+        productName: string
+        quantity: number
+        unitPriceUsd: number
+        unitPriceVes: number
+        ivaRate: number
+      }) => {
+        const qty = Number(item.quantity) || 1
+        const lineUsd = Number(item.unitPriceUsd) * qty
+        const lineVes = Number(item.unitPriceVes) * qty
+        const ivaRate = Number(item.ivaRate) || 0
+        const lineIvaUsd = lineUsd * (ivaRate / 100)
+        const lineIvaVes = lineVes * (ivaRate / 100)
+        totalUsd += lineUsd
+        totalVes += lineVes
+        ivaUsd += lineIvaUsd
+        ivaVes += lineIvaVes
+        return {
+          productId: item.productId || null,
+          productName: item.productName,
+          quantity: qty,
+          unitPriceUsd: Number(item.unitPriceUsd),
+          unitPriceVes: Number(item.unitPriceVes),
+          ivaRate,
+          totalUsd: lineUsd,
+          totalVes: lineVes
+        }
       }
-    })
+    )
 
     const invoice = await prisma.invoice.create({
       data: {
         number,
+        documentType: docType,
+        controlNumber,
+        fiscalControlId,
         customerId: customerId || null,
         currency: currency || 'USD',
         exchangeRate: Number(exchangeRate) || 0,
@@ -88,7 +153,7 @@ router.post('/', async (req: Request, res: Response) => {
         payments: payments ? JSON.stringify(payments) : null,
         items: { create: invoiceItems }
       },
-      include: { items: true, customer: true }
+      include: { items: true, customer: true, fiscalControl: true }
     })
 
     for (const item of items) {
@@ -102,7 +167,53 @@ router.post('/', async (req: Request, res: Response) => {
 
     res.status(201).json({ invoice })
   } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error interno del servidor'
     console.error('[invoices] create error:', error)
+    res.status(400).json({ error: msg })
+  }
+})
+
+router.patch('/:id/cancel', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string
+    const { reason } = req.body
+    if (!reason?.trim()) {
+      res.status(400).json({ error: 'Motivo de anulación requerido' })
+      return
+    }
+
+    const invoice = await prisma.invoice.findUnique({ where: { id } })
+    if (!invoice) {
+      res.status(404).json({ error: 'Factura no encontrada' })
+      return
+    }
+    if (invoice.status !== 'active') {
+      res.status(400).json({ error: 'La factura ya está anulada' })
+      return
+    }
+
+    const updated = await prisma.invoice.update({
+      where: { id },
+      data: {
+        status: 'cancelled',
+        cancelReason: reason.trim(),
+        cancelledAt: new Date()
+      },
+      include: { items: true, customer: true }
+    })
+
+    for (const item of updated.items) {
+      if (item.productId) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } }
+        })
+      }
+    }
+
+    res.json({ invoice: updated })
+  } catch (error) {
+    console.error('[invoices] cancel error:', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

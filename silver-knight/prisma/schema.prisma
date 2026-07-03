@@ -79,23 +79,46 @@ model Customer {
   updatedAt     DateTime  @updatedAt
 }
 
+model FiscalControl {
+  id              String   @id @default(cuid())
+  documentType    String   // FACT, NCR, NDB
+  resolution      String   // Número de resolución/autorización SENIAT
+  prefix          String   // Prefijo del CF (ej: 0F, 0C, 0D)
+  startNumber     Int      // Inicio del rango autorizado
+  endNumber       Int      // Fin del rango autorizado
+  currentNumber   Int      // Último número usado
+  isActive        Boolean  @default(true)
+  issuedAt        DateTime // Fecha de la resolución
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  invoices        Invoice[]
+
+  @@unique([documentType, prefix])
+}
+
 model Invoice {
-  id            String        @id @default(cuid())
-  number        String        @unique
-  controlNumber String?
-  customerId    String?
-  customer      Customer?     @relation(fields: [customerId], references: [id])
-  items         InvoiceItem[]
-  totalUsd      Float
-  totalVes      Float
-  ivaUsd        Float
-  ivaVes        Float
-  currency      String        @default("USD")
-  exchangeRate  Float
-  status        String        @default("active")
-  payments      String?       // JSON string with payment methods
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  number          String        @unique
+  documentType    String        @default("FACT")  // FACT, NCR, NDB
+  controlNumber   String?       // Número CF (Comprobante Fiscal) — formato SENIAT
+  fiscalControlId String?
+  fiscalControl   FiscalControl? @relation(fields: [fiscalControlId], references: [id])
+  customerId      String?
+  customer        Customer?     @relation(fields: [customerId], references: [id])
+  cancelReason    String?
+  cancelledAt     DateTime?
+  items           InvoiceItem[]
+  totalUsd        Float
+  totalVes        Float
+  ivaUsd          Float
+  ivaVes          Float
+  currency        String        @default("USD")
+  exchangeRate    Float
+  status          String        @default("active")
+  payments        String?       // JSON string with payment methods
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model InvoiceItem {

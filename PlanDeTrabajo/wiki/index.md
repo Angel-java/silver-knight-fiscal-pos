@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-06-30
+updated: 2026-07-02
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -36,6 +36,9 @@ updated: 2026-06-30
 - [[architectural-decisions|Plan — ADRs]]
 - [[db-schema|Plan — Database Schema]]
 - [[small-profile-phase|Plan — Small Profile Phase + API]]
+
+## Páginas del sistema
+- [[log#2026-07-02-build--etapa-19-completada--configuración-del-sistema|Stage 1.9 — Configuración del Sistema]]
 
 ## Queries y análisis
 <!-- Pendiente -->

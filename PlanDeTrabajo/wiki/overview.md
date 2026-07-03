@@ -2,7 +2,7 @@
 type: overview
 tags: [project, vision, architecture]
 created: 2026-06-30
-updated: 2026-06-30
+updated: 2026-07-02
 sources: [plan-vision]
 ---
 
@@ -22,10 +22,10 @@ Tres perfiles de distribución: [[roadmap|Small (single machine) → Medium (LAN
 
 ## Tech stack
 
-Ver detalle completo en [[plan-vision]]. Resumen: Electron + Vite + React 18 + TypeScript + TailwindCSS + Radix UI + Express embebido + SQLite (Prisma ORM) → PostgreSQL en fase 2.
+Ver detalle completo en [[plan-vision]]. Resumen: Electron + Vite + React 19 + TypeScript + TailwindCSS + Express embebido + SQLite (Prisma ORM) → PostgreSQL en fase 2.
 
 ## Estado actual
 
-- **Fase**: Desarrollo activo — Etapas 1.1 a 1.4 + 1.9.1 completadas
-- **Tareas**: 31/60 completadas
-- **Próximo paso**: [[pos|Etapa 1.5 — POS (Punto de Venta)]]
+- **Fase**: Fase 1 (Small Profile) completada ✅
+- **Tareas**: 70/70
+- **Próximo paso**: Evaluar Fase 2 (Medium Profile) o features adicionales

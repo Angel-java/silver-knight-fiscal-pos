@@ -94,12 +94,12 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 **Objetivo**: Gestión de clientes con datos fiscales (RIF) e historial de compras.
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
-| 1.6.1 | CRUD de clientes | Lista, crear, editar, buscar clientes | Alta |
-| 1.6.2 | Datos fiscales del cliente | RIF, tipo de contribuyente, dirección fiscal | Alta |
-| 1.6.3 | Historial de compras por cliente | Ver facturas de un cliente específico | Media |
-| 1.6.4 | Límite de crédito | Control de crédito en USD/VES por cliente | Baja |
+| # | Tarea | Descripción | Prioridad | Estado |
+|-------|-------|-------------|-----------|--------|
+| 1.6.1 | CRUD de clientes | Lista, crear, editar, buscar clientes | Alta | ✅ |
+| 1.6.2 | Datos fiscales del cliente | RIF, tipo de contribuyente, dirección fiscal | Alta | ✅ |
+| 1.6.3 | Historial de compras por cliente | Ver facturas de un cliente específico | Media | ✅ |
+| 1.6.4 | Límite de crédito | Control de crédito en USD/VES por cliente | Baja | ✅ |
 
 ---
 
@@ -109,17 +109,17 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 > *Nota: Pendiente de recibir ejemplos de factura fiscal actual del usuario.*
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
-| 1.7.1 | Numeración de facturas por talonario | Secuencia por establecimiento y máquina | Alta |
-| 1.7.2 | Generar número CF (Comprobante Fiscal) | Formato de control SENIAT | Alta |
-| 1.7.3 | Mostrar datos fiscales en factura | RIF empresa, RIF cliente, CF, control, notas | Alta |
-| 1.7.4 | Tipos de documentos fiscales | Factura, Nota de Crédito, Nota de Débito | Alta |
-| 1.7.5 | Anulación de facturas | Anular con registro de motivo y fecha | Alta |
-| 1.7.6 | Libro IVA de Ventas | Reporte con todas las ventas del período | Alta |
-| 1.7.7 | Libro IVA de Compras | Reporte de compras (para contribuyentes formales) | Alta |
-| 1.7.8 | Formato de factura fiscal imprimible | Diseño de factura con todos los requisitos legales | Alta |
-| 1.7.9 | Control de talonarios | Gestión de secuencias por máquina | Media |
+| # | Tarea | Descripción | Prioridad | Estado |
+|-------|-------|-------------|-----------|--------|
+| 1.7.1 | Numeración de facturas por talonario | Secuencia por establecimiento y máquina | Alta | ✅ |
+| 1.7.2 | Generar número CF (Comprobante Fiscal) | Formato de control SENIAT | Alta | ✅ |
+| 1.7.3 | Mostrar datos fiscales en factura | RIF empresa, RIF cliente, CF, control, notas | Alta | ✅ |
+| 1.7.4 | Tipos de documentos fiscales | Factura, Nota de Crédito, Nota de Débito | Alta | ✅ |
+| 1.7.5 | Anulación de facturas | Anular con registro de motivo y fecha | Alta | ✅ |
+| 1.7.6 | Libro IVA de Ventas | Reporte con todas las ventas del período | Alta | ✅ |
+| 1.7.7 | Libro IVA de Compras | Reporte de compras (para contribuyentes formales) | Alta | ✅ |
+| 1.7.8 | Formato de factura fiscal imprimible | Diseño de factura con todos los requisitos legales | Alta | ✅ |
+| 1.7.9 | Control de talonarios | Gestión de secuencias por máquina | Media | ✅ |
 
 ---
 
@@ -127,15 +127,15 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 **Objetivo**: Dashboard de inicio con indicadores clave y reportes exportables.
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
-| 1.8.1 | Dashboard principal | Tarjetas con ventas del día, productos vendidos, tickets | Alta |
-| 1.8.2 | Reporte de ventas diarias | Ventas del día desglosadas por moneda y método de pago | Alta |
-| 1.8.3 | Reporte de ventas por período | Selección de fechas, totales, gráficos | Alta |
-| 1.8.4 | Reporte de inventario actual | Listado de productos con stock actual y valorizado | Media |
-| 1.8.5 | Reporte de productos más vendidos | Top productos por cantidad y monto | Media |
-| 1.8.6 | Cierre de caja | Resumen de apertura, ventas, ingresos/egresos, cierre | Alta |
-| 1.8.7 | Exportar reportes a PDF | Generar PDF imprimible de cualquier reporte | Media |
+| # | Tarea | Descripción | Prioridad | Estado |
+|---|-------|-------------|-----------|--------|
+| 1.8.1 | Dashboard principal | Tarjetas con ventas del día, productos vendidos, tickets | Alta | ✅ |
+| 1.8.2 | Reporte de ventas diarias | Ventas del día desglosadas por moneda y método de pago | Alta | ✅ |
+| 1.8.3 | Reporte de ventas por período | Selección de fechas, totales, gráficos | Alta | ✅ |
+| 1.8.4 | Reporte de inventario actual | Listado de productos con stock actual y valorizado | Media | ✅ |
+| 1.8.5 | Reporte de productos más vendidos | Top productos por cantidad y monto | Media | ✅ |
+| 1.8.6 | Cierre de caja | Resumen de apertura, ventas, ingresos/egresos, cierre | Alta | ✅ |
+| 1.8.7 | Exportar reportes a PDF | Generar PDF imprimible de cualquier reporte | Media | ✅ |
 
 ---
 
@@ -143,14 +143,14 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 **Objetivo**: Pantallas de configuración para tasa de cambio, impresora, perfil y empresa.
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
+| # | Tarea | Descripción | Prioridad | Estado |
+|---|-------|-------------|-----------|--------|
 | 1.9.1 | Gestión de tasa de cambio | Ingreso manual de tasa USD/VES | Alta | ✅ |
-| 1.9.2 | Auto-obtener tasa BCV | Fetch automático desde el portal del BCV | Alta |
-| 1.9.3 | Configuración de impresora térmica | Seleccionar impresora, ancho de papel, encabezado/pie | Alta |
-| 1.9.4 | Configuración del perfil | Seleccionar Small/Medium/Big (solo Small por ahora) | Media |
-| 1.9.5 | Editar datos de la empresa | Modificar datos ingresados en el wizard inicial | Media |
-| 1.9.6 | Gestión de usuarios | Crear/editar/desactivar operadores del sistema | Alta |
+| 1.9.2 | Auto-obtener tasa BCV | Fetch automático desde el portal del BCV | Alta | ✅ |
+| 1.9.3 | Configuración de impresora térmica | Seleccionar impresora, ancho de papel, encabezado/pie | Alta | ✅ |
+| 1.9.4 | Configuración del perfil | Seleccionar Small/Medium/Big (solo Small por ahora) | Media | ✅ |
+| 1.9.5 | Editar datos de la empresa | Modificar datos ingresados en el wizard inicial | Media | ✅ |
+| 1.9.6 | Gestión de usuarios | Crear/editar/desactivar operadores del sistema | Alta | ✅ |
 
 ---
 
@@ -158,13 +158,13 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 **Objetivo**: Imprimir facturas en impresoras térmicas de tickets (ESC/POS).
 
-| # | Tarea | Descripción | Prioridad |
-|---|-------|-------------|-----------|
-| 1.10.1 | Comunicación con impresora térmica | Node.js → child process → lp/usb (ESC/POS) | Alta |
-| 1.10.2 | Template de factura térmica | Diseño de ticket: encabezado, items, totales, firma fiscal | Alta |
-| 1.10.3 | Vista previa de impresión | Mostrar cómo se verá el ticket antes de imprimir | Media |
-| 1.10.4 | Reimpresión de facturas | Reimprimir facturas desde el historial | Media |
-| 1.10.5 | Prueba de impresión | Botón de prueba en configuración | Baja |
+| # | Tarea | Descripción | Prioridad | Estado |
+|---|-------|-------------|-----------|--------|
+| 1.10.1 | Comunicación con impresora térmica | Node.js → child process → lp/usb (ESC/POS) | Alta | ✅ |
+| 1.10.2 | Template de factura térmica | Diseño de ticket: encabezado, items, totales, firma fiscal | Alta | ✅ |
+| 1.10.3 | Vista previa de impresión | Mostrar cómo se verá el ticket antes de imprimir | Media | ✅ |
+| 1.10.4 | Reimpresión de facturas | Reimprimir facturas desde el historial | Media | ✅ |
+| 1.10.5 | Prueba de impresión | Botón de prueba en configuración | Baja | ✅ |
 
 ---
 
@@ -172,9 +172,8 @@ seleccionar cliente, elegir moneda, calcular totales, aplicar IVA e imprimir.
 
 | Estado | Cantidad |
 |--------|----------|
-| ⏳ Pendiente | 22 |
 | 🔄 En progreso | 0 |
-| ✅ Completado | 38 |
-| **Total** | **60** |
+| ✅ Completado | 70 |
+| **Total** | **70** |
 
 Ver resumen en la wiki: [[tasks]]
