@@ -22,10 +22,17 @@ router.post('/', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Nombre requerido' })
       return
     }
-    const category = await prisma.category.create({ data: { name: name.trim(), description: description || null } })
+    const category = await prisma.category.create({
+      data: { name: name.trim(), description: description || null }
+    })
     res.status(201).json({ category })
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2002') {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code: string }).code === 'P2002'
+    ) {
       res.status(409).json({ error: 'Ya existe una categoría con ese nombre' })
       return
     }
@@ -48,11 +55,21 @@ router.put('/:id', async (req: Request, res: Response) => {
     })
     res.json({ category })
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2002') {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code: string }).code === 'P2002'
+    ) {
       res.status(409).json({ error: 'Ya existe una categoría con ese nombre' })
       return
     }
-    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2025') {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code: string }).code === 'P2025'
+    ) {
       res.status(404).json({ error: 'Categoría no encontrada' })
       return
     }
@@ -67,7 +84,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
     await prisma.category.delete({ where: { id } })
     res.json({ ok: true })
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2025') {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code: string }).code === 'P2025'
+    ) {
       res.status(404).json({ error: 'Categoría no encontrada' })
       return
     }

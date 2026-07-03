@@ -37,7 +37,9 @@ export default function CustomersPage() {
     }
   }
 
-  useEffect(() => { load() }, [search, page])
+  useEffect(() => {
+    load()
+  }, [search, page])
 
   const openCreate = () => {
     setEditing(null)
@@ -122,10 +124,18 @@ export default function CustomersPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/')} className="text-gray-500 hover:text-gray-700 text-lg">←</button>
+          <button
+            onClick={() => navigate('/')}
+            className="text-gray-500 hover:text-gray-700 text-lg"
+          >
+            ←
+          </button>
           <h1 className="text-2xl font-bold text-gray-800">Clientes ({total})</h1>
         </div>
-        <button onClick={openCreate} className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors">
+        <button
+          onClick={openCreate}
+          className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors"
+        >
           + Nuevo Cliente
         </button>
       </div>
@@ -134,7 +144,10 @@ export default function CustomersPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setPage(1)
+          }}
           placeholder="Buscar por nombre, RIF o teléfono..."
           className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
         />
@@ -165,14 +178,33 @@ export default function CustomersPage() {
                   {c.creditLimitUsd != null ? `$${c.creditLimitUsd.toFixed(2)}` : '—'}
                 </td>
                 <td className="px-4 py-3 text-right space-x-2">
-                  <button onClick={() => openDetail(c.id)} className="text-purple-600 hover:text-purple-800 text-sm">Ver</button>
-                  <button onClick={() => openEdit(c)} className="text-blue-600 hover:text-blue-800 text-sm">Editar</button>
-                  <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:text-red-800 text-sm">Eliminar</button>
+                  <button
+                    onClick={() => openDetail(c.id)}
+                    className="text-purple-600 hover:text-purple-800 text-sm"
+                  >
+                    Ver
+                  </button>
+                  <button
+                    onClick={() => openEdit(c)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(c.id)}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Eliminar
+                  </button>
                 </td>
               </tr>
             ))}
             {customers.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No hay clientes</td></tr>
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                  No hay clientes
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -180,67 +212,123 @@ export default function CustomersPage() {
 
       {pages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
-          <button disabled={page <= 1} onClick={() => setPage(page - 1)}
-            className="px-3 py-1 border rounded-md disabled:opacity-30">Anterior</button>
-          <span className="px-3 py-1 text-sm text-gray-600">Pág {page} de {pages}</span>
-          <button disabled={page >= pages} onClick={() => setPage(page + 1)}
-            className="px-3 py-1 border rounded-md disabled:opacity-30">Siguiente</button>
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage(page - 1)}
+            className="px-3 py-1 border rounded-md disabled:opacity-30"
+          >
+            Anterior
+          </button>
+          <span className="px-3 py-1 text-sm text-gray-600">
+            Pág {page} de {pages}
+          </span>
+          <button
+            disabled={page >= pages}
+            onClick={() => setPage(page + 1)}
+            className="px-3 py-1 border rounded-md disabled:opacity-30"
+          >
+            Siguiente
+          </button>
         </div>
       )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <h2 className="text-lg font-bold mb-4">{editing ? 'Editar Cliente' : 'Nuevo Cliente'}</h2>
+            <h2 className="text-lg font-bold mb-4">
+              {editing ? 'Editar Cliente' : 'Nuevo Cliente'}
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" required />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">RIF</label>
-                  <input type="text" value={rif} onChange={(e) => setRif(e.target.value)}
+                  <input
+                    type="text"
+                    value={rif}
+                    onChange={(e) => setRif(e.target.value)}
                     placeholder="J-12345678-9"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                  <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                <textarea value={address} onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" rows={2} />
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  rows={2}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Límite de Crédito USD</label>
-                  <input type="text" inputMode="decimal" value={creditLimitUsd} onChange={(e) => setCreditLimitUsd(e.target.value)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Límite de Crédito USD
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={creditLimitUsd}
+                    onChange={(e) => setCreditLimitUsd(e.target.value)}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Límite de Crédito VES</label>
-                  <input type="text" inputMode="decimal" value={creditLimitVes} onChange={(e) => setCreditLimitVes(e.target.value)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Límite de Crédito VES
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={creditLimitVes}
+                    onChange={(e) => setCreditLimitVes(e.target.value)}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
                 </div>
               </div>
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="flex gap-3 justify-end">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
-                <button type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
+                >
                   {editing ? 'Guardar' : 'Crear'}
                 </button>
               </div>
@@ -254,23 +342,44 @@ export default function CustomersPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">{detail.name}</h2>
-              <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              <button
+                onClick={() => setDetail(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg text-sm">
-              <div><span className="font-medium text-gray-500">RIF:</span> {detail.rif || '—'}</div>
-              <div><span className="font-medium text-gray-500">Teléfono:</span> {detail.phone || '—'}</div>
-              <div><span className="font-medium text-gray-500">Email:</span> {detail.email || '—'}</div>
-              <div><span className="font-medium text-gray-500">Dirección:</span> {detail.address || '—'}</div>
-              <div><span className="font-medium text-gray-500">Límite USD:</span> {detail.creditLimitUsd != null ? `$${detail.creditLimitUsd.toFixed(2)}` : '—'}</div>
-              <div><span className="font-medium text-gray-500">Límite VES:</span> {detail.creditLimitVes != null ? `Bs.${detail.creditLimitVes.toFixed(2)}` : '—'}</div>
+              <div>
+                <span className="font-medium text-gray-500">RIF:</span> {detail.rif || '—'}
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Teléfono:</span> {detail.phone || '—'}
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Email:</span> {detail.email || '—'}
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Dirección:</span>{' '}
+                {detail.address || '—'}
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Límite USD:</span>{' '}
+                {detail.creditLimitUsd != null ? `$${detail.creditLimitUsd.toFixed(2)}` : '—'}
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Límite VES:</span>{' '}
+                {detail.creditLimitVes != null ? `Bs.${detail.creditLimitVes.toFixed(2)}` : '—'}
+              </div>
             </div>
 
             <h3 className="font-bold text-gray-700 mb-3">Historial de Facturas</h3>
             {detail.invoices && detail.invoices.length > 0 ? (
               <div className="space-y-2">
                 {detail.invoices.map((inv: Invoice) => (
-                  <div key={inv.id}
+                  <div
+                    key={inv.id}
                     onClick={() => navigate(`/invoices/${inv.id}`)}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
                   >
@@ -282,11 +391,17 @@ export default function CustomersPage() {
                     </div>
                     <div className="text-right">
                       <p className="font-medium text-sm">
-                        {inv.currency === 'USD' ? `$${inv.totalUsd.toFixed(2)}` : `Bs.${inv.totalVes.toFixed(2)}`}
+                        {inv.currency === 'USD'
+                          ? `$${inv.totalUsd.toFixed(2)}`
+                          : `Bs.${inv.totalVes.toFixed(2)}`}
                       </p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        inv.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          inv.status === 'active'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
                         {inv.status === 'active' ? 'Activa' : 'Anulada'}
                       </span>
                     </div>
@@ -294,12 +409,16 @@ export default function CustomersPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-400 text-sm text-center py-4">Este cliente no tiene facturas</p>
+              <p className="text-gray-400 text-sm text-center py-4">
+                Este cliente no tiene facturas
+              </p>
             )}
 
             <div className="mt-4 text-right">
-              <button onClick={() => setDetail(null)}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+              <button
+                onClick={() => setDetail(null)}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
                 Cerrar
               </button>
             </div>

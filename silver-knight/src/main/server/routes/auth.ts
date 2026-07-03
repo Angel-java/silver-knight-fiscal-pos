@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../database/prisma'
-import { generateToken, authMiddleware } from '../middleware/auth'
+import { generateToken, authMiddleware, adminMiddleware } from '../middleware/auth'
 
 const router = Router()
 
@@ -25,7 +25,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return
     }
 
-    const token = generateToken({ userId: user.id, username: user.username, role: user.role })
+    const token = await generateToken({ userId: user.id, username: user.username, role: user.role })
     res.json({ token, user: { id: user.id, username: user.username, role: user.role } })
   } catch (error) {
     console.error('[auth] login error:', error)
@@ -43,7 +43,9 @@ router.post('/setup', async (req: Request, res: Response) => {
 
     const { company, adminUser } = req.body
     if (!company?.name || !company?.rif || !adminUser?.username || !adminUser?.pin) {
-      res.status(400).json({ error: 'Datos incompletos: company (name, rif) y adminUser (username, pin) requeridos' })
+      res.status(400).json({
+        error: 'Datos incompletos: company (name, rif) y adminUser (username, pin) requeridos'
+      })
       return
     }
 
@@ -68,10 +70,17 @@ router.post('/setup', async (req: Request, res: Response) => {
         }
       })
 
-      return { company: newCompany, user: { id: newUser.id, username: newUser.username, role: newUser.role } }
+      return {
+        company: newCompany,
+        user: { id: newUser.id, username: newUser.username, role: newUser.role }
+      }
     })
 
-    const token = generateToken({ userId: result.user.id, username: result.user.username, role: result.user.role })
+    const token = await generateToken({
+      userId: result.user.id,
+      username: result.user.username,
+      role: result.user.role
+    })
     res.status(201).json({ token, user: result.user, company: result.company })
   } catch (error) {
     console.error('[auth] setup error:', error)
@@ -82,7 +91,10 @@ router.post('/setup', async (req: Request, res: Response) => {
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
     const user = req.user!
-    const dbUser = await prisma.user.findUnique({ where: { id: user.userId }, select: { id: true, username: true, role: true } })
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { id: true, username: true, role: true }
+    })
     if (!dbUser) {
       res.status(404).json({ error: 'Usuario no encontrado' })
       return
@@ -104,7 +116,7 @@ router.get('/company', async (_req: Request, res: Response) => {
   }
 })
 
-router.put('/company', authMiddleware, async (req: Request, res: Response) => {
+router.put('/company', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
   try {
     const { name, rif, address, phone, email } = req.body
     if (!name || !rif) {

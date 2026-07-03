@@ -7,7 +7,10 @@ interface AuthState {
   loading: boolean
   isReady: boolean
   login: (username: string, pin: string) => Promise<void>
-  setup: (company: { name: string; rif: string; address?: string; phone?: string; email?: string }, adminUser: { username: string; pin: string }) => Promise<void>
+  setup: (
+    company: { name: string; rif: string; address?: string; phone?: string; email?: string },
+    adminUser: { username: string; pin: string }
+  ) => Promise<void>
   logout: () => void
 }
 
@@ -35,7 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  useEffect(() => { fetchSession() }, [fetchSession])
+  useEffect(() => {
+    fetchSession()
+  }, [fetchSession])
 
   const login = useCallback(async (username: string, pin: string) => {
     const res = await api.login(username, pin)
@@ -45,15 +50,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCompany(companyRes.company)
   }, [])
 
-  const setup = useCallback(async (
-    companyData: { name: string; rif: string; address?: string; phone?: string; email?: string },
-    adminUser: { username: string; pin: string }
-  ) => {
-    const res = await api.setup(companyData, adminUser)
-    localStorage.setItem('token', res.token)
-    setUser(res.user)
-    setCompany(res.company)
-  }, [])
+  const setup = useCallback(
+    async (
+      companyData: { name: string; rif: string; address?: string; phone?: string; email?: string },
+      adminUser: { username: string; pin: string }
+    ) => {
+      const res = await api.setup(companyData, adminUser)
+      localStorage.setItem('token', res.token)
+      setUser(res.user)
+      setCompany(res.company)
+    },
+    []
+  )
 
   const logout = useCallback(() => {
     localStorage.removeItem('token')
@@ -62,7 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, company, loading, isReady: !loading, login, setup, logout }}>
+    <AuthContext.Provider
+      value={{ user, company, loading, isReady: !loading, login, setup, logout }}
+    >
       {children}
     </AuthContext.Provider>
   )

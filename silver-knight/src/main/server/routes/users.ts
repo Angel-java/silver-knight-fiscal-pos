@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, adminMiddleware } from '../middleware/auth'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(adminMiddleware)
 
 router.get('/', async (_req: Request, res: Response) => {
   try {

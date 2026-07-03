@@ -16,6 +16,8 @@ import usersRoutes from './routes/users'
 import printRoutes from './routes/print'
 import { startBcvScheduler } from './scheduler'
 
+export { stopBcvScheduler } from './scheduler'
+
 export function createServer(): ReturnType<typeof express> {
   const app = express()
 

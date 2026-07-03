@@ -17,7 +17,8 @@ export default function IvaBooksPage() {
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [from, setFrom] = useState(() => {
-    const d = new Date(); d.setDate(1)
+    const d = new Date()
+    d.setDate(1)
     return d.toISOString().split('T')[0]
   })
   const [to, setTo] = useState(() => new Date().toISOString().split('T')[0])
@@ -42,13 +43,20 @@ export default function IvaBooksPage() {
     }
   }
 
-  useEffect(() => { load() }, [tab, from, to])
+  useEffect(() => {
+    load()
+  }, [tab, from, to])
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/')} className="text-gray-500 hover:text-gray-700 text-lg">←</button>
+          <button
+            onClick={() => navigate('/')}
+            className="text-gray-500 hover:text-gray-700 text-lg"
+          >
+            ←
+          </button>
           <h1 className="text-2xl font-bold text-gray-800">Libros IVA</h1>
         </div>
       </div>
@@ -57,7 +65,9 @@ export default function IvaBooksPage() {
         <button
           onClick={() => setTab('ventas')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === 'ventas' ? 'bg-primary text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'
+            tab === 'ventas'
+              ? 'bg-primary text-white'
+              : 'bg-white text-gray-600 border hover:bg-gray-50'
           }`}
         >
           Libro de Ventas
@@ -65,7 +75,9 @@ export default function IvaBooksPage() {
         <button
           onClick={() => setTab('compras')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === 'compras' ? 'bg-primary text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'
+            tab === 'compras'
+              ? 'bg-primary text-white'
+              : 'bg-white text-gray-600 border hover:bg-gray-50'
           }`}
         >
           Libro de Compras
@@ -75,15 +87,26 @@ export default function IvaBooksPage() {
       <div className="flex gap-4 mb-6 items-end">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+          />
         </div>
-        <button onClick={load} className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark transition-colors">
+        <button
+          onClick={load}
+          className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark transition-colors"
+        >
           Consultar
         </button>
       </div>
@@ -96,11 +119,15 @@ export default function IvaBooksPage() {
           </div>
           <div className="bg-green-50 rounded-lg p-4">
             <p className="text-xs text-green-600 font-medium">Total USD</p>
-            <p className="text-xl font-bold text-green-800">${(summary.totalUsd || 0).toFixed(2)}</p>
+            <p className="text-xl font-bold text-green-800">
+              ${(summary.totalUsd || 0).toFixed(2)}
+            </p>
           </div>
           <div className="bg-green-50 rounded-lg p-4">
             <p className="text-xs text-green-600 font-medium">Total VES</p>
-            <p className="text-xl font-bold text-green-800">Bs.{(summary.totalVes || 0).toFixed(2)}</p>
+            <p className="text-xl font-bold text-green-800">
+              Bs.{(summary.totalVes || 0).toFixed(2)}
+            </p>
           </div>
           <div className="bg-purple-50 rounded-lg p-4">
             <p className="text-xs text-purple-600 font-medium">IVA USD</p>
@@ -116,7 +143,9 @@ export default function IvaBooksPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Nº Factura</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                  Nº Factura
+                </th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Tipo</th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Cliente</th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">RIF</th>
@@ -128,22 +157,33 @@ export default function IvaBooksPage() {
             </thead>
             <tbody>
               {invoices.map((inv) => (
-                <tr key={inv.id} className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => navigate(`/invoices/${inv.id}`)}>
+                <tr
+                  key={inv.id}
+                  className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/invoices/${inv.id}`)}
+                >
                   <td className="px-4 py-3 font-medium text-sm">{inv.number}</td>
                   <td className="px-4 py-3 text-sm">{inv.documentType}</td>
                   <td className="px-4 py-3 text-sm">{inv.customer?.name || 'Consumidor Final'}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{inv.customer?.rif || '—'}</td>
                   <td className="px-4 py-3 text-right text-sm">
-                    {inv.currency === 'USD' ? `$${inv.totalUsd.toFixed(2)}` : `Bs.${inv.totalVes.toFixed(2)}`}
+                    {inv.currency === 'USD'
+                      ? `$${inv.totalUsd.toFixed(2)}`
+                      : `Bs.${inv.totalVes.toFixed(2)}`}
                   </td>
                   <td className="px-4 py-3 text-right text-sm">
-                    {inv.currency === 'USD' ? `$${inv.ivaUsd.toFixed(2)}` : `Bs.${inv.ivaVes.toFixed(2)}`}
+                    {inv.currency === 'USD'
+                      ? `$${inv.ivaUsd.toFixed(2)}`
+                      : `Bs.${inv.ivaVes.toFixed(2)}`}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      inv.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        inv.status === 'active'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}
+                    >
                       {inv.status === 'active' ? 'Activa' : 'Anulada'}
                     </span>
                   </td>
@@ -153,7 +193,11 @@ export default function IvaBooksPage() {
                 </tr>
               ))}
               {invoices.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No hay documentos en este período</td></tr>
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                    No hay documentos en este período
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, adminMiddleware } from '../middleware/auth'
 
 const router = Router()
 router.use(authMiddleware)
@@ -17,7 +17,7 @@ router.get('/', async (_req: Request, res: Response) => {
   }
 })
 
-router.put('/:key', async (req: Request, res: Response) => {
+router.put('/:key', adminMiddleware, async (req: Request, res: Response) => {
   try {
     const key = req.params.key as string
     const { value } = req.body

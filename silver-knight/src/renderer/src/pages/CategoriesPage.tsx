@@ -23,7 +23,9 @@ export default function CategoriesPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
   const openCreate = () => {
     setEditing(null)
@@ -73,10 +75,18 @@ export default function CategoriesPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/products')} className="text-gray-500 hover:text-gray-700 text-lg">←</button>
+          <button
+            onClick={() => navigate('/products')}
+            className="text-gray-500 hover:text-gray-700 text-lg"
+          >
+            ←
+          </button>
           <h1 className="text-2xl font-bold text-gray-800">Categorías</h1>
         </div>
-        <button onClick={openCreate} className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors">
+        <button
+          onClick={openCreate}
+          className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors"
+        >
           + Nueva Categoría
         </button>
       </div>
@@ -98,13 +108,27 @@ export default function CategoriesPage() {
                 <td className="px-4 py-3 font-medium">{cat.name}</td>
                 <td className="px-4 py-3 text-gray-500">{cat.description || '—'}</td>
                 <td className="px-4 py-3 text-right space-x-2">
-                  <button onClick={() => openEdit(cat)} className="text-blue-600 hover:text-blue-800 text-sm">Editar</button>
-                  <button onClick={() => handleDelete(cat.id)} className="text-red-600 hover:text-red-800 text-sm">Eliminar</button>
+                  <button
+                    onClick={() => openEdit(cat)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(cat.id)}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Eliminar
+                  </button>
                 </td>
               </tr>
             ))}
             {categories.length === 0 && (
-              <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400">No hay categorías</td></tr>
+              <tr>
+                <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
+                  No hay categorías
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -113,24 +137,42 @@ export default function CategoriesPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-bold mb-4">{editing ? 'Editar Categoría' : 'Nueva Categoría'}</h2>
+            <h2 className="text-lg font-bold mb-4">
+              {editing ? 'Editar Categoría' : 'Nueva Categoría'}
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" required />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" rows={3} />
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  rows={3}
+                />
               </div>
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="flex gap-3 justify-end">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
-                <button type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
+                >
                   {editing ? 'Guardar' : 'Crear'}
                 </button>
               </div>

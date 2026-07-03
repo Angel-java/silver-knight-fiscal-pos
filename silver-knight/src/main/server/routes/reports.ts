@@ -22,14 +22,19 @@ router.get('/sales-daily', async (_req: Request, res: Response) => {
     const totalVes = invoices.reduce((s, i) => s + i.totalVes, 0)
     const ivaUsd = invoices.reduce((s, i) => s + i.ivaUsd, 0)
     const ivaVes = invoices.reduce((s, i) => s + i.ivaVes, 0)
-    const productsSold = invoices.reduce((s, i) =>
-      s + i.items.reduce((si, item) => si + item.quantity, 0), 0
+    const productsSold = invoices.reduce(
+      (s, i) => s + i.items.reduce((si, item) => si + item.quantity, 0),
+      0
     )
 
     const paymentsBreakdown: Record<string, { usd: number; ves: number }> = {}
     for (const inv of invoices) {
       if (!inv.payments) continue
-      const payments = JSON.parse(inv.payments) as Array<{ method: string; amount: number; currency: string }>
+      const payments = JSON.parse(inv.payments) as Array<{
+        method: string
+        amount: number
+        currency: string
+      }>
       for (const p of payments) {
         if (!paymentsBreakdown[p.method]) paymentsBreakdown[p.method] = { usd: 0, ves: 0 }
         if (p.currency === 'USD') paymentsBreakdown[p.method].usd += p.amount
@@ -39,7 +44,15 @@ router.get('/sales-daily', async (_req: Request, res: Response) => {
 
     res.json({
       invoices,
-      summary: { totalUsd, totalVes, ivaUsd, ivaVes, productsSold, count: invoices.length, paymentsBreakdown }
+      summary: {
+        totalUsd,
+        totalVes,
+        ivaUsd,
+        ivaVes,
+        productsSold,
+        count: invoices.length,
+        paymentsBreakdown
+      }
     })
   } catch (error) {
     console.error('[reports] sales-daily error:', error)
@@ -49,7 +62,9 @@ router.get('/sales-daily', async (_req: Request, res: Response) => {
 
 router.get('/sales-range', async (req: Request, res: Response) => {
   try {
-    const from = req.query.from ? new Date(req.query.from as string) : new Date(new Date().setDate(1))
+    const from = req.query.from
+      ? new Date(req.query.from as string)
+      : new Date(new Date().setDate(1))
     from.setHours(0, 0, 0, 0)
     const to = req.query.to ? new Date(req.query.to as string) : new Date()
     to.setHours(23, 59, 59, 999)
@@ -70,8 +85,9 @@ router.get('/sales-range', async (req: Request, res: Response) => {
     const totalVes = activeInvoices.reduce((s, i) => s + i.totalVes, 0)
     const ivaUsd = activeInvoices.reduce((s, i) => s + i.ivaUsd, 0)
     const ivaVes = activeInvoices.reduce((s, i) => s + i.ivaVes, 0)
-    const productsSold = activeInvoices.reduce((s, i) =>
-      s + i.items.reduce((si, item) => si + item.quantity, 0), 0
+    const productsSold = activeInvoices.reduce(
+      (s, i) => s + i.items.reduce((si, item) => si + item.quantity, 0),
+      0
     )
 
     const usdCount = activeInvoices.filter((i) => i.currency === 'USD').length
@@ -80,7 +96,11 @@ router.get('/sales-range', async (req: Request, res: Response) => {
     res.json({
       invoices,
       summary: {
-        totalUsd, totalVes, ivaUsd, ivaVes, productsSold,
+        totalUsd,
+        totalVes,
+        ivaUsd,
+        ivaVes,
+        productsSold,
         count: activeInvoices.length,
         cancelledCount: cancelledInvoices.length,
         usdInvoices: usdCount,
@@ -112,9 +132,12 @@ router.get('/inventory', async (_req: Request, res: Response) => {
       products,
       summary: {
         totalProducts: products.length,
-        totalValueUsd, totalValueVes,
-        totalPriceUsd, totalPriceVes,
-        lowStockCount, outOfStockCount
+        totalValueUsd,
+        totalValueVes,
+        totalPriceUsd,
+        totalPriceVes,
+        lowStockCount,
+        outOfStockCount
       }
     })
   } catch (error) {
@@ -171,8 +194,8 @@ router.get('/top-products', async (req: Request, res: Response) => {
 router.get('/cash-close', async (req: Request, res: Response) => {
   try {
     const dateStr = (req.query.date as string) || new Date().toISOString().split('T')[0]
-    const from = new Date(dateStr + 'T00:00:00.000Z')
-    const to = new Date(dateStr + 'T23:59:59.999Z')
+    const from = new Date(dateStr + 'T00:00:00')
+    const to = new Date(dateStr + 'T23:59:59.999')
 
     const invoices = await prisma.invoice.findMany({
       where: {
@@ -192,7 +215,11 @@ router.get('/cash-close', async (req: Request, res: Response) => {
     const paymentsBreakdown: Record<string, { usd: number; ves: number; count: number }> = {}
     for (const inv of activeInvoices) {
       if (!inv.payments) continue
-      const payments = JSON.parse(inv.payments) as Array<{ method: string; amount: number; currency: string }>
+      const payments = JSON.parse(inv.payments) as Array<{
+        method: string
+        amount: number
+        currency: string
+      }>
       for (const p of payments) {
         if (!paymentsBreakdown[p.method]) paymentsBreakdown[p.method] = { usd: 0, ves: 0, count: 0 }
         if (p.currency === 'USD') paymentsBreakdown[p.method].usd += p.amount
@@ -205,7 +232,8 @@ router.get('/cash-close', async (req: Request, res: Response) => {
       date: dateStr,
       invoices,
       summary: {
-        totalUsd, totalVes,
+        totalUsd,
+        totalVes,
         count: activeInvoices.length,
         cancelledCount: cancelledInvoices.length,
         paymentsBreakdown

@@ -1,7 +1,39 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
+import { prisma } from '../../database/prisma'
 
-const JWT_SECRET = process.env['JWT_SECRET'] || 'sk-dev-secret-change-in-production'
+let cachedSecret: string | null = null
+
+async function resolveJwtSecret(): Promise<string> {
+  if (cachedSecret) return cachedSecret
+  const envSecret = process.env['JWT_SECRET']
+  if (envSecret) {
+    cachedSecret = envSecret
+    return envSecret
+  }
+  try {
+    const row = await prisma.setting.findUnique({ where: { key: 'jwtSecret' } })
+    if (row) {
+      cachedSecret = row.value
+      return row.value
+    }
+  } catch {
+    // DB not ready yet (first run); fall through to generating
+  }
+  const generated = crypto.randomBytes(32).toString('hex')
+  try {
+    await prisma.setting.upsert({
+      where: { key: 'jwtSecret' },
+      update: { value: generated },
+      create: { key: 'jwtSecret', value: generated }
+    })
+  } catch {
+    // DB not ready; use generated for this session
+  }
+  cachedSecret = generated
+  return generated
+}
 
 export interface AuthPayload {
   userId: string
@@ -9,11 +41,16 @@ export interface AuthPayload {
   role: string
 }
 
-export function generateToken(payload: AuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' })
+export async function generateToken(payload: AuthPayload): Promise<string> {
+  const secret = await resolveJwtSecret()
+  return jwt.sign(payload, secret, { expiresIn: '24h' })
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function authMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const header = req.headers.authorization
   if (!header || !header.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Token requerido' })
@@ -22,10 +59,19 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
   try {
     const token = header.slice(7)
-    const payload = jwt.verify(token, JWT_SECRET) as AuthPayload
+    const secret = await resolveJwtSecret()
+    const payload = jwt.verify(token, secret) as AuthPayload
     req.user = payload
     next()
   } catch {
     res.status(401).json({ error: 'Token inválido o expirado' })
   }
+}
+
+export function adminMiddleware(req: Request, res: Response, next: NextFunction): void {
+  if (req.user?.role !== 'admin') {
+    res.status(403).json({ error: 'Acción solo permitida para administradores' })
+    return
+  }
+  next()
 }

@@ -61,7 +61,20 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, code, barcode, description, priceUsd, priceVes, costUsd, costVes, ivaRate, stock, minStock, categoryId } = req.body
+    const {
+      name,
+      code,
+      barcode,
+      description,
+      priceUsd,
+      priceVes,
+      costUsd,
+      costVes,
+      ivaRate,
+      stock,
+      minStock,
+      categoryId
+    } = req.body
     if (!name?.trim()) {
       res.status(400).json({ error: 'Nombre requerido' })
       return
@@ -106,9 +119,32 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string
-    const { name, code, barcode, description, priceUsd, priceVes, costUsd, costVes, ivaRate, stock, minStock, categoryId, isActive } = req.body
+    const {
+      name,
+      code,
+      barcode,
+      description,
+      priceUsd,
+      priceVes,
+      costUsd,
+      costVes,
+      ivaRate,
+      stock,
+      minStock,
+      categoryId,
+      isActive
+    } = req.body
     if (!name?.trim()) {
       res.status(400).json({ error: 'Nombre requerido' })
+      return
+    }
+    if (
+      priceUsd == null ||
+      priceVes == null ||
+      isNaN(Number(priceUsd)) ||
+      isNaN(Number(priceVes))
+    ) {
+      res.status(400).json({ error: 'Precios USD y VES requeridos' })
       return
     }
 

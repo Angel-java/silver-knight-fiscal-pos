@@ -52,9 +52,17 @@ export default function InvoiceViewPage() {
     const total = isUsd ? inv.totalUsd : inv.totalVes
     const iva = isUsd ? inv.ivaUsd : inv.ivaVes
     const subtotal = total - iva
-    const payLabels: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Punto de Venta' }
+    const payLabels: Record<string, string> = {
+      cash: 'Efectivo',
+      transfer: 'Transferencia',
+      card: 'Punto de Venta'
+    }
     let payments: Array<{ method: string; amount: number; currency: string }> = []
-    try { if (inv.payments) payments = JSON.parse(inv.payments) } catch { /* */ }
+    try {
+      if (inv.payments) payments = JSON.parse(inv.payments)
+    } catch {
+      /* */
+    }
 
     let h = `<pre style="font-family:'Courier New',monospace;font-size:12px;line-height:1.3;width:300px;margin:0 auto;background:#fff;padding:16px;border:1px solid #ddd;">`
     h += `<strong style="display:block;text-align:center;font-size:16px;">${inv.customer?.name || 'Empresa'}</strong>`
@@ -63,7 +71,8 @@ export default function InvoiceViewPage() {
     if (inv.controlNumber) h += `<div>CF: ${inv.controlNumber}</div>`
     h += `<div>Cliente: ${inv.customer?.name || 'Consumidor Final'}</div>`
     if (inv.customer?.rif) h += `<div>RIF: ${inv.customer.rif}</div>`
-    if (inv.cancelReason) h += `<div style="color:red;font-weight:bold;text-align:center;">*** ANULADA: ${inv.cancelReason} ***</div>`
+    if (inv.cancelReason)
+      h += `<div style="color:red;font-weight:bold;text-align:center;">*** ANULADA: ${inv.cancelReason} ***</div>`
     h += `${'='.repeat(40)}\n`
 
     h += `${'CANT'.padEnd(5)}${'DESCRIPCIÓN'.padEnd(20)}${'TOTAL'.padStart(15)}\n`
@@ -74,9 +83,9 @@ export default function InvoiceViewPage() {
       h += `${String(item.quantity).padEnd(5)}${item.productName.substring(0, 19).padEnd(20)}${amtStr.padStart(15)}\n`
     }
     h += `${'-'.repeat(40)}\n`
-    h += `Subtotal:${' '.repeat(31)}${(isUsd ? `$${subtotal.toFixed(2)}` : `Bs.${subtotal.toFixed(2)}`)}\n`
-    h += `IVA:${' '.repeat(36)}${(isUsd ? `$${iva.toFixed(2)}` : `Bs.${iva.toFixed(2)}`)}\n`
-    h += `<strong>Total:${' '.repeat(34)}${(isUsd ? `$${total.toFixed(2)}` : `Bs.${total.toFixed(2)}`)}</strong>\n`
+    h += `Subtotal:${' '.repeat(31)}${isUsd ? `$${subtotal.toFixed(2)}` : `Bs.${subtotal.toFixed(2)}`}\n`
+    h += `IVA:${' '.repeat(36)}${isUsd ? `$${iva.toFixed(2)}` : `Bs.${iva.toFixed(2)}`}\n`
+    h += `<strong>Total:${' '.repeat(34)}${isUsd ? `$${total.toFixed(2)}` : `Bs.${total.toFixed(2)}`}</strong>\n`
 
     if (isUsd && inv.exchangeRate > 0) {
       h += `Tasa BCV: Bs.${inv.exchangeRate.toFixed(2)}\n`
@@ -153,12 +162,17 @@ export default function InvoiceViewPage() {
             ← Volver
           </button>
           <div className="flex items-center gap-2">
-            <button onClick={handlePreview}
-              className="px-3 py-1 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+            <button
+              onClick={handlePreview}
+              className="px-3 py-1 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
               Vista previa
             </button>
-            <button onClick={handlePrint} disabled={printing}
-              className="px-3 py-1 text-sm text-primary border border-primary rounded-md hover:bg-primary/5 transition-colors disabled:opacity-50">
+            <button
+              onClick={handlePrint}
+              disabled={printing}
+              className="px-3 py-1 text-sm text-primary border border-primary rounded-md hover:bg-primary/5 transition-colors disabled:opacity-50"
+            >
               {printing ? 'Imprimiendo...' : 'Reimprimir'}
             </button>
             {invoice.status === 'active' && (
@@ -201,8 +215,13 @@ export default function InvoiceViewPage() {
             <span className="font-medium">Anulada:</span> {invoice.cancelReason}
             {invoice.cancelledAt && (
               <span className="text-red-500 ml-2">
-                — {new Date(invoice.cancelledAt).toLocaleDateString('es-VE', {
-                  year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                —{' '}
+                {new Date(invoice.cancelledAt).toLocaleDateString('es-VE', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
                 })}
               </span>
             )}
@@ -255,9 +274,7 @@ export default function InvoiceViewPage() {
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
               Control Fiscal
             </h3>
-            <p className="text-gray-800 font-medium">
-              {invoice.fiscalControl?.resolution || '—'}
-            </p>
+            <p className="text-gray-800 font-medium">{invoice.fiscalControl?.resolution || '—'}</p>
           </div>
         </div>
 
@@ -406,7 +423,10 @@ export default function InvoiceViewPage() {
             />
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowCancelModal(false); setCancelReason('') }}
+                onClick={() => {
+                  setShowCancelModal(false)
+                  setCancelReason('')
+                }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Cancelar
@@ -429,12 +449,18 @@ export default function InvoiceViewPage() {
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="font-bold text-gray-800">Vista previa del ticket</h2>
               <div className="flex gap-2">
-                <button onClick={() => window.print()}
-                  className="px-3 py-1 text-sm bg-primary text-white rounded-md hover:bg-primary-dark">
+                <button
+                  onClick={() => window.print()}
+                  className="px-3 py-1 text-sm bg-primary text-white rounded-md hover:bg-primary-dark"
+                >
                   Imprimir
                 </button>
-                <button onClick={() => setShowPreview(false)}
-                  className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="text-gray-400 hover:text-gray-600 text-lg"
+                >
+                  &times;
+                </button>
               </div>
             </div>
             <div className="p-4" dangerouslySetInnerHTML={{ __html: previewHtml }} />

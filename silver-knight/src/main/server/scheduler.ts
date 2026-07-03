@@ -12,7 +12,11 @@ async function fetchBcvRate(): Promise<void> {
       signal: AbortSignal.timeout(10000)
     })
     if (!res.ok) return
-    const data = (await res.json()) as { promedio?: number; promedio_real?: number; precio?: number }
+    const data = (await res.json()) as {
+      promedio?: number
+      promedio_real?: number
+      precio?: number
+    }
     const rate = data.promedio || data.promedio_real || data.precio
     if (rate && typeof rate === 'number' && rate > 0) {
       await prisma.exchangeRate.create({

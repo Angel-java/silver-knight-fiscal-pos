@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, adminMiddleware } from '../middleware/auth'
 
 const router = Router()
 router.use(authMiddleware)
@@ -11,20 +11,30 @@ const DOCUMENT_TYPES: Record<string, string> = {
   NDB: 'Nota de Débito'
 }
 
+const DEFAULT_CONTROLS = [
+  { documentType: 'FACT', prefix: '0F' },
+  { documentType: 'NCR', prefix: '0C' },
+  { documentType: 'NDB', prefix: '0D' }
+]
+
 async function ensureDefaultControl(): Promise<void> {
-  const exists = await prisma.fiscalControl.findFirst({ where: { documentType: 'FACT' } })
-  if (exists) return
-  await prisma.fiscalControl.create({
-    data: {
-      documentType: 'FACT',
-      resolution: 'INICIAL-DEV',
-      prefix: '0F',
-      startNumber: 1,
-      endNumber: 999999,
-      currentNumber: 0,
-      issuedAt: new Date()
-    }
-  })
+  for (const dc of DEFAULT_CONTROLS) {
+    const exists = await prisma.fiscalControl.findFirst({
+      where: { documentType: dc.documentType }
+    })
+    if (exists) continue
+    await prisma.fiscalControl.create({
+      data: {
+        documentType: dc.documentType,
+        resolution: 'INICIAL-DEV',
+        prefix: dc.prefix,
+        startNumber: 1,
+        endNumber: 999999,
+        currentNumber: 0,
+        issuedAt: new Date()
+      }
+    })
+  }
 }
 
 router.get('/', async (_req: Request, res: Response) => {
@@ -38,9 +48,9 @@ router.get('/', async (_req: Request, res: Response) => {
   }
 })
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', adminMiddleware, async (req: Request, res: Response) => {
+  const { documentType, resolution, prefix, startNumber, endNumber, issuedAt } = req.body
   try {
-    const { documentType, resolution, prefix, startNumber, endNumber, issuedAt } = req.body
     if (!DOCUMENT_TYPES[documentType]) {
       res.status(400).json({ error: 'Tipo de documento inválido. Válidos: FACT, NCR, NDB' })
       return
@@ -63,9 +73,10 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(201).json({ control })
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error) {
-      const e = error as { code: string }
+      const e = error as { code: string; meta?: { target?: string[] } }
       if (e.code === 'P2002') {
-        res.status(409).json({ error: 'Ya existe un control fiscal para ese tipo de documento' })
+        const fields = e.meta?.target?.join(', ') || `${documentType}/${prefix}`
+        res.status(409).json({ error: `Ya existe un control fiscal para ${fields}` })
         return
       }
     }
@@ -74,7 +85,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 })
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', adminMiddleware, async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string
     const { resolution, prefix, startNumber, endNumber, issuedAt, isActive } = req.body
@@ -91,7 +102,12 @@ router.put('/:id', async (req: Request, res: Response) => {
     })
     res.json({ control })
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2025') {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code: string }).code === 'P2025'
+    ) {
       res.status(404).json({ error: 'Control fiscal no encontrado' })
       return
     }

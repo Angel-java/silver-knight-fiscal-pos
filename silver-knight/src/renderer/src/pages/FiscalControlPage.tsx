@@ -34,7 +34,9 @@ export default function FiscalControlPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
   const openCreate = () => {
     setEditing(null)
@@ -106,10 +108,18 @@ export default function FiscalControlPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/settings')} className="text-gray-500 hover:text-gray-700 text-lg">←</button>
+          <button
+            onClick={() => navigate('/settings')}
+            className="text-gray-500 hover:text-gray-700 text-lg"
+          >
+            ←
+          </button>
           <h1 className="text-2xl font-bold text-gray-800">Control Fiscal</h1>
         </div>
-        <button onClick={openCreate} className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors">
+        <button
+          onClick={openCreate}
+          className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors"
+        >
           + Nuevo Talonario
         </button>
       </div>
@@ -143,23 +153,28 @@ export default function FiscalControlPage() {
                   <button
                     onClick={() => toggleActive(c)}
                     className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      c.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
+                      c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                     }`}
                   >
                     {c.isActive ? 'Sí' : 'No'}
                   </button>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => openEdit(c)} className="text-blue-600 hover:text-blue-800 text-sm">
+                  <button
+                    onClick={() => openEdit(c)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
                     Editar
                   </button>
                 </td>
               </tr>
             ))}
             {controls.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No hay talonarios configurados</td></tr>
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                  No hay talonarios configurados
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -167,64 +182,111 @@ export default function FiscalControlPage() {
 
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
         <p className="font-medium mb-1">¿Qué es un talonario fiscal?</p>
-        <p>Corresponde a una resolución de habilitación de talonarios emitida por el SENIAT.
-        Cada tipo de documento (Factura, Nota de Crédito, Nota de Débito) necesita su propio talonario con un rango de numeración autorizado.</p>
+        <p>
+          Corresponde a una resolución de habilitación de talonarios emitida por el SENIAT. Cada
+          tipo de documento (Factura, Nota de Crédito, Nota de Débito) necesita su propio talonario
+          con un rango de numeración autorizado.
+        </p>
       </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <h2 className="text-lg font-bold mb-4">{editing ? 'Editar Talonario' : 'Nuevo Talonario'}</h2>
+            <h2 className="text-lg font-bold mb-4">
+              {editing ? 'Editar Talonario' : 'Nuevo Talonario'}
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Documento
+                </label>
                 {editing ? (
                   <p className="text-gray-800 font-medium">{getDocLabel(documentType)}</p>
                 ) : (
-                  <select value={documentType} onChange={(e) => {
-                    setDocumentType(e.target.value)
-                    setPrefix(`0${e.target.value[0]}`)
-                  }} className="w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <select
+                    value={documentType}
+                    onChange={(e) => {
+                      setDocumentType(e.target.value)
+                      setPrefix(`0${e.target.value[0]}`)
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
                     {DOC_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
                     ))}
                   </select>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nº Resolución SENIAT *</label>
-                <input type="text" value={resolution} onChange={(e) => setResolution(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" required />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nº Resolución SENIAT *
+                </label>
+                <input
+                  type="text"
+                  value={resolution}
+                  onChange={(e) => setResolution(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Prefijo CF</label>
-                <input type="text" value={prefix} onChange={(e) => setPrefix(e.target.value)}
+                <input
+                  type="text"
+                  value={prefix}
+                  onChange={(e) => setPrefix(e.target.value)}
                   placeholder="0F"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono" />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nº Inicio</label>
-                  <input type="text" inputMode="numeric" value={startNumber} onChange={(e) => setStartNumber(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={startNumber}
+                    onChange={(e) => setStartNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nº Fin</label>
-                  <input type="text" inputMode="numeric" value={endNumber} onChange={(e) => setEndNumber(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={endNumber}
+                    onChange={(e) => setEndNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Autorización</label>
-                <input type="date" value={issuedAt} onChange={(e) => setIssuedAt(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha de Autorización
+                </label>
+                <input
+                  type="date"
+                  value={issuedAt}
+                  onChange={(e) => setIssuedAt(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="flex gap-3 justify-end">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">Cancelar</button>
-                <button type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
+                >
                   {editing ? 'Guardar' : 'Crear'}
                 </button>
               </div>

@@ -6,29 +6,37 @@ import { ensureDefaultControl } from './fiscalControl'
 const router = Router()
 router.use(authMiddleware)
 
-async function nextControlNumber(documentType: string): Promise<{ number: string; fiscalControlId: string }> {
+async function nextControlNumber(
+  documentType: string
+): Promise<{ number: string; fiscalControlId: string }> {
   await ensureDefaultControl()
 
-  const control = await prisma.fiscalControl.findFirst({
-    where: { documentType, isActive: true }
+  return prisma.$transaction(async (tx) => {
+    const control = await tx.fiscalControl.findFirst({
+      where: { documentType, isActive: true }
+    })
+    if (!control) {
+      throw new Error(
+        `No hay un control fiscal activo para ${documentType}. Configúralo en Ajustes > Control Fiscal.`
+      )
+    }
+
+    const nextNum = control.currentNumber + 1
+    if (nextNum > control.endNumber) {
+      throw new Error(
+        `Rango de numeración agotado para ${documentType} (resolución ${control.resolution})`
+      )
+    }
+
+    const cfNumber = `${control.prefix}${String(nextNum).padStart(10, '0')}`
+
+    await tx.fiscalControl.update({
+      where: { id: control.id },
+      data: { currentNumber: nextNum }
+    })
+
+    return { number: cfNumber, fiscalControlId: control.id }
   })
-  if (!control) {
-    throw new Error(`No hay un control fiscal activo para ${documentType}. Configúralo en Ajustes > Control Fiscal.`)
-  }
-
-  const nextNum = control.currentNumber + 1
-  if (nextNum > control.endNumber) {
-    throw new Error(`Rango de numeración agotado para ${documentType} (resolución ${control.resolution})`)
-  }
-
-  const cfNumber = `${control.prefix}${String(nextNum).padStart(10, '0')}`
-
-  await prisma.fiscalControl.update({
-    where: { id: control.id },
-    data: { currentNumber: nextNum }
-  })
-
-  return { number: cfNumber, fiscalControlId: control.id }
 }
 
 router.get('/:id', async (req: Request, res: Response) => {
@@ -61,10 +69,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (documentType) where.documentType = documentType
     if (status) where.status = status
     if (search) {
-      where.OR = [
-        { number: { contains: search } },
-        { controlNumber: { contains: search } }
-      ]
+      where.OR = [{ number: { contains: search } }, { controlNumber: { contains: search } }]
     }
 
     const [invoices, total] = await Promise.all([
@@ -137,33 +142,48 @@ router.post('/', async (req: Request, res: Response) => {
       }
     )
 
-    const invoice = await prisma.invoice.create({
-      data: {
-        number,
-        documentType: docType,
-        controlNumber,
-        fiscalControlId,
-        customerId: customerId || null,
-        currency: currency || 'USD',
-        exchangeRate: Number(exchangeRate) || 0,
-        totalUsd: Math.round(totalUsd * 100) / 100,
-        totalVes: Math.round(totalVes * 100) / 100,
-        ivaUsd: Math.round(ivaUsd * 100) / 100,
-        ivaVes: Math.round(ivaVes * 100) / 100,
-        payments: payments ? JSON.stringify(payments) : null,
-        items: { create: invoiceItems }
-      },
-      include: { items: true, customer: true, fiscalControl: true }
-    })
-
-    for (const item of items) {
-      if (item.productId) {
-        await prisma.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: Number(item.quantity) } }
-        })
+    const invoice = await prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        if (item.productId) {
+          const product = await tx.product.findUnique({ where: { id: item.productId } })
+          if (product && product.stock < Number(item.quantity)) {
+            throw new Error(
+              `Stock insuficiente para "${product.name}": disponible ${product.stock}, requerido ${item.quantity}`
+            )
+          }
+        }
       }
-    }
+
+      const inv = await tx.invoice.create({
+        data: {
+          number,
+          documentType: docType,
+          controlNumber,
+          fiscalControlId,
+          customerId: customerId || null,
+          currency: currency || 'USD',
+          exchangeRate: Number(exchangeRate) || 0,
+          totalUsd: Math.round(totalUsd * 100) / 100,
+          totalVes: Math.round(totalVes * 100) / 100,
+          ivaUsd: Math.round(ivaUsd * 100) / 100,
+          ivaVes: Math.round(ivaVes * 100) / 100,
+          payments: payments ? JSON.stringify(payments) : null,
+          items: { create: invoiceItems }
+        },
+        include: { items: true, customer: true, fiscalControl: true }
+      })
+
+      for (const item of items) {
+        if (item.productId) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: Number(item.quantity) } }
+          })
+        }
+      }
+
+      return inv
+    })
 
     res.status(201).json({ invoice })
   } catch (error) {

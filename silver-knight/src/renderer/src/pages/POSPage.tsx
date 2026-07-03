@@ -29,7 +29,9 @@ export default function POSPage() {
   } | null>(null)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [customerSearch, setCustomerSearch] = useState('')
-  const [customerResults, setCustomerResults] = useState<Array<{ id: string; name: string; rif: string | null }>>([])
+  const [customerResults, setCustomerResults] = useState<
+    Array<{ id: string; name: string; rif: string | null }>
+  >([])
   const [loadingCustomers, setLoadingCustomers] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -78,9 +80,19 @@ export default function POSPage() {
   }, [search])
 
   const addToCart = (product: Product) => {
+    if (product.stock <= 0) {
+      setMessage(`"${product.name}" no tiene stock disponible`)
+      setTimeout(() => setMessage(''), 3000)
+      return
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id)
       if (existing) {
+        if (existing.quantity >= product.stock) {
+          setMessage(`Stock insuficiente para "${product.name}"`)
+          setTimeout(() => setMessage(''), 3000)
+          return prev
+        }
         return prev.map((i) =>
           i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i
         )
@@ -256,13 +268,20 @@ export default function POSPage() {
               <button
                 key={p.id}
                 onClick={() => addToCart(p)}
-                className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow border border-transparent hover:border-primary/30"
+                disabled={p.stock <= 0}
+                className={`bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow border ${
+                  p.stock <= 0
+                    ? 'border-red-200 opacity-50 cursor-not-allowed'
+                    : 'border-transparent hover:border-primary/30'
+                }`}
               >
                 <p className="font-medium text-gray-800 truncate">{p.name}</p>
                 <p className="text-lg font-bold text-primary mt-1">
                   {currency === 'USD' ? `$${p.priceUsd.toFixed(2)}` : `Bs.${p.priceVes.toFixed(2)}`}
                 </p>
-                <p className="text-xs text-gray-400">Stock: {p.stock}</p>
+                <p className={`text-xs ${p.stock <= 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                  {p.stock <= 0 ? 'Agotado' : `Stock: ${p.stock}`}
+                </p>
               </button>
             ))}
             {products.length === 0 && (

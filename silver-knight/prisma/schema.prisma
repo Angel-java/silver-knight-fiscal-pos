@@ -135,6 +135,8 @@ model InvoiceItem {
   totalVes    Float
 }
 
+// @deprecated Sin implementar — se agregará en Fase 2 (Medium Profile).
+// Pendiente de rutas API y UI.
 model CashRegister {
   id          String    @id @default(cuid())
   openedAt    DateTime  @default(now())

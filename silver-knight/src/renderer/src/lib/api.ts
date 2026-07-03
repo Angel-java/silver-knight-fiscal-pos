@@ -270,14 +270,17 @@ export const api = {
         body: JSON.stringify(data)
       }),
 
-    update: (id: string, data: Partial<{
-      resolution: string
-      prefix: string
-      startNumber: number
-      endNumber: number
-      issuedAt: string
-      isActive: boolean
-    }>) =>
+    update: (
+      id: string,
+      data: Partial<{
+        resolution: string
+        prefix: string
+        startNumber: number
+        endNumber: number
+        issuedAt: string
+        isActive: boolean
+      }>
+    ) =>
       request<{ control: FiscalControl }>(`/fiscal-control/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data)
@@ -292,7 +295,13 @@ export const api = {
       const qs = q.toString()
       return request<{
         invoices: Invoice[]
-        summary: { totalUsd: number; totalVes: number; ivaUsd: number; ivaVes: number; count: number }
+        summary: {
+          totalUsd: number
+          totalVes: number
+          ivaUsd: number
+          ivaVes: number
+          count: number
+        }
       }>(`/iva/ventas${qs ? '?' + qs : ''}`)
     },
 
@@ -373,21 +382,32 @@ export const api = {
       request<{
         invoices: Invoice[]
         summary: {
-          totalUsd: number; totalVes: number; ivaUsd: number; ivaVes: number
-          productsSold: number; count: number
+          totalUsd: number
+          totalVes: number
+          ivaUsd: number
+          ivaVes: number
+          productsSold: number
+          count: number
           paymentsBreakdown: Record<string, { usd: number; ves: number }>
         }
       }>('/reports/sales-daily'),
 
     salesRange: (from: string, to: string) => {
       const q = new URLSearchParams()
-      q.set('from', from); q.set('to', to)
+      q.set('from', from)
+      q.set('to', to)
       return request<{
         invoices: Invoice[]
         summary: {
-          totalUsd: number; totalVes: number; ivaUsd: number; ivaVes: number
-          productsSold: number; count: number; cancelledCount: number
-          usdInvoices: number; vesInvoices: number
+          totalUsd: number
+          totalVes: number
+          ivaUsd: number
+          ivaVes: number
+          productsSold: number
+          count: number
+          cancelledCount: number
+          usdInvoices: number
+          vesInvoices: number
         }
       }>(`/reports/sales-range?${q.toString()}`)
     },
@@ -396,9 +416,13 @@ export const api = {
       request<{
         products: Product[]
         summary: {
-          totalProducts: number; totalValueUsd: number; totalValueVes: number
-          totalPriceUsd: number; totalPriceVes: number
-          lowStockCount: number; outOfStockCount: number
+          totalProducts: number
+          totalValueUsd: number
+          totalValueVes: number
+          totalPriceUsd: number
+          totalPriceVes: number
+          lowStockCount: number
+          outOfStockCount: number
         }
       }>('/reports/inventory'),
 
@@ -409,7 +433,13 @@ export const api = {
       if (limit) q.set('limit', String(limit))
       const qs = q.toString()
       return request<{
-        top: Array<{ productId: string | null; productName: string; quantity: number; totalUsd: number; totalVes: number }>
+        top: Array<{
+          productId: string | null
+          productName: string
+          quantity: number
+          totalUsd: number
+          totalVes: number
+        }>
         summary: { totalQty: number; totalUsd: number; count: number }
       }>(`/reports/top-products${qs ? '?' + qs : ''}`)
     },
@@ -419,8 +449,10 @@ export const api = {
         date: string
         invoices: Invoice[]
         summary: {
-          totalUsd: number; totalVes: number
-          count: number; cancelledCount: number
+          totalUsd: number
+          totalVes: number
+          count: number
+          cancelledCount: number
           paymentsBreakdown: Record<string, { usd: number; ves: number; count: number }>
         }
       }>(`/reports/cash-close${date ? '?date=' + date : ''}`)
@@ -467,7 +499,13 @@ export const api = {
   users: {
     list: () =>
       request<{
-        users: Array<{ id: string; username: string; role: string; isActive: boolean; createdAt: string }>
+        users: Array<{
+          id: string
+          username: string
+          role: string
+          isActive: boolean
+          createdAt: string
+        }>
       }>('/users'),
 
     create: (data: { username: string; pin: string; role?: string }) =>
@@ -487,7 +525,6 @@ export const api = {
   print: {
     listPrinters: () => request<{ printers: string[] }>('/print/printers'),
 
-    invoice: (id: string) =>
-      request<{ ok: boolean }>(`/print/invoice/${id}`, { method: 'POST' })
+    invoice: (id: string) => request<{ ok: boolean }>(`/print/invoice/${id}`, { method: 'POST' })
   }
 }

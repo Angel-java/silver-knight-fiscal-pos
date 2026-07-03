@@ -47,7 +47,11 @@ router.post('/bcv', async (_req: Request, res: Response) => {
   try {
     const response = await fetchWithTimeout(DOLARAPI_URL)
     if (response.ok) {
-      const data = await response.json() as { promedio?: number; promedio_real?: number; precio?: number }
+      const data = (await response.json()) as {
+        promedio?: number
+        promedio_real?: number
+        precio?: number
+      }
       const rate = data.promedio || data.promedio_real || data.precio
       if (rate && typeof rate === 'number' && rate > 0) {
         const exchangeRate = await prisma.exchangeRate.create({

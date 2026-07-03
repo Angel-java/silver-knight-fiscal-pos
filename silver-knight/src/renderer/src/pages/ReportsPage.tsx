@@ -13,7 +13,9 @@ const tabs: { key: Tab; label: string }[] = [
 ]
 
 const PAYMENT_LABELS: Record<string, string> = {
-  cash: 'Efectivo', transfer: 'Transferencia', card: 'Punto de Venta'
+  cash: 'Efectivo',
+  transfer: 'Transferencia',
+  card: 'Punto de Venta'
 }
 
 export default function ReportsPage() {
@@ -23,28 +25,42 @@ export default function ReportsPage() {
   const [error, setError] = useState('')
 
   const [dailyData, setDailyData] = useState<{
-    invoices: Invoice[]; summary: {
-      totalUsd: number; totalVes: number; ivaUsd: number; ivaVes: number
-      productsSold: number; count: number
+    invoices: Invoice[]
+    summary: {
+      totalUsd: number
+      totalVes: number
+      ivaUsd: number
+      ivaVes: number
+      productsSold: number
+      count: number
       paymentsBreakdown: Record<string, { usd: number; ves: number }>
     }
   } | null>(null)
 
   const [rangeFrom, setRangeFrom] = useState(() => {
-    const d = new Date(); d.setDate(1)
+    const d = new Date()
+    d.setDate(1)
     return d.toISOString().split('T')[0]
   })
   const [rangeTo, setRangeTo] = useState(() => new Date().toISOString().split('T')[0])
   const [rangeData, setRangeData] = useState<{
-    invoices: Invoice[]; summary: {
-      totalUsd: number; totalVes: number; count: number; cancelledCount: number
+    invoices: Invoice[]
+    summary: {
+      totalUsd: number
+      totalVes: number
+      count: number
+      cancelledCount: number
     }
   } | null>(null)
 
   const [inventoryData, setInventoryData] = useState<{
-    products: Product[]; summary: {
-      totalProducts: number; totalValueUsd: number; totalValueVes: number
-      lowStockCount: number; outOfStockCount: number
+    products: Product[]
+    summary: {
+      totalProducts: number
+      totalValueUsd: number
+      totalValueVes: number
+      lowStockCount: number
+      outOfStockCount: number
     }
   } | null>(null)
 
@@ -55,8 +71,12 @@ export default function ReportsPage() {
 
   const [cashDate, setCashDate] = useState(() => new Date().toISOString().split('T')[0])
   const [cashData, setCashData] = useState<{
-    invoices: Invoice[]; summary: {
-      totalUsd: number; totalVes: number; count: number; cancelledCount: number
+    invoices: Invoice[]
+    summary: {
+      totalUsd: number
+      totalVes: number
+      count: number
+      cancelledCount: number
       paymentsBreakdown: Record<string, { usd: number; ves: number; count: number }>
     }
   } | null>(null)
@@ -99,16 +119,26 @@ export default function ReportsPage() {
     }
   }
 
-  useEffect(() => { loadData() }, [tab])
+  useEffect(() => {
+    loadData()
+  }, [tab])
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/')} className="text-gray-500 hover:text-gray-700 text-lg">←</button>
+          <button
+            onClick={() => navigate('/')}
+            className="text-gray-500 hover:text-gray-700 text-lg"
+          >
+            ←
+          </button>
           <h1 className="text-2xl font-bold text-gray-800">Reportes</h1>
         </div>
-        <button onClick={() => window.print()} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm">
+        <button
+          onClick={() => window.print()}
+          className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm"
+        >
           Imprimir / PDF
         </button>
       </div>
@@ -119,7 +149,9 @@ export default function ReportsPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t.key ? 'bg-primary text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'
+              tab === t.key
+                ? 'bg-primary text-white'
+                : 'bg-white text-gray-600 border hover:bg-gray-50'
             }`}
           >
             {t.label}
@@ -140,15 +172,21 @@ export default function ReportsPage() {
               </div>
               <div className="bg-green-50 rounded-lg p-4">
                 <p className="text-xs text-green-600 font-medium">Total USD</p>
-                <p className="text-xl font-bold text-green-800">${dailyData.summary.totalUsd.toFixed(2)}</p>
+                <p className="text-xl font-bold text-green-800">
+                  ${dailyData.summary.totalUsd.toFixed(2)}
+                </p>
               </div>
               <div className="bg-green-50 rounded-lg p-4">
                 <p className="text-xs text-green-600 font-medium">Total VES</p>
-                <p className="text-xl font-bold text-green-800">Bs.{dailyData.summary.totalVes.toFixed(2)}</p>
+                <p className="text-xl font-bold text-green-800">
+                  Bs.{dailyData.summary.totalVes.toFixed(2)}
+                </p>
               </div>
               <div className="bg-purple-50 rounded-lg p-4">
                 <p className="text-xs text-purple-600 font-medium">Productos</p>
-                <p className="text-xl font-bold text-purple-800">{dailyData.summary.productsSold}</p>
+                <p className="text-xl font-bold text-purple-800">
+                  {dailyData.summary.productsSold}
+                </p>
               </div>
             </div>
           )}
@@ -180,15 +218,26 @@ export default function ReportsPage() {
           <div className="flex gap-4 mb-6 items-end">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
-              <input type="date" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+              <input
+                type="date"
+                value={rangeFrom}
+                onChange={(e) => setRangeFrom(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
-              <input type="date" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+              <input
+                type="date"
+                value={rangeTo}
+                onChange={(e) => setRangeTo(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
             </div>
-            <button onClick={loadData} className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark">
+            <button
+              onClick={loadData}
+              className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark"
+            >
               Consultar
             </button>
           </div>
@@ -205,11 +254,15 @@ export default function ReportsPage() {
               </div>
               <div className="bg-green-50 rounded-lg p-4">
                 <p className="text-xs text-green-600 font-medium">Total USD</p>
-                <p className="text-xl font-bold text-green-800">${rangeData.summary.totalUsd.toFixed(2)}</p>
+                <p className="text-xl font-bold text-green-800">
+                  ${rangeData.summary.totalUsd.toFixed(2)}
+                </p>
               </div>
               <div className="bg-green-50 rounded-lg p-4">
                 <p className="text-xs text-green-600 font-medium">Total VES</p>
-                <p className="text-xl font-bold text-green-800">Bs.{rangeData.summary.totalVes.toFixed(2)}</p>
+                <p className="text-xl font-bold text-green-800">
+                  Bs.{rangeData.summary.totalVes.toFixed(2)}
+                </p>
               </div>
             </div>
           )}
@@ -224,25 +277,36 @@ export default function ReportsPage() {
           <div className="flex gap-4 mb-6 items-end">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
-              <input type="date" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+              <input
+                type="date"
+                value={rangeFrom}
+                onChange={(e) => setRangeFrom(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
-              <input type="date" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+              <input
+                type="date"
+                value={rangeTo}
+                onChange={(e) => setRangeTo(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
             </div>
-            <button onClick={async () => {
-              setLoading(true)
-              try {
-                const res = await api.reports.topProducts(rangeFrom, rangeTo)
-                setTopData(res)
-              } catch (err) {
-                setError(err instanceof Error ? err.message : 'Error')
-              } finally {
-                setLoading(false)
-              }
-            }} className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark">
+            <button
+              onClick={async () => {
+                setLoading(true)
+                try {
+                  const res = await api.reports.topProducts(rangeFrom, rangeTo)
+                  setTopData(res)
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Error')
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark"
+            >
               Consultar
             </button>
           </div>
@@ -266,10 +330,18 @@ export default function ReportsPage() {
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">#</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Producto</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Cantidad</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Total USD</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Total VES</th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                      Producto
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+                      Cantidad
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+                      Total USD
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+                      Total VES
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -296,19 +368,27 @@ export default function ReportsPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-blue-50 rounded-lg p-4">
                 <p className="text-xs text-blue-600 font-medium">Total Productos</p>
-                <p className="text-xl font-bold text-blue-800">{inventoryData.summary.totalProducts}</p>
+                <p className="text-xl font-bold text-blue-800">
+                  {inventoryData.summary.totalProducts}
+                </p>
               </div>
               <div className="bg-green-50 rounded-lg p-4">
                 <p className="text-xs text-green-600 font-medium">Valor Costo USD</p>
-                <p className="text-xl font-bold text-green-800">${inventoryData.summary.totalValueUsd.toFixed(2)}</p>
+                <p className="text-xl font-bold text-green-800">
+                  ${inventoryData.summary.totalValueUsd.toFixed(2)}
+                </p>
               </div>
               <div className="bg-orange-50 rounded-lg p-4">
                 <p className="text-xs text-orange-600 font-medium">Stock Bajo</p>
-                <p className="text-xl font-bold text-orange-800">{inventoryData.summary.lowStockCount}</p>
+                <p className="text-xl font-bold text-orange-800">
+                  {inventoryData.summary.lowStockCount}
+                </p>
               </div>
               <div className="bg-red-50 rounded-lg p-4">
                 <p className="text-xs text-red-600 font-medium">Sin Stock</p>
-                <p className="text-xl font-bold text-red-800">{inventoryData.summary.outOfStockCount}</p>
+                <p className="text-xl font-bold text-red-800">
+                  {inventoryData.summary.outOfStockCount}
+                </p>
               </div>
             </div>
           )}
@@ -318,25 +398,50 @@ export default function ReportsPage() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Producto</th>
-                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Categoría</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Stock</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Costo USD</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Precio USD</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Valor Total USD</th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                      Producto
+                    </th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                      Categoría
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+                      Stock
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+                      Costo USD
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+                      Precio USD
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+                      Valor Total USD
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {inventoryData.products.map((p) => {
                     const lowStock = p.minStock > 0 && p.stock <= p.minStock
                     return (
-                      <tr key={p.id} className={`border-b last:border-0 hover:bg-gray-50 ${lowStock || p.stock <= 0 ? 'bg-red-50' : ''}`}>
+                      <tr
+                        key={p.id}
+                        className={`border-b last:border-0 hover:bg-gray-50 ${lowStock || p.stock <= 0 ? 'bg-red-50' : ''}`}
+                      >
                         <td className="px-4 py-3 font-medium">{p.name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">{p.category?.name || '—'}</td>
-                        <td className={`px-4 py-3 text-right font-medium ${lowStock ? 'text-red-600' : ''}`}>{p.stock}</td>
-                        <td className="px-4 py-3 text-right">{p.costUsd ? `$${p.costUsd.toFixed(2)}` : '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {p.category?.name || '—'}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-right font-medium ${lowStock ? 'text-red-600' : ''}`}
+                        >
+                          {p.stock}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {p.costUsd ? `$${p.costUsd.toFixed(2)}` : '—'}
+                        </td>
                         <td className="px-4 py-3 text-right">${p.priceUsd.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right">${((p.costUsd || 0) * p.stock).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right">
+                          ${((p.costUsd || 0) * p.stock).toFixed(2)}
+                        </td>
                       </tr>
                     )
                   })}
@@ -353,13 +458,22 @@ export default function ReportsPage() {
           <div className="flex gap-4 mb-6 items-end">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
-              <input type="date" value={cashDate} onChange={(e) => setCashDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm" />
+              <input
+                type="date"
+                value={cashDate}
+                onChange={(e) => setCashDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
             </div>
-            <button onClick={loadData} className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark">
+            <button
+              onClick={loadData}
+              className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark"
+            >
               Consultar
             </button>
-            <span className="text-sm text-gray-400 italic">Los totales reflejan solo facturas activas</span>
+            <span className="text-sm text-gray-400 italic">
+              Los totales reflejan solo facturas activas
+            </span>
           </div>
 
           {cashData && (
@@ -371,7 +485,9 @@ export default function ReportsPage() {
                 </div>
                 <div className="bg-red-50 rounded-lg p-4">
                   <p className="text-xs text-red-600 font-medium">Anuladas</p>
-                  <p className="text-xl font-bold text-red-800">{cashData.summary.cancelledCount}</p>
+                  <p className="text-xl font-bold text-red-800">
+                    {cashData.summary.cancelledCount}
+                  </p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
                   <p className="text-xs text-green-600 font-medium">Efectivo USD</p>
@@ -387,7 +503,9 @@ export default function ReportsPage() {
                 </div>
                 <div className="bg-purple-50 rounded-lg p-4">
                   <p className="text-xs text-purple-600 font-medium">Total USD</p>
-                  <p className="text-xl font-bold text-purple-800">${cashData.summary.totalUsd.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-purple-800">
+                    ${cashData.summary.totalUsd.toFixed(2)}
+                  </p>
                 </div>
               </div>
 
@@ -397,17 +515,28 @@ export default function ReportsPage() {
                   <div className="space-y-2">
                     {Object.entries(cashData.summary.paymentsBreakdown).map(([method, data]) => (
                       <div key={method} className="flex justify-between items-center py-1">
-                        <span className="text-gray-600 font-medium">{PAYMENT_LABELS[method] || method}</span>
+                        <span className="text-gray-600 font-medium">
+                          {PAYMENT_LABELS[method] || method}
+                        </span>
                         <div className="text-right">
-                          <span className="text-sm text-gray-500 mr-2">({data.count} transacciones)</span>
-                          {data.usd > 0 && <span className="font-medium mr-2">${data.usd.toFixed(2)}</span>}
-                          {data.ves > 0 && <span className="font-medium">Bs.{data.ves.toFixed(2)}</span>}
+                          <span className="text-sm text-gray-500 mr-2">
+                            ({data.count} transacciones)
+                          </span>
+                          {data.usd > 0 && (
+                            <span className="font-medium mr-2">${data.usd.toFixed(2)}</span>
+                          )}
+                          {data.ves > 0 && (
+                            <span className="font-medium">Bs.{data.ves.toFixed(2)}</span>
+                          )}
                         </div>
                       </div>
                     ))}
                     <div className="border-t pt-2 flex justify-between font-bold text-gray-800">
                       <span>Totales</span>
-                      <span>${cashData.summary.totalUsd.toFixed(2)} | Bs.{cashData.summary.totalVes.toFixed(2)}</span>
+                      <span>
+                        ${cashData.summary.totalUsd.toFixed(2)} | Bs.
+                        {cashData.summary.totalVes.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -449,19 +578,29 @@ function renderInvoiceTable(invoices: Invoice[], navigate: ReturnType<typeof use
         </thead>
         <tbody>
           {invoices.map((inv) => (
-            <tr key={inv.id} className="border-b last:border-0 hover:bg-gray-50 cursor-pointer print:cursor-default"
-              onClick={() => navigate(`/invoices/${inv.id}`)}>
+            <tr
+              key={inv.id}
+              className="border-b last:border-0 hover:bg-gray-50 cursor-pointer print:cursor-default"
+              onClick={() => navigate(`/invoices/${inv.id}`)}
+            >
               <td className="px-4 py-3 font-medium text-sm">{inv.number}</td>
               <td className="px-4 py-3 text-sm">{inv.customer?.name || 'Consumidor Final'}</td>
               <td className="px-4 py-3 text-right text-sm">
-                {inv.currency === 'USD' ? `$${inv.totalUsd.toFixed(2)}` : `Bs.${inv.totalVes.toFixed(2)}`}
+                {inv.currency === 'USD'
+                  ? `$${inv.totalUsd.toFixed(2)}`
+                  : `Bs.${inv.totalVes.toFixed(2)}`}
               </td>
               <td className="px-4 py-3 text-right text-sm">
-                {inv.currency === 'USD' ? `$${inv.ivaUsd.toFixed(2)}` : `Bs.${inv.ivaVes.toFixed(2)}`}
+                {inv.currency === 'USD'
+                  ? `$${inv.ivaUsd.toFixed(2)}`
+                  : `Bs.${inv.ivaVes.toFixed(2)}`}
               </td>
               <td className="px-4 py-3 text-center text-sm">{inv.currency}</td>
               <td className="px-4 py-3 text-right text-sm text-gray-500">
-                {new Date(inv.createdAt).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}
+                {new Date(inv.createdAt).toLocaleTimeString('es-VE', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
               </td>
             </tr>
           ))}

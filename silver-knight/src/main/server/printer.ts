@@ -1,4 +1,4 @@
-import { exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
 import { prisma } from '../database/prisma'
 
@@ -34,7 +34,7 @@ function padRight(text: string, width = CHARS_PER_LINE): string {
   return text + ' '.repeat(width - len)
 }
 
-function line( char = '-', width = CHARS_PER_LINE): string {
+function line(char = '-', width = CHARS_PER_LINE): string {
   return char.repeat(width)
 }
 
@@ -86,8 +86,16 @@ export function buildThermalTicket(data: PrintInvoiceData): string {
   const iva = isUsd ? data.ivaUsd : data.ivaVes
   const subtotal = total - iva
 
-  const docLabel: Record<string, string> = { FACT: 'FACTURA', NCR: 'NOTA DE CRÉDITO', NDB: 'NOTA DE DÉBITO' }
-  const payLabels: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Punto de Venta' }
+  const docLabel: Record<string, string> = {
+    FACT: 'FACTURA',
+    NCR: 'NOTA DE CRÉDITO',
+    NDB: 'NOTA DE DÉBITO'
+  }
+  const payLabels: Record<string, string> = {
+    cash: 'Efectivo',
+    transfer: 'Transferencia',
+    card: 'Punto de Venta'
+  }
 
   let ticket = CMD.init
   ticket += CMD.center + CMD.boldOn + CMD.doubleOn
@@ -138,7 +146,8 @@ export function buildThermalTicket(data: PrintInvoiceData): string {
 
   if (c === 'USD' && data.exchangeRate > 0) {
     ticket += wrapLine('Tasa BCV:', `Bs.${data.exchangeRate.toFixed(2)}`) + '\n'
-    ticket += wrapLine('Total en Bs.:', `Bs.${(data.totalUsd * data.exchangeRate).toFixed(2)}`) + '\n'
+    ticket +=
+      wrapLine('Total en Bs.:', `Bs.${(data.totalUsd * data.exchangeRate).toFixed(2)}`) + '\n'
   } else if (c === 'VES' && data.exchangeRate > 0) {
     ticket += wrapLine('Tasa BCV:', `Bs.${data.exchangeRate.toFixed(2)}`) + '\n'
     ticket += wrapLine('Total en USD:', `$${(data.totalVes / data.exchangeRate).toFixed(2)}`) + '\n'
@@ -148,7 +157,8 @@ export function buildThermalTicket(data: PrintInvoiceData): string {
     ticket += line('=') + '\n'
     ticket += CMD.center + 'MÉTODOS DE PAGO\n' + CMD.left
     for (const p of data.payments) {
-      ticket += wrapLine(payLabels[p.method] || p.method, formatCurrency(p.amount, p.currency)) + '\n'
+      ticket +=
+        wrapLine(payLabels[p.method] || p.method, formatCurrency(p.amount, p.currency)) + '\n'
     }
   }
 
@@ -177,12 +187,16 @@ export async function getAvailablePrinters(): Promise<string[]> {
 }
 
 export async function printRaw(printerName: string, data: string): Promise<void> {
-  const escaped = data
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\$/g, '\\$')
-    .replace(/`/g, '\\`')
-  await execAsync(`printf '%b' "${escaped}" | lp -d "${printerName}" -o raw`)
+  return new Promise((resolve, reject) => {
+    const lp = spawn('lp', ['-d', printerName, '-o', 'raw'], { stdio: ['pipe', 'ignore', 'pipe'] })
+    lp.stdin.write(data)
+    lp.stdin.end()
+    lp.on('error', reject)
+    lp.on('exit', (code) => {
+      if (code === 0) resolve()
+      else reject(new Error(`lp exited with code ${code}`))
+    })
+  })
 }
 
 export async function printInvoice(invoiceId: string): Promise<void> {
@@ -205,7 +219,9 @@ export async function printInvoice(invoiceId: string): Promise<void> {
       const parsed = JSON.parse(invoice.payments)
       if (Array.isArray(parsed)) payments.push(...parsed)
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   const printData: PrintInvoiceData = {
     invoiceNumber: invoice.number,

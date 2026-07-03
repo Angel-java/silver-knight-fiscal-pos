@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { createServer } from './server'
+import { createServer, stopBcvScheduler } from './server'
 
 const SERVER_PORT = 3001
 let server: ReturnType<typeof import('http').createServer> | null = null
@@ -82,6 +82,7 @@ app.whenReady().then(async () => {
 // for applications and menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  stopBcvScheduler()
   if (server) {
     server.close()
     server = null
