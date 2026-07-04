@@ -1,8 +1,8 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type Customer, type Invoice } from '../lib/api'
 
-export default function CustomersPage() {
+export default function CustomersPage(): JSX.Element {
   const navigate = useNavigate()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [total, setTotal] = useState(0)
@@ -23,7 +23,7 @@ export default function CustomersPage() {
   const [creditLimitVes, setCreditLimitVes] = useState('')
   const [error, setError] = useState('')
 
-  const load = async () => {
+  const load = async (): Promise<void> => {
     try {
       const res = await api.customers.list({ search, page })
       setCustomers(res.customers)
@@ -38,10 +38,23 @@ export default function CustomersPage() {
   }
 
   useEffect(() => {
-    load()
+    const init = async (): Promise<void> => {
+      try {
+        const res = await api.customers.list({ search, page })
+        setCustomers(res.customers)
+        setTotal(res.total)
+        setPage(res.page)
+        setPages(res.pages)
+      } catch {
+        setError('Error al cargar clientes')
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
   }, [search, page])
 
-  const openCreate = () => {
+  const openCreate = (): void => {
     setEditing(null)
     setName('')
     setRif('')
@@ -54,7 +67,7 @@ export default function CustomersPage() {
     setShowModal(true)
   }
 
-  const openEdit = (c: Customer) => {
+  const openEdit = (c: Customer): void => {
     setEditing(c)
     setName(c.name)
     setRif(c.rif || '')
@@ -67,7 +80,7 @@ export default function CustomersPage() {
     setShowModal(true)
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError('')
     try {
@@ -99,7 +112,7 @@ export default function CustomersPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string): Promise<void> => {
     if (!confirm('¿Eliminar este cliente?')) return
     try {
       await api.customers.delete(id)
@@ -109,7 +122,7 @@ export default function CustomersPage() {
     }
   }
 
-  const openDetail = async (id: string) => {
+  const openDetail = async (id: string): Promise<void> => {
     try {
       const res = await api.customers.get(id)
       setDetail(res.customer)

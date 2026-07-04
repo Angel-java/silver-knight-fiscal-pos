@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import type { ReactElement } from 'react'
+import type { JSX, ReactElement } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/useAuth'
 import { api } from '../lib/api'
 
 const icons: Record<string, ReactElement> = {
@@ -113,7 +113,7 @@ const menuItems = [
   { label: 'Configuración', key: 'settings', path: '/settings' }
 ]
 
-export default function DashboardPage() {
+export default function DashboardPage(): JSX.Element {
   const { user, company, logout } = useAuth()
   const navigate = useNavigate()
   const [summary, setSummary] = useState<{
@@ -155,7 +155,7 @@ export default function DashboardPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {menuItems.map((item) => (
             <button
               key={item.path}

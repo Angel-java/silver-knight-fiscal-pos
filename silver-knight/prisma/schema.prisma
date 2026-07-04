@@ -34,6 +34,7 @@ model ExchangeRate {
   rate      Float
   source    String   @default("manual")
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model Category {
@@ -133,6 +134,8 @@ model InvoiceItem {
   ivaRate     Float
   totalUsd    Float
   totalVes    Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // @deprecated Sin implementar — se agregará en Fase 2 (Medium Profile).
@@ -150,10 +153,36 @@ model CashRegister {
   salesUsd    Float     @default(0)
   salesVes    Float     @default(0)
   isOpen      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Setting {
-  id    String @id @default(cuid())
-  key   String @unique
-  value String
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model SyncLog {
+  id        String    @id @default(cuid())
+  entity    String
+  action    String
+  entityId  String
+  status    String    @default("pending")
+  error     String?
+  createdAt DateTime  @default(now())
+  syncedAt  DateTime?
+}
+
+model SyncConfig {
+  id        String   @id @default(cuid())
+  url       String   @default("")
+  apiKey    String   @default("")
+  enabled   Boolean  @default(false)
+  interval  Int      @default(60)
+  lastSyncAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 
@@ -10,7 +10,7 @@ interface User {
   createdAt: string
 }
 
-export default function UsersPage() {
+export default function UsersPage(): JSX.Element {
   const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -21,7 +21,7 @@ export default function UsersPage() {
   const [form, setForm] = useState({ username: '', pin: '', role: 'operator' })
   const [saving, setSaving] = useState(false)
 
-  const load = async () => {
+  const load = async (): Promise<void> => {
     try {
       const res = await api.users.list()
       setUsers(res.users)
@@ -33,22 +33,32 @@ export default function UsersPage() {
   }
 
   useEffect(() => {
-    load()
+    const init = async (): Promise<void> => {
+      try {
+        const res = await api.users.list()
+        setUsers(res.users)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al cargar usuarios')
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
   }, [])
 
-  const openCreate = () => {
+  const openCreate = (): void => {
     setEditing(null)
     setForm({ username: '', pin: '', role: 'operator' })
     setShowModal(true)
   }
 
-  const openEdit = (u: User) => {
+  const openEdit = (u: User): void => {
     setEditing(u)
     setForm({ username: u.username, pin: '', role: u.role })
     setShowModal(true)
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError('')
     if (!form.username) {
@@ -82,7 +92,7 @@ export default function UsersPage() {
     }
   }
 
-  const toggleActive = async (u: User) => {
+  const toggleActive = async (u: User): Promise<void> => {
     try {
       await api.users.update(u.id, { isActive: !u.isActive })
       setSuccess(u.isActive ? 'Usuario desactivado' : 'Usuario activado')

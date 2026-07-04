@@ -14,7 +14,10 @@ import ivaBooksRoutes from './routes/ivaBooks'
 import reportsRoutes from './routes/reports'
 import usersRoutes from './routes/users'
 import printRoutes from './routes/print'
+import puntoVentaRoutes from './routes/puntoVenta'
+import syncRoutes from './routes/sync'
 import { startBcvScheduler } from './scheduler'
+import { syncService } from './syncService'
 
 export { stopBcvScheduler } from './scheduler'
 
@@ -42,7 +45,10 @@ export function createServer(): ReturnType<typeof express> {
   app.use('/api/reports', reportsRoutes)
   app.use('/api/users', usersRoutes)
   app.use('/api/print', printRoutes)
+  app.use('/api/punto-venta', puntoVentaRoutes)
+  app.use('/api/sync', syncRoutes)
 
+  syncService.start()
   startBcvScheduler()
 
   return app

@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-07-02
+updated: 2026-07-03
 ---
 
 # Índice de la Wiki — Silver Knight

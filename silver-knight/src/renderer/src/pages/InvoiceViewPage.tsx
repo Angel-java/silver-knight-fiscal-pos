@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import type { JSX } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type Invoice } from '../lib/api'
 
@@ -8,7 +9,7 @@ const DOC_LABELS: Record<string, string> = {
   NDB: 'Nota de Débito'
 }
 
-export default function InvoiceViewPage() {
+export default function InvoiceViewPage(): JSX.Element {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
@@ -34,7 +35,7 @@ export default function InvoiceViewPage() {
       })
   }, [id])
 
-  const handleCancel = async () => {
+  const handleCancel = async (): Promise<void> => {
     if (!invoice || !cancelReason.trim()) return
     try {
       const res = await api.invoices.cancel(invoice.id, cancelReason)
@@ -109,7 +110,7 @@ export default function InvoiceViewPage() {
     return h
   }
 
-  const handlePrint = async () => {
+  const handlePrint = async (): Promise<void> => {
     if (!invoice) return
     setPrinting(true)
     try {
@@ -121,7 +122,7 @@ export default function InvoiceViewPage() {
     }
   }
 
-  const handlePreview = () => {
+  const handlePreview = (): void => {
     if (!invoice) return
     setPreviewHtml(buildPreview(invoice))
     setShowPreview(true)

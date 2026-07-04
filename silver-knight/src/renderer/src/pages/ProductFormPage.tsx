@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react'
+import type { JSX } from 'react'
 import { api, type Product, type Category } from '../lib/api'
 
 interface ProductFormProps {
@@ -13,7 +14,7 @@ export default function ProductFormPage({
   categories,
   onSave,
   onCancel
-}: ProductFormProps) {
+}: ProductFormProps): JSX.Element {
   const [exchangeRate, setExchangeRate] = useState(0)
   const [profitMargin, setProfitMargin] = useState(0)
   const [form, setForm] = useState({
@@ -43,19 +44,23 @@ export default function ProductFormPage({
       .catch(() => {})
   }, [])
 
-  const set = (field: string, value: string | number) => {
+  const set = (field: string, value: string | number): void => {
     setForm((prev) => {
       const next = { ...prev, [field]: value }
       if (!product) {
         if (field === 'costUsd') {
           const cost = Number(value)
-          if (cost > 0 && profitMargin > 0) {
-            next.priceUsd = String(Math.round(cost * (1 + profitMargin / 100) * 100) / 100)
-            next.costVes =
-              exchangeRate > 0 ? String(Math.round(cost * exchangeRate * 100) / 100) : prev.costVes
-          }
-          if (exchangeRate > 0 && Number(next.priceUsd) > 0) {
-            next.priceVes = String(Math.round(Number(next.priceUsd) * exchangeRate * 100) / 100)
+          if (cost > 0) {
+            if (profitMargin > 0) {
+              next.priceUsd = String(Math.round(cost * (1 + profitMargin / 100) * 100) / 100)
+            }
+            if (exchangeRate > 0) {
+              next.costVes = String(Math.round(cost * exchangeRate * 100) / 100)
+              const usdPrice = Number(next.priceUsd || prev.priceUsd)
+              if (usdPrice > 0) {
+                next.priceVes = String(Math.round(usdPrice * exchangeRate * 100) / 100)
+              }
+            }
           }
         } else if (field === 'costVes') {
           const cost = Number(value)
@@ -70,7 +75,7 @@ export default function ProductFormPage({
     })
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError('')
     setSubmitting(true)

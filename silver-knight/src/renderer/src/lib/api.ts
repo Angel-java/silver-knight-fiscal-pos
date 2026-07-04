@@ -522,6 +522,112 @@ export const api = {
       }>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   },
 
+  sync: {
+    config: () =>
+      request<{
+        config: {
+          url: string
+          apiKey: string
+          enabled: boolean
+          interval: number
+          lastSyncAt: string | null
+        }
+      }>('/sync/config'),
+
+    saveConfig: (data: { url?: string; apiKey?: string; enabled?: boolean; interval?: number }) =>
+      request<{
+        config: {
+          url: string
+          apiKey: string
+          enabled: boolean
+          interval: number
+          lastSyncAt: string | null
+        }
+      }>('/sync/config', { method: 'PUT', body: JSON.stringify(data) }),
+
+    now: () =>
+      request<{
+        result: {
+          success: boolean
+          entitiesSynced: number
+          errors: string[]
+          duration: number
+        }
+      }>('/sync/now', { method: 'POST' }),
+
+    status: () =>
+      request<{
+        syncing: boolean
+        config: {
+          url: string
+          enabled: boolean
+          interval: number
+          lastSyncAt: string | null
+        }
+        lastResult: {
+          success: boolean
+          entitiesSynced: number
+          errors: string[]
+          duration: number
+        } | null
+      }>('/sync/status'),
+
+    logs: (limit?: number) =>
+      request<{
+        logs: Array<{
+          id: string
+          entity: string
+          action: string
+          status: string
+          error: string | null
+          createdAt: string
+        }>
+      }>(`/sync/logs${limit ? '?limit=' + limit : ''}`)
+  },
+
+  puntoVenta: {
+    status: () =>
+      request<{
+        connected: boolean
+        connecting: boolean
+        config: { port: string; baudRate: number; enabled: boolean }
+      }>('/punto-venta/status'),
+
+    ports: () =>
+      request<{ ports: Array<{ path: string; manufacturer?: string }> }>('/punto-venta/ports'),
+
+    connect: (data: { port: string; baudRate?: number }) =>
+      request<{ connected: boolean; config: { port: string; baudRate: number; enabled: boolean } }>(
+        '/punto-venta/connect',
+        { method: 'POST', body: JSON.stringify(data) }
+      ),
+
+    disconnect: () =>
+      request<{ connected: boolean }>('/punto-venta/disconnect', { method: 'POST' }),
+
+    test: () => request<{ ok: boolean; message: string }>('/punto-venta/test', { method: 'POST' }),
+
+    pay: (amount: number, currency?: string) =>
+      request<{
+        result: {
+          success: boolean
+          approvalCode?: string
+          cardNumber?: string
+          message?: string
+          error?: string
+        }
+      }>('/punto-venta/pay', {
+        method: 'POST',
+        body: JSON.stringify({ amount, currency })
+      }),
+
+    saveSettings: (data: { port?: string; baudRate?: number; enabled?: boolean }) =>
+      request<{ config: { port: string; baudRate: number; enabled: boolean } }>(
+        '/punto-venta/settings',
+        { method: 'PUT', body: JSON.stringify(data) }
+      )
+  },
+
   print: {
     listPrinters: () => request<{ printers: string[] }>('/print/printers'),
 

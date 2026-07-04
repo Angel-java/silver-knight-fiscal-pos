@@ -1,14 +1,15 @@
 import { useState, type FormEvent } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import type { JSX } from 'react'
+import { useAuth } from '../contexts/useAuth'
 
-export default function LoginPage() {
+export default function LoginPage(): JSX.Element {
   const { login } = useAuth()
   const [username, setUsername] = useState('')
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError('')
     setSubmitting(true)

@@ -2,7 +2,7 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-07-02
+updated: 2026-07-03
 ---
 
 # Log de operaciones — Silver Knight
@@ -122,3 +122,17 @@ updated: 2026-07-02
   - `src/main/server/routes/print.ts` — API endpoints: GET /printers, POST /invoice/:id
 - **Archivos modificados**: `server/index.ts`, `api.ts`, `InvoiceViewPage.tsx`, `SettingsPage.tsx`, `TASKS.md`, `overview.md`, `index.md`
 - **Tareas completadas**: 70 de 70 — **Fase 1 Small Profile terminada** 🎉
+
+## [2026-07-03] fix | Lint masivo + bugs responsive + auto-cálculo VES
+- **Descripción**: Corrección de 100 errores de lint + 2 bugs funcionales + mejora responsive del POS y Dashboard.
+- **Lint corregido**:
+  - 8x `set-state-in-effect` — migración a async IIFE inline en POSPage, ProductsPage, ReportsPage, SettingsPage, UsersPage, FiscalControlPage, IvaBooksPage
+  - 4x `exhaustive-deps` — inlining de efectos en POSPage, ReportsPage, CategoriesPage, CustomersPage
+  - 1x `only-export-components` — AuthContext.tsx dividido en [[AuthContext]], [[AuthProvider]], [[useAuth]]
+  - 87x `explicit-function-return-type` — `: void`, `: Promise<void>`, `: boolean`, `: string`, `: JSX.Element` agregados en 18 archivos
+- **Bug fix**: `ProductFormPage.tsx` — costVes no se calculaba cuando `profitMargin = 0`; ahora se calcula siempre que haya `exchangeRate > 0`, independiente del margen
+- **Responsive**:
+  - `POSPage.tsx`: layout `flex-col lg:flex-row` — mobile apilado (carrito abajo con `max-h-[45vh]`), desktop side-by-side. Grid de productos: `grid-cols-2 sm:3 lg:3 xl:4`
+  - `DashboardPage.tsx`: `grid-cols-5` → `grid-cols-6` — los 6 botones del menú caben en una fila en pantalla completa
+- **Resultado lint**: 0 errores, 0 warnings
+- **Resultado typecheck**: 0 errores

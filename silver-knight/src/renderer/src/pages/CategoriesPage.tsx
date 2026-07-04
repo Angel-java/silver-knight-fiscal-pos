@@ -1,8 +1,8 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type Category } from '../lib/api'
 
-export default function CategoriesPage() {
+export default function CategoriesPage(): JSX.Element {
   const navigate = useNavigate()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -12,7 +12,7 @@ export default function CategoriesPage() {
   const [description, setDescription] = useState('')
   const [error, setError] = useState('')
 
-  const load = async () => {
+  const load = async (): Promise<void> => {
     try {
       const res = await api.categories.list()
       setCategories(res.categories)
@@ -24,10 +24,20 @@ export default function CategoriesPage() {
   }
 
   useEffect(() => {
-    load()
+    const init = async (): Promise<void> => {
+      try {
+        const res = await api.categories.list()
+        setCategories(res.categories)
+      } catch {
+        setError('Error al cargar categorías')
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
   }, [])
 
-  const openCreate = () => {
+  const openCreate = (): void => {
     setEditing(null)
     setName('')
     setDescription('')
@@ -35,7 +45,7 @@ export default function CategoriesPage() {
     setShowModal(true)
   }
 
-  const openEdit = (cat: Category) => {
+  const openEdit = (cat: Category): void => {
     setEditing(cat)
     setName(cat.name)
     setDescription(cat.description || '')
@@ -43,7 +53,7 @@ export default function CategoriesPage() {
     setShowModal(true)
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError('')
     try {
@@ -59,7 +69,7 @@ export default function CategoriesPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string): Promise<void> => {
     if (!confirm('¿Eliminar esta categoría?')) return
     try {
       await api.categories.delete(id)

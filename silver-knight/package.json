@@ -30,7 +30,8 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "react-router-dom": "^7.18.1"
+    "react-router-dom": "^7.18.1",
+    "serialport": "^12.0.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

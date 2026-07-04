@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type FiscalControl } from '../lib/api'
 
@@ -8,7 +8,7 @@ const DOC_OPTIONS = [
   { value: 'NDB', label: 'Nota de Débito' }
 ]
 
-export default function FiscalControlPage() {
+export default function FiscalControlPage(): JSX.Element {
   const navigate = useNavigate()
   const [controls, setControls] = useState<FiscalControl[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,7 +23,7 @@ export default function FiscalControlPage() {
   const [endNumber, setEndNumber] = useState('999999')
   const [issuedAt, setIssuedAt] = useState('')
 
-  const load = async () => {
+  const load = async (): Promise<void> => {
     try {
       const res = await api.fiscalControl.list()
       setControls(res.controls)
@@ -35,10 +35,20 @@ export default function FiscalControlPage() {
   }
 
   useEffect(() => {
-    load()
+    const init = async (): Promise<void> => {
+      try {
+        const res = await api.fiscalControl.list()
+        setControls(res.controls)
+      } catch {
+        setError('Error al cargar controles fiscales')
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
   }, [])
 
-  const openCreate = () => {
+  const openCreate = (): void => {
     setEditing(null)
     setDocumentType('FACT')
     setResolution('')
@@ -50,7 +60,7 @@ export default function FiscalControlPage() {
     setShowModal(true)
   }
 
-  const openEdit = (c: FiscalControl) => {
+  const openEdit = (c: FiscalControl): void => {
     setEditing(c)
     setDocumentType(c.documentType)
     setResolution(c.resolution)
@@ -62,7 +72,7 @@ export default function FiscalControlPage() {
     setShowModal(true)
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError('')
     try {
@@ -91,7 +101,7 @@ export default function FiscalControlPage() {
     }
   }
 
-  const toggleActive = async (c: FiscalControl) => {
+  const toggleActive = async (c: FiscalControl): Promise<void> => {
     try {
       await api.fiscalControl.update(c.id, { isActive: !c.isActive })
       await load()
@@ -100,7 +110,7 @@ export default function FiscalControlPage() {
     }
   }
 
-  const getDocLabel = (dt: string) => DOC_OPTIONS.find((o) => o.value === dt)?.label || dt
+  const getDocLabel = (dt: string): string => DOC_OPTIONS.find((o) => o.value === dt)?.label || dt
 
   if (loading) return <p className="text-gray-500 p-4">Cargando...</p>
 

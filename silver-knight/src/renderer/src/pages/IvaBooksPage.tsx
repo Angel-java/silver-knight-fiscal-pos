@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type Invoice } from '../lib/api'
 
 type Tab = 'ventas' | 'compras'
 
-export default function IvaBooksPage() {
+export default function IvaBooksPage(): JSX.Element {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('ventas')
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -23,7 +23,7 @@ export default function IvaBooksPage() {
   })
   const [to, setTo] = useState(() => new Date().toISOString().split('T')[0])
 
-  const load = async () => {
+  const load = async (): Promise<void> => {
     setLoading(true)
     try {
       if (tab === 'ventas') {
@@ -44,7 +44,26 @@ export default function IvaBooksPage() {
   }
 
   useEffect(() => {
-    load()
+    const init = async (): Promise<void> => {
+      setLoading(true)
+      try {
+        if (tab === 'ventas') {
+          const res = await api.iva.ventas(from, to)
+          setInvoices(res.invoices)
+          setSummary(res.summary)
+        } else {
+          const res = await api.iva.compras(from, to)
+          setInvoices(res.invoices)
+          setSummary(res.summary)
+        }
+      } catch {
+        setInvoices([])
+        setSummary(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
   }, [tab, from, to])
 
   return (

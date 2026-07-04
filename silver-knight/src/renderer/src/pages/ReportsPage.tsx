@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type Invoice, type Product } from '../lib/api'
 
@@ -18,7 +18,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   card: 'Punto de Venta'
 }
 
-export default function ReportsPage() {
+export default function ReportsPage(): JSX.Element {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('daily')
   const [loading, setLoading] = useState(true)
@@ -81,7 +81,7 @@ export default function ReportsPage() {
     }
   } | null>(null)
 
-  const loadData = async () => {
+  const loadData = async (): Promise<void> => {
     setLoading(true)
     setError('')
     try {
@@ -120,8 +120,45 @@ export default function ReportsPage() {
   }
 
   useEffect(() => {
-    loadData()
-  }, [tab])
+    const load = async (): Promise<void> => {
+      setLoading(true)
+      setError('')
+      try {
+        switch (tab) {
+          case 'daily': {
+            const res = await api.reports.salesDaily()
+            setDailyData(res)
+            break
+          }
+          case 'range': {
+            const res = await api.reports.salesRange(rangeFrom, rangeTo)
+            setRangeData(res)
+            break
+          }
+          case 'inventory': {
+            const res = await api.reports.inventory()
+            setInventoryData(res)
+            break
+          }
+          case 'top': {
+            const res = await api.reports.topProducts()
+            setTopData(res)
+            break
+          }
+          case 'cashclose': {
+            const res = await api.reports.cashClose(cashDate)
+            setCashData(res)
+            break
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al cargar reporte')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [tab, rangeFrom, rangeTo, cashDate])
 
   return (
     <div className="p-6">
@@ -561,7 +598,10 @@ export default function ReportsPage() {
   )
 }
 
-function renderInvoiceTable(invoices: Invoice[], navigate: ReturnType<typeof useNavigate>) {
+function renderInvoiceTable(
+  invoices: Invoice[],
+  navigate: ReturnType<typeof useNavigate>
+): JSX.Element | null {
   if (invoices.length === 0) return null
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden print:shadow-none">

@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type Product, type Category } from '../lib/api'
 import ProductFormPage from './ProductFormPage'
 
-export default function ProductsPage() {
+export default function ProductsPage(): JSX.Element {
   const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -21,7 +21,7 @@ export default function ProductsPage() {
   const [stockQty, setStockQty] = useState('')
   const [stockType, setStockType] = useState<'in' | 'out'>('in')
 
-  const load = useCallback(async () => {
+  const load = async (): Promise<void> => {
     try {
       const [prodRes, catRes] = await Promise.all([
         api.products.list({ search, page }),
@@ -37,23 +37,40 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, page])
+  }
 
   useEffect(() => {
-    load()
-  }, [load])
+    const init = async (): Promise<void> => {
+      try {
+        const [prodRes, catRes] = await Promise.all([
+          api.products.list({ search, page }),
+          api.categories.list()
+        ])
+        setProducts(prodRes.products)
+        setTotal(prodRes.total)
+        setPage(prodRes.page)
+        setPages(prodRes.pages)
+        setCategories(catRes.categories)
+      } catch {
+        console.error('Error al cargar productos')
+      } finally {
+        setLoading(false)
+      }
+    }
+    init()
+  }, [search, page])
 
-  const openCreate = () => {
+  const openCreate = (): void => {
     setEditing(null)
     setShowForm(true)
   }
 
-  const openEdit = (p: Product) => {
+  const openEdit = (p: Product): void => {
     setEditing(p)
     setShowForm(true)
   }
 
-  const handleStockAdjust = async () => {
+  const handleStockAdjust = async (): Promise<void> => {
     const qty = Number(stockQty)
     if (!qty || qty <= 0) return
     try {
@@ -65,7 +82,7 @@ export default function ProductsPage() {
     }
   }
 
-  const lowStock = (p: Product) => p.minStock > 0 && p.stock <= p.minStock
+  const lowStock = (p: Product): boolean => p.minStock > 0 && p.stock <= p.minStock
 
   if (loading) return <p className="text-gray-500 p-4">Cargando...</p>
 

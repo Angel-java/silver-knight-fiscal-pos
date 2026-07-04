@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import type { JSX } from 'react'
+import { useAuth } from '../contexts/useAuth'
 
-export default function SetupWizardPage() {
+export default function SetupWizardPage(): JSX.Element {
   const { setup } = useAuth()
   const [step, setStep] = useState(0)
   const [error, setError] = useState('')
@@ -10,7 +11,7 @@ export default function SetupWizardPage() {
   const [company, setCompany] = useState({ name: '', rif: '', address: '', phone: '', email: '' })
   const [admin, setAdmin] = useState({ username: '', pin: '', confirmPin: '' })
 
-  const handleCompanySubmit = (e: FormEvent) => {
+  const handleCompanySubmit = (e: FormEvent): void => {
     e.preventDefault()
     setError('')
     if (!company.name.trim() || !company.rif.trim()) {
@@ -20,7 +21,7 @@ export default function SetupWizardPage() {
     setStep(1)
   }
 
-  const handleAdminSubmit = async (e: FormEvent) => {
+  const handleAdminSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     setError('')
     if (!admin.username.trim() || !admin.pin.trim()) {

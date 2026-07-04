@@ -1,8 +1,8 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 
-export default function SettingsPage() {
+export default function SettingsPage(): JSX.Element {
   const navigate = useNavigate()
   const [rate, setRate] = useState('')
   const [currentRate, setCurrentRate] = useState<{
@@ -29,6 +29,39 @@ export default function SettingsPage() {
   const [bcvFetchTimes, setBcvFetchTimes] = useState<string[]>([])
   const [newBcvTime, setNewBcvTime] = useState('09:00')
 
+  const [posEnabled, setPosEnabled] = useState(false)
+  const [posPort, setPosPort] = useState('')
+  const [posBaudRate, setPosBaudRate] = useState('9600')
+  const [posConnected, setPosConnected] = useState(false)
+  const [posConnecting, setPosConnecting] = useState(false)
+  const [availablePorts, setAvailablePorts] = useState<
+    Array<{ path: string; manufacturer?: string }>
+  >([])
+
+  const [syncEnabled, setSyncEnabled] = useState(false)
+  const [syncUrl, setSyncUrl] = useState('')
+  const [syncApiKey, setSyncApiKey] = useState('')
+  const [syncInterval, setSyncInterval] = useState(60)
+  const [syncing, setSyncing] = useState(false)
+  const [syncLastSync, setSyncLastSync] = useState<string | null>(null)
+  const [syncLastResult, setSyncLastResult] = useState<{
+    success: boolean
+    entitiesSynced: number
+    errors: string[]
+    duration: number
+  } | null>(null)
+  const [syncLogs, setSyncLogs] = useState<
+    Array<{
+      id: string
+      entity: string
+      action: string
+      status: string
+      error: string | null
+      createdAt: string
+    }>
+  >([])
+  const [showSyncLogs, setShowSyncLogs] = useState(false)
+
   const [company, setCompany] = useState<{
     name: string
     rif: string
@@ -45,7 +78,7 @@ export default function SettingsPage() {
     email: ''
   })
 
-  const load = async () => {
+  const load = async (): Promise<void> => {
     try {
       const [rateRes, settingsRes, companyRes] = await Promise.all([
         api.exchangeRates.getLatest(),
@@ -72,6 +105,9 @@ export default function SettingsPage() {
           setBcvFetchTimes([])
         }
       }
+      if (sett['posTerminalEnabled']) setPosEnabled(sett['posTerminalEnabled'] === 'true')
+      if (sett['posTerminalPort']) setPosPort(sett['posTerminalPort'])
+      if (sett['posTerminalBaudRate']) setPosBaudRate(sett['posTerminalBaudRate'])
       if (companyRes.company) {
         const c = companyRes.company
         setCompany({
@@ -95,7 +131,58 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    load()
+    const init = async (): Promise<void> => {
+      try {
+        const [rateRes, settingsRes, companyRes] = await Promise.all([
+          api.exchangeRates.getLatest(),
+          api.settings.getAll(),
+          api.company.get()
+        ])
+        if (rateRes.rate) setCurrentRate(rateRes.rate)
+        const sett = settingsRes.settings
+        const m = sett['profitMargin']
+        if (m) {
+          setSavedMargin(Number(m))
+          setMargin(m)
+        }
+        if (sett['profile']) setProfile(sett['profile'])
+        if (sett['printHeader']) setPrintHeader(sett['printHeader'])
+        if (sett['printFooter']) setPrintFooter(sett['printFooter'])
+        if (sett['paperWidth']) setPaperWidth(sett['paperWidth'])
+        if (sett['printerName']) setSelectedPrinter(sett['printerName'])
+        if (sett['bcvAutoFetch']) setBcvAutoFetch(sett['bcvAutoFetch'] === 'true')
+        if (sett['bcvFetchTimes']) {
+          try {
+            setBcvFetchTimes(JSON.parse(sett['bcvFetchTimes']))
+          } catch {
+            setBcvFetchTimes([])
+          }
+        }
+        if (sett['posTerminalEnabled']) setPosEnabled(sett['posTerminalEnabled'] === 'true')
+        if (sett['posTerminalPort']) setPosPort(sett['posTerminalPort'])
+        if (sett['posTerminalBaudRate']) setPosBaudRate(sett['posTerminalBaudRate'])
+        if (companyRes.company) {
+          const c = companyRes.company
+          setCompany({
+            name: c.name,
+            rif: c.rif,
+            address: c.address || '',
+            phone: c.phone || '',
+            email: c.email || ''
+          })
+          setCompanyForm({
+            name: c.name,
+            rif: c.rif,
+            address: c.address || '',
+            phone: c.phone || '',
+            email: c.email || ''
+          })
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    init()
   }, [])
 
   useEffect(() => {
@@ -105,16 +192,40 @@ export default function SettingsPage() {
       .catch(() => {})
   }, [])
 
-  const showError = (msg: string) => {
+  useEffect(() => {
+    Promise.all([
+      api.puntoVenta.status().catch(() => null),
+      api.puntoVenta.ports().catch(() => null)
+    ]).then(([status, ports]) => {
+      if (status) {
+        setPosConnected(status.connected)
+        setPosConnecting(status.connecting)
+      }
+      if (ports) setAvailablePorts(ports.ports)
+    })
+
+    api.sync
+      .status()
+      .then((st) => {
+        setSyncEnabled(st.config.enabled)
+        setSyncUrl(st.config.url)
+        setSyncInterval(st.config.interval)
+        setSyncLastSync(st.config.lastSyncAt)
+        setSyncLastResult(st.lastResult)
+      })
+      .catch(() => {})
+  }, [])
+
+  const showError = (msg: string): void => {
     setError(msg)
     setSuccess('')
   }
-  const showSuccess = (msg: string) => {
+  const showSuccess = (msg: string): void => {
     setSuccess(msg)
     setError('')
   }
 
-  const handleRateSubmit = async (e: FormEvent) => {
+  const handleRateSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     showError('')
     if (!rate || parseFloat(rate) <= 0) {
@@ -134,7 +245,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleBcvFetch = async () => {
+  const handleBcvFetch = async (): Promise<void> => {
     setBcvLoading(true)
     showError('')
     try {
@@ -148,7 +259,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleMarginSubmit = async (e: FormEvent) => {
+  const handleMarginSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     showError('')
     const m = parseFloat(margin)
@@ -168,7 +279,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handlePrinterSubmit = async (e: FormEvent) => {
+  const handlePrinterSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     showError('')
     setSaving(true)
@@ -186,7 +297,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handlePrinterChange = async (name: string) => {
+  const handlePrinterChange = async (name: string): Promise<void> => {
     setSelectedPrinter(name)
     try {
       await api.settings.set('printerName', name)
@@ -196,7 +307,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleTestPrint = async () => {
+  const handleTestPrint = async (): Promise<void> => {
     setTestPrinting(true)
     showError('')
     try {
@@ -214,7 +325,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleBcvAutoFetchToggle = async () => {
+  const handleBcvAutoFetchToggle = async (): Promise<void> => {
     const newVal = !bcvAutoFetch
     setBcvAutoFetch(newVal)
     try {
@@ -226,7 +337,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleAddBcvTime = async () => {
+  const handleAddBcvTime = async (): Promise<void> => {
     if (bcvFetchTimes.includes(newBcvTime)) {
       showError('Esa hora ya está agregada')
       return
@@ -242,7 +353,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleRemoveBcvTime = async (time: string) => {
+  const handleRemoveBcvTime = async (time: string): Promise<void> => {
     const updated = bcvFetchTimes.filter((t) => t !== time)
     setBcvFetchTimes(updated)
     try {
@@ -254,7 +365,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleProfileChange = async (value: string) => {
+  const handleProfileChange = async (value: string): Promise<void> => {
     setProfile(value)
     try {
       await api.settings.set('profile', value)
@@ -264,7 +375,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleCompanySubmit = async (e: FormEvent) => {
+  const handleCompanySubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
     showError('')
     if (!companyForm.name || !companyForm.rif) {
@@ -629,6 +740,437 @@ export default function SettingsPage() {
               {saving ? 'Guardando...' : 'Guardar Configuración'}
             </button>
           </form>
+        </div>
+
+        {/* Configuración de Terminal POS */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-bold mb-4">Terminal Punto de Venta</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Configura la conexión con el terminal POS (pinpad) para procesar pagos con tarjeta de
+            débito/crédito de forma automática.
+          </p>
+
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-medium text-gray-700">Terminal habilitado</span>
+            <button
+              onClick={async () => {
+                const newVal = !posEnabled
+                setPosEnabled(newVal)
+                try {
+                  await api.puntoVenta.saveSettings({ enabled: newVal })
+                  if (!newVal) {
+                    setPosConnected(false)
+                    await api.puntoVenta.disconnect().catch(() => {})
+                  }
+                  showSuccess(newVal ? 'Terminal POS habilitado' : 'Terminal POS deshabilitado')
+                } catch (err) {
+                  setPosEnabled(!newVal)
+                  showError(err instanceof Error ? err.message : 'Error al guardar')
+                }
+              }}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                posEnabled ? 'bg-primary' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  posEnabled ? 'translate-x-6' : ''
+                }`}
+              />
+            </button>
+          </div>
+
+          {posEnabled && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Puerto de conexión
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={posPort}
+                    onChange={(e) => setPosPort(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">Seleccionar puerto...</option>
+                    {availablePorts.map((p) => (
+                      <option key={p.path} value={p.path}>
+                        {p.path}
+                        {p.manufacturer ? ` (${p.manufacturer})` : ''}
+                      </option>
+                    ))}
+                    {availablePorts.length === 0 && (
+                      <option value="/dev/ttyUSB0">/dev/ttyUSB0</option>
+                    )}
+                    {availablePorts.length === 0 && <option value="/dev/ttyS0">/dev/ttyS0</option>}
+                    {availablePorts.length === 0 && <option value="COM1">COM1</option>}
+                  </select>
+                  {availablePorts.length === 0 && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const ports = await api.puntoVenta.ports()
+                          setAvailablePorts(ports.ports)
+                          showSuccess(`Puertos actualizados (${ports.ports.length} encontrados)`)
+                        } catch (err) {
+                          showError(err instanceof Error ? err.message : 'Error al escanear')
+                        }
+                      }}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                    >
+                      Escanear
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Conecta el terminal POS por USB/serial y selecciona el puerto.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Baud rate</label>
+                <select
+                  value={posBaudRate}
+                  onChange={(e) => setPosBaudRate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="9600">9600</option>
+                  <option value="19200">19200</option>
+                  <option value="38400">38400</option>
+                  <option value="57600">57600</option>
+                  <option value="115200">115200</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      posConnecting
+                        ? 'bg-yellow-400 animate-pulse'
+                        : posConnected
+                          ? 'bg-green-500'
+                          : 'bg-gray-400'
+                    }`}
+                  />
+                  <span className="text-sm text-gray-600">
+                    {posConnecting ? 'Conectando...' : posConnected ? 'Conectado' : 'Desconectado'}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      if (!posPort) {
+                        showError('Selecciona un puerto primero')
+                        return
+                      }
+                      setPosConnecting(true)
+                      try {
+                        await api.puntoVenta.saveSettings({
+                          port: posPort,
+                          baudRate: parseInt(posBaudRate)
+                        })
+                        const res = await api.puntoVenta.connect({
+                          port: posPort,
+                          baudRate: parseInt(posBaudRate)
+                        })
+                        setPosConnected(res.connected)
+                        showSuccess('Conectado al terminal POS')
+                      } catch (err) {
+                        setPosConnected(false)
+                        showError(err instanceof Error ? err.message : 'Error al conectar')
+                      } finally {
+                        setPosConnecting(false)
+                      }
+                    }}
+                    disabled={posConnecting || !posPort}
+                    className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50 transition-colors"
+                  >
+                    {posConnecting ? 'Conectando...' : 'Conectar'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.puntoVenta.disconnect()
+                        setPosConnected(false)
+                        showSuccess('Desconectado')
+                      } catch (err) {
+                        showError(err instanceof Error ? err.message : 'Error al desconectar')
+                      }
+                    }}
+                    disabled={!posConnected}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  >
+                    Desconectar
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    if (!posPort) {
+                      showError('Selecciona un puerto primero')
+                      return
+                    }
+                    try {
+                      await api.puntoVenta.saveSettings({
+                        port: posPort,
+                        baudRate: parseInt(posBaudRate)
+                      })
+                      const res = await api.puntoVenta.test()
+                      showSuccess(res.message)
+                    } catch (err) {
+                      showError(err instanceof Error ? err.message : 'Error en prueba')
+                    }
+                  }}
+                  disabled={!posPort}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                >
+                  Probar conexión
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.puntoVenta.saveSettings({
+                        port: posPort,
+                        baudRate: parseInt(posBaudRate)
+                      })
+                      showSuccess('Configuración guardada')
+                    } catch (err) {
+                      showError(err instanceof Error ? err.message : 'Error al guardar')
+                    }
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors"
+                >
+                  Guardar configuración
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sincronización en la Nube */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-bold mb-4">Sincronización en la Nube</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Configura la sincronización automática de tus datos con un servidor en la nube para
+            respaldo y acceso remoto.
+          </p>
+
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-medium text-gray-700">Sync habilitado</span>
+            <button
+              onClick={async () => {
+                const newVal = !syncEnabled
+                setSyncEnabled(newVal)
+                try {
+                  await api.sync.saveConfig({ enabled: newVal })
+                  showSuccess(newVal ? 'Sync habilitado' : 'Sync deshabilitado')
+                } catch (err) {
+                  setSyncEnabled(!newVal)
+                  showError(err instanceof Error ? err.message : 'Error al guardar')
+                }
+              }}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                syncEnabled ? 'bg-primary' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  syncEnabled ? 'translate-x-6' : ''
+                }`}
+              />
+            </button>
+          </div>
+
+          {syncEnabled && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  URL del servidor cloud
+                </label>
+                <input
+                  type="url"
+                  value={syncUrl}
+                  onChange={(e) => setSyncUrl(e.target.value)}
+                  onBlur={async () => {
+                    try {
+                      await api.sync.saveConfig({ url: syncUrl })
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="https://tu-servidor.com"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  URL base del servidor cloud (ej: https://api.silverknight.app)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                <input
+                  type="password"
+                  value={syncApiKey}
+                  onChange={(e) => setSyncApiKey(e.target.value)}
+                  onBlur={async () => {
+                    try {
+                      await api.sync.saveConfig({ apiKey: syncApiKey })
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="Clave de API del servidor cloud"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Intervalo de sincronización
+                </label>
+                <select
+                  value={syncInterval}
+                  onChange={async (e) => {
+                    const val = parseInt(e.target.value)
+                    setSyncInterval(val)
+                    try {
+                      await api.sync.saveConfig({ interval: val })
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value={5}>Cada 5 minutos</option>
+                  <option value={15}>Cada 15 minutos</option>
+                  <option value={30}>Cada 30 minutos</option>
+                  <option value={60}>Cada 1 hora</option>
+                  <option value={360}>Cada 6 horas</option>
+                  <option value={1440}>Cada 24 horas</option>
+                </select>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      syncing
+                        ? 'bg-yellow-400 animate-pulse'
+                        : syncLastResult?.success
+                          ? 'bg-green-500'
+                          : syncLastResult
+                            ? 'bg-red-500'
+                            : 'bg-gray-400'
+                    }`}
+                  />
+                  <span className="text-sm text-gray-600">
+                    {syncing
+                      ? 'Sincronizando...'
+                      : syncLastSync
+                        ? `Último sync: ${new Date(syncLastSync).toLocaleString()}`
+                        : 'Sin sincronizar'}
+                  </span>
+                </div>
+                <button
+                  onClick={async () => {
+                    setSyncing(true)
+                    try {
+                      const res = await api.sync.now()
+                      setSyncLastResult(res.result)
+                      if (res.result.success) {
+                        showSuccess(`${res.result.entitiesSynced} registro(s) sincronizado(s)`)
+                      } else {
+                        showError(res.result.errors.join('; '))
+                      }
+                    } catch (err) {
+                      showError(err instanceof Error ? err.message : 'Error de sincronización')
+                    } finally {
+                      setSyncing(false)
+                    }
+                  }}
+                  disabled={syncing}
+                  className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50 transition-colors"
+                >
+                  {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+                </button>
+              </div>
+
+              {syncLastResult && (
+                <div
+                  className={`rounded-lg p-3 text-sm ${
+                    syncLastResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                  }`}
+                >
+                  <p className="font-medium">
+                    {syncLastResult.success
+                      ? 'Última sincronización exitosa'
+                      : 'Errores en última sincronización'}
+                  </p>
+                  {syncLastResult.success && (
+                    <p>{syncLastResult.entitiesSynced} registro(s) sincronizado(s)</p>
+                  )}
+                  {syncLastResult.duration > 0 && (
+                    <p className="text-xs opacity-75">Duración: {syncLastResult.duration}ms</p>
+                  )}
+                  {syncLastResult.errors.length > 0 && (
+                    <ul className="list-disc pl-4 mt-1 text-xs">
+                      {syncLastResult.errors.map((e, i) => (
+                        <li key={i}>{e}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <button
+                  onClick={async () => {
+                    setShowSyncLogs(!showSyncLogs)
+                    if (!showSyncLogs) {
+                      try {
+                        const res = await api.sync.logs(20)
+                        setSyncLogs(res.logs)
+                      } catch {
+                        /* ignore */
+                      }
+                    }
+                  }}
+                  className="text-sm text-primary hover:text-primary-dark font-medium"
+                >
+                  {showSyncLogs ? 'Ocultar historial' : 'Ver historial de sincronización'}
+                </button>
+
+                {showSyncLogs && (
+                  <div className="mt-2 max-h-48 overflow-y-auto space-y-1">
+                    {syncLogs.length === 0 && (
+                      <p className="text-xs text-gray-400 py-2">Sin registros</p>
+                    )}
+                    {syncLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="flex items-center gap-2 text-xs p-2 bg-gray-50 rounded"
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            log.status === 'synced' ? 'bg-green-500' : 'bg-red-500'
+                          }`}
+                        />
+                        <span className="text-gray-500 shrink-0">
+                          {new Date(log.createdAt).toLocaleTimeString()}
+                        </span>
+                        <span className="font-medium text-gray-700">{log.entity}</span>
+                        <span className="text-gray-400">{log.action}</span>
+                        {log.error && <span className="text-red-500 ml-auto">{log.error}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Navegación a secciones existentes */}
