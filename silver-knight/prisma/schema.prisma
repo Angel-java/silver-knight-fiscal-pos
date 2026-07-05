@@ -147,25 +147,6 @@ model InvoiceItem {
   @@index([productId])
 }
 
-// @deprecated Sin implementar — se agregará en Fase 2 (Medium Profile).
-// Pendiente de rutas API y UI.
-model CashRegister {
-  id          String    @id @default(cuid())
-  openedAt    DateTime  @default(now())
-  closedAt    DateTime?
-  openedBy    String
-  closedBy    String?
-  openingUsd  Float
-  openingVes  Float
-  closingUsd  Float?
-  closingVes  Float?
-  salesUsd    Float     @default(0)
-  salesVes    Float     @default(0)
-  isOpen      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
 model Setting {
   id        String   @id @default(cuid())
   key       String   @unique

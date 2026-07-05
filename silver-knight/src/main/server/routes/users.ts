@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../database/prisma'
 import { authMiddleware, adminMiddleware } from '../middleware/auth'
+import { validate } from '../middleware/validate'
+import { createUserSchema, updateUserSchema } from '../validation/schemas'
+import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
@@ -15,18 +18,14 @@ router.get('/', async (_req: Request, res: Response) => {
     })
     res.json({ users })
   } catch (error) {
-    console.error('[users] list error:', error)
+    logger.error('users', 'list error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validate(createUserSchema), async (req: Request, res: Response) => {
   try {
     const { username, pin, role } = req.body
-    if (!username || !pin) {
-      res.status(400).json({ error: 'Username y PIN requeridos' })
-      return
-    }
     const existing = await prisma.user.findUnique({ where: { username } })
     if (existing) {
       res.status(409).json({ error: 'El nombre de usuario ya existe' })
@@ -39,12 +38,12 @@ router.post('/', async (req: Request, res: Response) => {
     })
     res.status(201).json({ user })
   } catch (error) {
-    console.error('[users] create error:', error)
+    logger.error('users', 'create error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', validate(updateUserSchema), async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id)
     const { username, pin, role, isActive } = req.body
@@ -72,7 +71,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     })
     res.json({ user })
   } catch (error) {
-    console.error('[users] update error:', error)
+    logger.error('users', 'update error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

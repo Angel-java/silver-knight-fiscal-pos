@@ -1,4 +1,5 @@
 import { prisma } from '../database/prisma'
+import { logger } from './utils/logger'
 
 interface SyncConfig {
   url: string
@@ -90,11 +91,11 @@ class SyncService {
     if (this.timer) clearInterval(this.timer)
     this.timer = setInterval(
       () => {
-        this.syncNow().catch((err) => console.error('[sync] auto-sync error:', err))
+        this.syncNow().catch((err) => logger.error('sync', 'auto-sync error', err))
       },
       interval * 60 * 1000
     )
-    console.log(`[sync] Auto-sync cada ${interval} minuto(s)`)
+    logger.info('sync', `Auto-sync cada ${interval} minuto(s)`)
     if (config.enabled && config.url) {
       this.syncNow().catch(() => {})
     }

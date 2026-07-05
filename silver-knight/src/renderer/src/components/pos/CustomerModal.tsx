@@ -1,5 +1,6 @@
-import { useState, useEffect, type JSX } from 'react'
+import { useState, useEffect, useTransition, type JSX } from 'react'
 import { api } from '../../lib/api'
+import { useDebounceValue } from '../../hooks/useDebounce'
 
 interface CustomerModalProps {
   open: boolean
@@ -16,23 +17,17 @@ export default function CustomerModal({
   const [results, setResults] = useState<Array<{ id: string; name: string; rif: string | null }>>(
     []
   )
-  const [loading, setLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
+
+  const debouncedSearch = useDebounceValue(search, 300)
 
   useEffect(() => {
     if (!open) return
-    const timer = setTimeout(async () => {
-      setLoading(true)
-      try {
-        const res = await api.customers.list({ search })
-        setResults(res.customers)
-      } catch {
-        /* ignore */
-      } finally {
-        setLoading(false)
-      }
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [search, open])
+    startTransition(async () => {
+      const res = await api.customers.list({ search: debouncedSearch })
+      setResults(res.customers)
+    })
+  }, [debouncedSearch, open, startTransition])
 
   if (!open) return null
 
@@ -49,7 +44,7 @@ export default function CustomerModal({
           autoFocus
         />
         <div className="max-h-60 overflow-y-auto space-y-1 mb-4">
-          {loading ? (
+          {isPending ? (
             <p className="text-gray-400 text-sm text-center py-4">Buscando...</p>
           ) : results.length > 0 ? (
             results.map((c) => (

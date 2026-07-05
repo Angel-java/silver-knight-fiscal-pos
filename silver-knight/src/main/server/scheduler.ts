@@ -1,9 +1,10 @@
+import { schedule, type ScheduledTask } from 'node-cron'
 import { prisma } from '../database/prisma'
-
-let intervalId: ReturnType<typeof setInterval> | null = null
-const lastFetchedSlots = new Set<string>()
+import { logger } from './utils/logger'
 
 const DOLARAPI_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
+
+const jobs: ScheduledTask[] = []
 
 async function fetchBcvRate(): Promise<void> {
   try {
@@ -22,64 +23,80 @@ async function fetchBcvRate(): Promise<void> {
       await prisma.exchangeRate.create({
         data: { rate: parseFloat(rate.toFixed(2)), source: 'bcv-auto', date: new Date() }
       })
-      console.log(`[scheduler] BCV auto-fetch: Bs. ${rate.toFixed(2)}`)
+      logger.info('scheduler', `BCV auto-fetch: Bs. ${rate.toFixed(2)}`)
     }
   } catch {
-    // auto-fetch failures are silent
+    /* auto-fetch failures are silent */
   }
 }
 
-async function checkAndFetch(): Promise<void> {
+function parseTimes(timesStr: string | undefined): string[] {
+  if (!timesStr) return []
+  try {
+    const times: unknown = JSON.parse(timesStr)
+    return Array.isArray(times) ? times.filter((t): t is string => typeof t === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function timeToCron(time: string): string | null {
+  const parts = time.split(':')
+  if (parts.length !== 2) return null
+  const h = parseInt(parts[0], 10)
+  const m = parseInt(parts[1], 10)
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return null
+  return `${m} ${h} * * *`
+}
+
+function scheduleJobs(times: string[]): void {
+  for (const job of jobs) job.stop()
+  jobs.length = 0
+
+  const seen = new Set<string>()
+  for (const time of times) {
+    const cronExpr = timeToCron(time)
+    if (!cronExpr || seen.has(cronExpr)) continue
+    seen.add(cronExpr)
+    const job = schedule(cronExpr, () => {
+      fetchBcvRate()
+    })
+    job.start()
+    jobs.push(job)
+    logger.info('scheduler', `Scheduled BCV fetch at ${time} (${cronExpr})`)
+  }
+}
+
+async function loadAndSchedule(): Promise<void> {
   try {
     const all = await prisma.setting.findMany()
     const map: Record<string, string> = {}
     for (const s of all) map[s.key] = s.value
 
-    if (map['bcvAutoFetch'] !== 'true') return
-
-    const timesStr = map['bcvFetchTimes']
-    if (!timesStr) return
-
-    const times: string[] = JSON.parse(timesStr)
-    if (!Array.isArray(times) || times.length === 0) return
-
-    const now = new Date()
-    const today = now.toISOString().split('T')[0]
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-
-    for (const time of times) {
-      if (currentTime === time) {
-        const slotKey = `${today}-${time}`
-        if (!lastFetchedSlots.has(slotKey)) {
-          lastFetchedSlots.add(slotKey)
-          await fetchBcvRate()
-        }
-      }
+    if (map['bcvAutoFetch'] !== 'true') {
+      logger.info('scheduler', 'BCV auto-fetch is disabled')
+      return
     }
 
-    // keep set from growing indefinitely
-    if (lastFetchedSlots.size > 100) {
-      const arr = Array.from(lastFetchedSlots)
-      lastFetchedSlots.clear()
-      for (const k of arr.slice(-50)) lastFetchedSlots.add(k)
+    const times = parseTimes(map['bcvFetchTimes'])
+    if (times.length === 0) {
+      logger.info('scheduler', 'No BCV fetch times configured')
+      return
     }
+
+    scheduleJobs(times)
   } catch {
-    // silent
+    /* silent */
   }
 }
 
-export function startBcvScheduler(): void {
-  // fetch immediately on startup (if enabled)
-  checkAndFetch()
-  // then poll every 60 seconds
-  intervalId = setInterval(checkAndFetch, 60000)
-  console.log('[scheduler] BCV auto-fetch started (poll every 60s)')
+export async function startBcvScheduler(): Promise<void> {
+  await loadAndSchedule()
+  logger.info('scheduler', 'BCV auto-fetch scheduler started')
 }
 
 export function stopBcvScheduler(): void {
-  if (intervalId !== null) {
-    clearInterval(intervalId)
-    intervalId = null
-    console.log('[scheduler] BCV auto-fetch stopped')
-  }
+  for (const job of jobs) job.stop()
+  jobs.length = 0
+  logger.info('scheduler', 'BCV auto-fetch scheduler stopped')
 }

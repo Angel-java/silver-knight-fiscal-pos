@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs'
 import rateLimit from 'express-rate-limit'
 import { prisma } from '../../database/prisma'
 import { generateToken, authMiddleware, adminMiddleware } from '../middleware/auth'
+import { validate } from '../middleware/validate'
+import { loginSchema, setupSchema, updateCompanySchema } from '../validation/schemas'
+import { logger } from '../utils/logger'
 
 const router = Router()
 
@@ -14,7 +17,7 @@ const loginLimiter = rateLimit({
   legacyHeaders: false
 })
 
-router.post('/login', loginLimiter, async (req: Request, res: Response) => {
+router.post('/login', loginLimiter, validate(loginSchema), async (req: Request, res: Response) => {
   try {
     const { username, pin } = req.body
     if (!username || !pin) {
@@ -37,12 +40,12 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     const token = await generateToken({ userId: user.id, username: user.username, role: user.role })
     res.json({ token, user: { id: user.id, username: user.username, role: user.role } })
   } catch (error) {
-    console.error('[auth] login error:', error)
+    logger.error('auth', 'login error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.post('/setup', async (req: Request, res: Response) => {
+router.post('/setup', validate(setupSchema), async (req: Request, res: Response) => {
   try {
     const existingUsers = await prisma.user.count()
     if (existingUsers > 0) {
@@ -51,12 +54,6 @@ router.post('/setup', async (req: Request, res: Response) => {
     }
 
     const { company, adminUser } = req.body
-    if (!company?.name || !company?.rif || !adminUser?.username || !adminUser?.pin) {
-      res.status(400).json({
-        error: 'Datos incompletos: company (name, rif) y adminUser (username, pin) requeridos'
-      })
-      return
-    }
 
     const hashedPin = await bcrypt.hash(adminUser.pin, 10)
 
@@ -92,7 +89,7 @@ router.post('/setup', async (req: Request, res: Response) => {
     })
     res.status(201).json({ token, user: result.user, company: result.company })
   } catch (error) {
-    console.error('[auth] setup error:', error)
+    logger.error('auth', 'setup error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -110,7 +107,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
     }
     res.json({ user: dbUser })
   } catch (error) {
-    console.error('[auth] me error:', error)
+    logger.error('auth', 'me error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -120,37 +117,39 @@ router.get('/company', async (_req: Request, res: Response) => {
     const company = await prisma.company.findFirst()
     res.json({ company })
   } catch (error) {
-    console.error('[auth] company error:', error)
+    logger.error('auth', 'company error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.put('/company', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
-  try {
-    const { name, rif, address, phone, email } = req.body
-    if (!name || !rif) {
-      res.status(400).json({ error: 'Nombre y RIF son requeridos' })
-      return
+router.put(
+  '/company',
+  authMiddleware,
+  adminMiddleware,
+  validate(updateCompanySchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { name, rif, address, phone, email } = req.body
+      const existing = await prisma.company.findFirst()
+      if (!existing) {
+        res.status(404).json({ error: 'Empresa no encontrada' })
+        return
+      }
+      const dupRif = await prisma.company.findFirst({ where: { rif, id: { not: existing.id } } })
+      if (dupRif) {
+        res.status(409).json({ error: 'Ya existe otra empresa con ese RIF' })
+        return
+      }
+      const company = await prisma.company.update({
+        where: { id: existing.id },
+        data: { name, rif, address: address || null, phone: phone || null, email: email || null }
+      })
+      res.json({ company })
+    } catch (error) {
+      logger.error('auth', 'company update error', error)
+      res.status(500).json({ error: 'Error interno del servidor' })
     }
-    const existing = await prisma.company.findFirst()
-    if (!existing) {
-      res.status(404).json({ error: 'Empresa no encontrada' })
-      return
-    }
-    const dupRif = await prisma.company.findFirst({ where: { rif, id: { not: existing.id } } })
-    if (dupRif) {
-      res.status(409).json({ error: 'Ya existe otra empresa con ese RIF' })
-      return
-    }
-    const company = await prisma.company.update({
-      where: { id: existing.id },
-      data: { name, rif, address: address || null, phone: phone || null, email: email || null }
-    })
-    res.json({ company })
-  } catch (error) {
-    console.error('[auth] company update error:', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
   }
-})
+)
 
 export default router

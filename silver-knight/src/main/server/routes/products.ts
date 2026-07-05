@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
 import { authMiddleware } from '../middleware/auth'
+import { validate } from '../middleware/validate'
+import { createProductSchema, updateProductSchema, stockAdjustSchema } from '../validation/schemas'
+import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
@@ -49,7 +52,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   res.json({ product })
 })
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validate(createProductSchema), async (req: Request, res: Response) => {
   try {
     const {
       name,
@@ -65,14 +68,6 @@ router.post('/', async (req: Request, res: Response) => {
       minStock,
       categoryId
     } = req.body
-    if (!name?.trim()) {
-      res.status(400).json({ error: 'Nombre requerido' })
-      return
-    }
-    if (priceUsd == null || priceVes == null) {
-      res.status(400).json({ error: 'Precios USD y VES requeridos' })
-      return
-    }
 
     const product = await prisma.product.create({
       data: {
@@ -101,12 +96,12 @@ router.post('/', async (req: Request, res: Response) => {
         return
       }
     }
-    console.error('[products] create error:', error)
+    logger.error('products', 'create error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', validate(updateProductSchema), async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string
     const {
@@ -124,19 +119,6 @@ router.put('/:id', async (req: Request, res: Response) => {
       categoryId,
       isActive
     } = req.body
-    if (!name?.trim()) {
-      res.status(400).json({ error: 'Nombre requerido' })
-      return
-    }
-    if (
-      priceUsd == null ||
-      priceVes == null ||
-      isNaN(Number(priceUsd)) ||
-      isNaN(Number(priceVes))
-    ) {
-      res.status(400).json({ error: 'Precios USD y VES requeridos' })
-      return
-    }
 
     const product = await prisma.product.update({
       where: { id },
@@ -170,19 +152,15 @@ router.put('/:id', async (req: Request, res: Response) => {
         return
       }
     }
-    console.error('[products] update error:', error)
+    logger.error('products', 'update error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.patch('/:id/stock', async (req: Request, res: Response) => {
+router.patch('/:id/stock', validate(stockAdjustSchema), async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string
     const { quantity, type } = req.body
-    if (!quantity || !['in', 'out'].includes(type)) {
-      res.status(400).json({ error: 'quantity (número) y type (in/out) requeridos' })
-      return
-    }
 
     const product = await prisma.product.findUnique({ where: { id } })
     if (!product) {
@@ -204,7 +182,7 @@ router.patch('/:id/stock', async (req: Request, res: Response) => {
     })
     res.json({ product: updated })
   } catch (error) {
-    console.error('[products] stock error:', error)
+    logger.error('products', 'stock error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

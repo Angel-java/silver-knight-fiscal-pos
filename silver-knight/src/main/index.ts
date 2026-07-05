@@ -3,15 +3,16 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { createServer, stopBcvScheduler } from './server'
+import { logger } from './server/utils/logger'
 
 const SERVER_PORT = 3001
 let server: ReturnType<typeof import('http').createServer> | null = null
 
 async function startEmbeddedServer(): Promise<void> {
-  const expressApp = createServer()
+  const expressApp = await createServer()
   await new Promise<void>((resolve) => {
     server = expressApp.listen(SERVER_PORT, () => {
-      console.log(`[main] Express server running on http://localhost:${SERVER_PORT}`)
+      logger.info('main', `Express server running on http://localhost:${SERVER_PORT}`)
       resolve()
     })
   })
@@ -67,7 +68,7 @@ app.whenReady().then(async () => {
   await startEmbeddedServer()
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('ping', () => logger.info('main', 'pong'))
 
   createWindow()
 

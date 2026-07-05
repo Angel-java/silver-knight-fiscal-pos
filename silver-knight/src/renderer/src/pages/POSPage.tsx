@@ -2,6 +2,7 @@ import { useState, useEffect, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type Product, type Invoice } from '../lib/api'
 import { useAuth } from '../contexts/useAuth'
+import { useDebounceValue } from '../hooks/useDebounce'
 import ProductGrid from '../components/pos/ProductGrid'
 import CartPanel from '../components/pos/CartPanel'
 import CustomerModal from '../components/pos/CustomerModal'
@@ -45,15 +46,14 @@ export default function POSPage(): JSX.Element {
     init()
   }, [])
 
+  const debouncedSearch = useDebounceValue(search, 300)
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      api.products
-        .list({ search, page: 1 })
-        .then((r) => setProducts(r.products))
-        .catch(() => {})
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [search])
+    api.products
+      .list({ search: debouncedSearch, page: 1 })
+      .then((r) => setProducts(r.products))
+      .catch(() => {})
+  }, [debouncedSearch])
 
   const addToCart = (product: Product): void => {
     if (product.stock <= 0) {

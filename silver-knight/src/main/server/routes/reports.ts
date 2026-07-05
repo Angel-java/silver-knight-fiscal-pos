@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
 import { authMiddleware } from '../middleware/auth'
+import { logger } from '../utils/logger'
 import { parsePayments } from '../utils/payments'
 
 const router = Router()
@@ -51,7 +52,7 @@ router.get('/sales-daily', async (_req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    console.error('[reports] sales-daily error:', error)
+    logger.error('reports', 'sales-daily error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -104,7 +105,7 @@ router.get('/sales-range', async (req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    console.error('[reports] sales-range error:', error)
+    logger.error('reports', 'sales-range error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -137,7 +138,7 @@ router.get('/inventory', async (_req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    console.error('[reports] inventory error:', error)
+    logger.error('reports', 'inventory error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -182,7 +183,7 @@ router.get('/top-products', async (req: Request, res: Response) => {
 
     res.json({ top, summary: { totalQty, totalUsd, count: top.length } })
   } catch (error) {
-    console.error('[reports] top-products error:', error)
+    logger.error('reports', 'top-products error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -231,7 +232,7 @@ router.get('/cash-close', async (req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    console.error('[reports] cash-close error:', error)
+    logger.error('reports', 'cash-close error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

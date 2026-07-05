@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
 import { authMiddleware } from '../middleware/auth'
+import { validate } from '../middleware/validate'
+import { createCustomerSchema, updateCustomerSchema } from '../validation/schemas'
+import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
@@ -33,7 +36,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json({ customers, total, page, pages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[customers] list error:', error)
+    logger.error('customers', 'list error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -57,18 +60,14 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     res.json({ customer })
   } catch (error) {
-    console.error('[customers] get error:', error)
+    logger.error('customers', 'get error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validate(createCustomerSchema), async (req: Request, res: Response) => {
   try {
     const { name, rif, address, phone, email, creditLimitUsd, creditLimitVes } = req.body
-    if (!name?.trim()) {
-      res.status(400).json({ error: 'Nombre requerido' })
-      return
-    }
 
     const customer = await prisma.customer.create({
       data: {
@@ -91,19 +90,15 @@ router.post('/', async (req: Request, res: Response) => {
         return
       }
     }
-    console.error('[customers] create error:', error)
+    logger.error('customers', 'create error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', validate(updateCustomerSchema), async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string
     const { name, rif, address, phone, email, creditLimitUsd, creditLimitVes } = req.body
-    if (!name?.trim()) {
-      res.status(400).json({ error: 'Nombre requerido' })
-      return
-    }
 
     const customer = await prisma.customer.update({
       where: { id },
@@ -130,7 +125,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         return
       }
     }
-    console.error('[customers] update error:', error)
+    logger.error('customers', 'update error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -155,7 +150,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Cliente no encontrado' })
       return
     }
-    console.error('[customers] delete error:', error)
+    logger.error('customers', 'delete error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
 import { authMiddleware } from '../middleware/auth'
+import { validate } from '../middleware/validate'
+import { createInvoiceSchema, cancelInvoiceSchema } from '../validation/schemas'
+import { logger } from '../utils/logger'
 import { ensureDefaultControl } from './fiscalControl'
 
 const router = Router()
@@ -51,7 +54,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     res.json({ invoice })
   } catch (error) {
-    console.error('[invoices] get error:', error)
+    logger.error('invoices', 'get error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -84,18 +87,14 @@ router.get('/', async (req: Request, res: Response) => {
     ])
     res.json({ invoices, total, page, pages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[invoices] list error:', error)
+    logger.error('invoices', 'list error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validate(createInvoiceSchema), async (req: Request, res: Response) => {
   try {
     const { customerId, items, currency, exchangeRate, payments, documentType } = req.body
-    if (!items || !items.length) {
-      res.status(400).json({ error: 'La factura debe tener al menos un item' })
-      return
-    }
 
     const docType = documentType || 'FACT'
     const { number: controlNumber, fiscalControlId } = await nextControlNumber(docType)
@@ -188,19 +187,15 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(201).json({ invoice })
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error interno del servidor'
-    console.error('[invoices] create error:', error)
+    logger.error('invoices', 'create error', error)
     res.status(400).json({ error: msg })
   }
 })
 
-router.patch('/:id/cancel', async (req: Request, res: Response) => {
+router.patch('/:id/cancel', validate(cancelInvoiceSchema), async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string
     const { reason } = req.body
-    if (!reason?.trim()) {
-      res.status(400).json({ error: 'Motivo de anulación requerido' })
-      return
-    }
 
     const invoice = await prisma.invoice.findUnique({ where: { id } })
     if (!invoice) {
@@ -233,7 +228,7 @@ router.patch('/:id/cancel', async (req: Request, res: Response) => {
 
     res.json({ invoice: updated })
   } catch (error) {
-    console.error('[invoices] cancel error:', error)
+    logger.error('invoices', 'cancel error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

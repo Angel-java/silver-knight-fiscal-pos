@@ -23,7 +23,7 @@ import { syncService } from './syncService'
 
 export { stopBcvScheduler } from './scheduler'
 
-export function createServer(): ReturnType<typeof express> {
+export async function createServer(): Promise<ReturnType<typeof express>> {
   const app = express()
 
   app.use(
@@ -58,7 +58,7 @@ export function createServer(): ReturnType<typeof express> {
   app.use(errorHandler)
 
   syncService.start()
-  startBcvScheduler()
+  await startBcvScheduler()
   ensureDefaultControl()
 
   return app

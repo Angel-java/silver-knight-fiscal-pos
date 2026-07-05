@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
 import { authMiddleware } from '../middleware/auth'
+import { validate } from '../middleware/validate'
+import { createCategorySchema, updateCategorySchema } from '../validation/schemas'
+import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
@@ -10,13 +13,9 @@ router.get('/', async (_req: Request, res: Response) => {
   res.json({ categories })
 })
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validate(createCategorySchema), async (req: Request, res: Response) => {
   try {
     const { name, description } = req.body
-    if (!name?.trim()) {
-      res.status(400).json({ error: 'Nombre requerido' })
-      return
-    }
     const category = await prisma.category.create({
       data: { name: name.trim(), description: description || null }
     })
@@ -31,19 +30,15 @@ router.post('/', async (req: Request, res: Response) => {
       res.status(409).json({ error: 'Ya existe una categoría con ese nombre' })
       return
     }
-    console.error('[categories] create error:', error)
+    logger.error('categories', 'create error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', validate(updateCategorySchema), async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string
     const { name, description } = req.body
-    if (!name?.trim()) {
-      res.status(400).json({ error: 'Nombre requerido' })
-      return
-    }
     const category = await prisma.category.update({
       where: { id },
       data: { name: name.trim(), description: description ?? null }
@@ -68,7 +63,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Categoría no encontrada' })
       return
     }
-    console.error('[categories] update error:', error)
+    logger.error('categories', 'update error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -88,7 +83,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Categoría no encontrada' })
       return
     }
-    console.error('[categories] delete error:', error)
+    logger.error('categories', 'delete error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

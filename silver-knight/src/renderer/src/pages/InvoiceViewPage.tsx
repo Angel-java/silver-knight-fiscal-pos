@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { JSX } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type Invoice } from '../lib/api'
+import TicketPreview from '../components/TicketPreview'
 
 const DOC_LABELS: Record<string, string> = {
   FACT: 'Factura',
@@ -18,7 +19,6 @@ export default function InvoiceViewPage(): JSX.Element {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
   const [showPreview, setShowPreview] = useState(false)
-  const [previewHtml, setPreviewHtml] = useState('')
   const [printing, setPrinting] = useState(false)
 
   useEffect(() => {
@@ -47,69 +47,6 @@ export default function InvoiceViewPage(): JSX.Element {
     }
   }
 
-  const buildPreview = (inv: Invoice): string => {
-    const c = inv.currency
-    const isUsd = c === 'USD'
-    const total = isUsd ? inv.totalUsd : inv.totalVes
-    const iva = isUsd ? inv.ivaUsd : inv.ivaVes
-    const subtotal = total - iva
-    const payLabels: Record<string, string> = {
-      cash: 'Efectivo',
-      transfer: 'Transferencia',
-      card: 'Punto de Venta'
-    }
-    let payments: Array<{ method: string; amount: number; currency: string }> = []
-    try {
-      if (inv.payments) payments = JSON.parse(inv.payments)
-    } catch {
-      /* */
-    }
-
-    let h = `<pre style="font-family:'Courier New',monospace;font-size:12px;line-height:1.3;width:300px;margin:0 auto;background:#fff;padding:16px;border:1px solid #ddd;">`
-    h += `<strong style="display:block;text-align:center;font-size:16px;">${inv.customer?.name || 'Empresa'}</strong>`
-    h += `<div style="text-align:center;">${DOC_LABELS[inv.documentType] || 'FACTURA'} Nº ${inv.number}</div>`
-    h += `<div style="text-align:center;">${new Date(inv.createdAt).toLocaleString('es-VE')}</div>`
-    if (inv.controlNumber) h += `<div>CF: ${inv.controlNumber}</div>`
-    h += `<div>Cliente: ${inv.customer?.name || 'Consumidor Final'}</div>`
-    if (inv.customer?.rif) h += `<div>RIF: ${inv.customer.rif}</div>`
-    if (inv.cancelReason)
-      h += `<div style="color:red;font-weight:bold;text-align:center;">*** ANULADA: ${inv.cancelReason} ***</div>`
-    h += `${'='.repeat(40)}\n`
-
-    h += `${'CANT'.padEnd(5)}${'DESCRIPCIÓN'.padEnd(20)}${'TOTAL'.padStart(15)}\n`
-    h += `${'-'.repeat(40)}\n`
-    for (const item of inv.items) {
-      const amt = isUsd ? item.totalUsd : item.totalVes
-      const amtStr = isUsd ? `$${amt.toFixed(2)}` : `Bs.${amt.toFixed(2)}`
-      h += `${String(item.quantity).padEnd(5)}${item.productName.substring(0, 19).padEnd(20)}${amtStr.padStart(15)}\n`
-    }
-    h += `${'-'.repeat(40)}\n`
-    h += `Subtotal:${' '.repeat(31)}${isUsd ? `$${subtotal.toFixed(2)}` : `Bs.${subtotal.toFixed(2)}`}\n`
-    h += `IVA:${' '.repeat(36)}${isUsd ? `$${iva.toFixed(2)}` : `Bs.${iva.toFixed(2)}`}\n`
-    h += `<strong>Total:${' '.repeat(34)}${isUsd ? `$${total.toFixed(2)}` : `Bs.${total.toFixed(2)}`}</strong>\n`
-
-    if (isUsd && inv.exchangeRate > 0) {
-      h += `Tasa BCV: Bs.${inv.exchangeRate.toFixed(2)}\n`
-      h += `Total en Bs.: Bs.${(inv.totalUsd * inv.exchangeRate).toFixed(2)}\n`
-    } else if (!isUsd && inv.exchangeRate > 0) {
-      h += `Tasa BCV: Bs.${inv.exchangeRate.toFixed(2)}\n`
-      h += `Total en USD: $${(inv.totalVes / inv.exchangeRate).toFixed(2)}\n`
-    }
-
-    if (payments.length > 0) {
-      h += `${'='.repeat(40)}\n`
-      h += `MÉTODOS DE PAGO\n`
-      for (const p of payments) {
-        h += `${payLabels[p.method] || p.method}:${' '.repeat(20)}${p.currency === 'USD' ? `$${p.amount.toFixed(2)}` : `Bs.${p.amount.toFixed(2)}`}\n`
-      }
-    }
-
-    h += `${'='.repeat(40)}\n`
-    h += `<div style="text-align:center;">Gracias por su compra</div>`
-    h += `</pre>`
-    return h
-  }
-
   const handlePrint = async (): Promise<void> => {
     if (!invoice) return
     setPrinting(true)
@@ -124,7 +61,6 @@ export default function InvoiceViewPage(): JSX.Element {
 
   const handlePreview = (): void => {
     if (!invoice) return
-    setPreviewHtml(buildPreview(invoice))
     setShowPreview(true)
   }
 
@@ -464,7 +400,9 @@ export default function InvoiceViewPage(): JSX.Element {
                 </button>
               </div>
             </div>
-            <div className="p-4" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            <div className="p-4">
+              <TicketPreview invoice={invoice} />
+            </div>
           </div>
         </div>
       )}

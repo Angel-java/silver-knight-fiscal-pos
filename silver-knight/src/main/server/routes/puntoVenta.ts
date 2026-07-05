@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { authMiddleware, adminMiddleware } from '../middleware/auth'
+import { logger } from '../utils/logger'
 import { puntoVentaService } from '../puntoVenta'
 
 const router = Router()
@@ -14,7 +15,7 @@ router.get('/status', async (_req: Request, res: Response) => {
       config: puntoVentaService.currentConfig
     })
   } catch (error) {
-    console.error('[punto-venta] status error:', error)
+    logger.error('punto-venta', 'status error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
@@ -24,7 +25,7 @@ router.get('/ports', async (_req: Request, res: Response) => {
     const ports = await puntoVentaService.listAvailablePorts()
     res.json({ ports })
   } catch (error) {
-    console.error('[punto-venta] ports error:', error)
+    logger.error('punto-venta', 'ports error', error)
     res.status(500).json({ error: 'Error al listar puertos' })
   }
 })
@@ -39,7 +40,7 @@ router.post('/connect', adminMiddleware, async (req: Request, res: Response) => 
     await puntoVentaService.connect(config)
     res.json({ connected: true, config: puntoVentaService.currentConfig })
   } catch (error) {
-    console.error('[punto-venta] connect error:', error)
+    logger.error('punto-venta', 'connect error', error)
     res.status(400).json({ error: error instanceof Error ? error.message : 'Error al conectar' })
   }
 })
@@ -49,7 +50,7 @@ router.post('/disconnect', adminMiddleware, async (_req: Request, res: Response)
     await puntoVentaService.disconnect()
     res.json({ connected: false })
   } catch (error) {
-    console.error('[punto-venta] disconnect error:', error)
+    logger.error('punto-venta', 'disconnect error', error)
     res.status(500).json({ error: 'Error al desconectar' })
   }
 })
@@ -60,7 +61,7 @@ router.post('/test', adminMiddleware, async (_req: Request, res: Response) => {
     const msg = await puntoVentaService.testConnection()
     res.json({ ok: true, message: msg })
   } catch (error) {
-    console.error('[punto-venta] test error:', error)
+    logger.error('punto-venta', 'test error', error)
     res.status(400).json({ error: error instanceof Error ? error.message : 'Error en prueba' })
   }
 })
@@ -75,7 +76,7 @@ router.post('/pay', async (req: Request, res: Response) => {
     const result = await puntoVentaService.sendAmount(Number(amount))
     res.json({ result, currency: currency || 'USD' })
   } catch (error) {
-    console.error('[punto-venta] pay error:', error)
+    logger.error('punto-venta', 'pay error', error)
     res
       .status(400)
       .json({ error: error instanceof Error ? error.message : 'Error al procesar pago' })
@@ -91,7 +92,7 @@ router.put('/settings', adminMiddleware, async (req: Request, res: Response) => 
     }
     res.json({ config })
   } catch (error) {
-    console.error('[punto-venta] settings error:', error)
+    logger.error('punto-venta', 'settings error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
