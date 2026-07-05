@@ -120,6 +120,12 @@ model Invoice {
   payments        String?       // JSON string with payment methods
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([documentType, status])
+  @@index([customerId])
+  @@index([fiscalControlId])
 }
 
 model InvoiceItem {
@@ -136,6 +142,9 @@ model InvoiceItem {
   totalVes    Float
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([productId])
 }
 
 // @deprecated Sin implementar — se agregará en Fase 2 (Medium Profile).

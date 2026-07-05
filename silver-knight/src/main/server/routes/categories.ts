@@ -6,13 +6,8 @@ const router = Router()
 router.use(authMiddleware)
 
 router.get('/', async (_req: Request, res: Response) => {
-  try {
-    const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
-    res.json({ categories })
-  } catch (error) {
-    console.error('[categories] list error:', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
+  const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
+  res.json({ categories })
 })
 
 router.post('/', async (req: Request, res: Response) => {

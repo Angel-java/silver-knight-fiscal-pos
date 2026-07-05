@@ -1,6 +1,7 @@
 import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
 import { prisma } from '../database/prisma'
+import { parsePayments } from './utils/payments'
 
 const execAsync = promisify(exec)
 
@@ -213,15 +214,7 @@ export async function printInvoice(invoiceId: string): Promise<void> {
   const printerName = settingRows[0]?.value
   if (!printerName) throw new Error('No hay impresora configurada. Configúrala en Ajustes.')
 
-  const payments: Array<{ method: string; amount: number; currency: string }> = []
-  try {
-    if (invoice.payments) {
-      const parsed = JSON.parse(invoice.payments)
-      if (Array.isArray(parsed)) payments.push(...parsed)
-    }
-  } catch {
-    /* ignore */
-  }
+  const payments = parsePayments(invoice.payments)
 
   const printData: PrintInvoiceData = {
     invoiceNumber: invoice.number,

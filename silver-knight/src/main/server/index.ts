@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { prisma } from '../database/prisma'
+import { errorHandler } from './middleware/errorHandler'
 import authRoutes from './routes/auth'
 import categoriesRoutes from './routes/categories'
 import productsRoutes from './routes/products'
@@ -16,6 +17,7 @@ import usersRoutes from './routes/users'
 import printRoutes from './routes/print'
 import puntoVentaRoutes from './routes/puntoVenta'
 import syncRoutes from './routes/sync'
+import { ensureDefaultControl } from './routes/fiscalControl'
 import { startBcvScheduler } from './scheduler'
 import { syncService } from './syncService'
 
@@ -24,7 +26,12 @@ export { stopBcvScheduler } from './scheduler'
 export function createServer(): ReturnType<typeof express> {
   const app = express()
 
-  app.use(cors())
+  app.use(
+    cors({
+      origin: process.env['CORS_ORIGIN'] || true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+    })
+  )
   app.use(express.json())
 
   app.get('/api/health', async (_req: Request, res: Response) => {
@@ -48,8 +55,11 @@ export function createServer(): ReturnType<typeof express> {
   app.use('/api/punto-venta', puntoVentaRoutes)
   app.use('/api/sync', syncRoutes)
 
+  app.use(errorHandler)
+
   syncService.start()
   startBcvScheduler()
+  ensureDefaultControl()
 
   return app
 }

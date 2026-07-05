@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
 import { authMiddleware } from '../middleware/auth'
+import { parsePayments } from '../utils/payments'
 
 const router = Router()
 router.use(authMiddleware)
@@ -29,12 +30,7 @@ router.get('/sales-daily', async (_req: Request, res: Response) => {
 
     const paymentsBreakdown: Record<string, { usd: number; ves: number }> = {}
     for (const inv of invoices) {
-      if (!inv.payments) continue
-      const payments = JSON.parse(inv.payments) as Array<{
-        method: string
-        amount: number
-        currency: string
-      }>
+      const payments = parsePayments(inv.payments)
       for (const p of payments) {
         if (!paymentsBreakdown[p.method]) paymentsBreakdown[p.method] = { usd: 0, ves: 0 }
         if (p.currency === 'USD') paymentsBreakdown[p.method].usd += p.amount
@@ -214,12 +210,7 @@ router.get('/cash-close', async (req: Request, res: Response) => {
 
     const paymentsBreakdown: Record<string, { usd: number; ves: number; count: number }> = {}
     for (const inv of activeInvoices) {
-      if (!inv.payments) continue
-      const payments = JSON.parse(inv.payments) as Array<{
-        method: string
-        amount: number
-        currency: string
-      }>
+      const payments = parsePayments(inv.payments)
       for (const p of payments) {
         if (!paymentsBreakdown[p.method]) paymentsBreakdown[p.method] = { usd: 0, ves: 0, count: 0 }
         if (p.currency === 'USD') paymentsBreakdown[p.method].usd += p.amount

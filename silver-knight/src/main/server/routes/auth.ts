@@ -1,11 +1,20 @@
 import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
+import rateLimit from 'express-rate-limit'
 import { prisma } from '../../database/prisma'
 import { generateToken, authMiddleware, adminMiddleware } from '../middleware/auth'
 
 const router = Router()
 
-router.post('/login', async (req: Request, res: Response) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos. Intenta de nuevo en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false
+})
+
+router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { username, pin } = req.body
     if (!username || !pin) {

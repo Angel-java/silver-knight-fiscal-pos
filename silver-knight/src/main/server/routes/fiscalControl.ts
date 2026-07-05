@@ -38,14 +38,8 @@ async function ensureDefaultControl(): Promise<void> {
 }
 
 router.get('/', async (_req: Request, res: Response) => {
-  try {
-    await ensureDefaultControl()
-    const controls = await prisma.fiscalControl.findMany({ orderBy: { documentType: 'asc' } })
-    res.json({ controls })
-  } catch (error) {
-    console.error('[fiscal-control] list error:', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
+  const controls = await prisma.fiscalControl.findMany({ orderBy: { documentType: 'asc' } })
+  res.json({ controls })
 })
 
 router.post('/', adminMiddleware, async (req: Request, res: Response) => {

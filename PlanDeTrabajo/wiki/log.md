@@ -136,3 +136,12 @@ updated: 2026-07-03
   - `DashboardPage.tsx`: `grid-cols-5` → `grid-cols-6` — los 6 botones del menú caben en una fila en pantalla completa
 - **Resultado lint**: 0 errores, 0 warnings
 - **Resultado typecheck**: 0 errores
+
+## [2026-07-04] audit | Auditoría de arquitectura
+- **Descripción**: Revisión completa del código fuente backend, frontend, base de datos, seguridad, y documentación
+- **Páginas creadas**: [[auditoria-arquitectura]]
+- **Páginas actualizadas**: [[index]]
+- **Score global**: 6.5/10
+- **Hallazgos críticos**: 0 tests (0/10), API_BASE hardcodeada (viola ADR-004), error handling repetitivo en 45+ lugares, POSPage monolítico (647 líneas)
+- **Fortalezas**: separación de capas sólida, dual currency nativo, fiscal compliance desde día 1, Prisma migrations
+- **Recomendaciones**: agregar tests primero, centralizar errores, hacer API_BASE configurable, rate limiting en login

@@ -61,6 +61,9 @@ export default function SettingsPage(): JSX.Element {
     }>
   >([])
   const [showSyncLogs, setShowSyncLogs] = useState(false)
+  const [apiUrl, setApiUrl] = useState(
+    () => localStorage.getItem('apiBase') || 'http://localhost:3001/api'
+  )
 
   const [company, setCompany] = useState<{
     name: string
@@ -1171,6 +1174,40 @@ export default function SettingsPage(): JSX.Element {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Configuración de conexión API */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-bold mb-4">Conexión al Servidor</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            URL base de la API. En perfil Small es <code>http://localhost:3001/api</code>. Para
+            perfil Medium/Big, cambia a la URL de tu servidor.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={apiUrl}
+              onChange={(e) => setApiUrl(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+              placeholder="http://localhost:3001/api"
+            />
+            <button
+              onClick={async () => {
+                try {
+                  api.setApiBase(apiUrl)
+                  showSuccess('URL de API actualizada')
+                } catch (err) {
+                  showError(err instanceof Error ? err.message : 'Error al guardar')
+                }
+              }}
+              className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark transition-colors"
+            >
+              Aplicar
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            El cambio se aplica inmediatamente. Asegúrate de que el servidor sea accesible.
+          </p>
         </div>
 
         {/* Navegación a secciones existentes */}

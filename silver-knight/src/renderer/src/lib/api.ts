@@ -1,11 +1,17 @@
-const API_BASE = 'http://localhost:3001/api'
+function getApiBase(): string {
+  return localStorage.getItem('apiBase') || 'http://localhost:3001/api'
+}
+
+export function setApiBase(url: string): void {
+  localStorage.setItem('apiBase', url.replace(/\/+$/, ''))
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  const res = await fetch(`${getApiBase()}${path}`, { ...options, headers })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Error de conexión' }))
     throw new Error(err.error || `HTTP ${res.status}`)
@@ -632,5 +638,8 @@ export const api = {
     listPrinters: () => request<{ printers: string[] }>('/print/printers'),
 
     invoice: (id: string) => request<{ ok: boolean }>(`/print/invoice/${id}`, { method: 'POST' })
-  }
+  },
+
+  getApiBase,
+  setApiBase
 }
