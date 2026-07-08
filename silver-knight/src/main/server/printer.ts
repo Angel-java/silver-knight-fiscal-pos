@@ -83,9 +83,9 @@ interface PrintInvoiceData {
 export function buildThermalTicket(data: PrintInvoiceData): string {
   const c = data.currency
   const isUsd = c === 'USD'
-  const total = isUsd ? data.totalUsd : data.totalVes
+  const subtotal = isUsd ? data.totalUsd : data.totalVes
   const iva = isUsd ? data.ivaUsd : data.ivaVes
-  const subtotal = total - iva
+  const total = subtotal + iva
 
   const docLabel: Record<string, string> = {
     FACT: 'FACTURA',
@@ -148,10 +148,10 @@ export function buildThermalTicket(data: PrintInvoiceData): string {
   if (c === 'USD' && data.exchangeRate > 0) {
     ticket += wrapLine('Tasa BCV:', `Bs.${data.exchangeRate.toFixed(2)}`) + '\n'
     ticket +=
-      wrapLine('Total en Bs.:', `Bs.${(data.totalUsd * data.exchangeRate).toFixed(2)}`) + '\n'
+      wrapLine('Total en Bs.:', `Bs.${(total * data.exchangeRate).toFixed(2)}`) + '\n'
   } else if (c === 'VES' && data.exchangeRate > 0) {
     ticket += wrapLine('Tasa BCV:', `Bs.${data.exchangeRate.toFixed(2)}`) + '\n'
-    ticket += wrapLine('Total en USD:', `$${(data.totalVes / data.exchangeRate).toFixed(2)}`) + '\n'
+    ticket += wrapLine('Total en USD:', `$${(total / data.exchangeRate).toFixed(2)}`) + '\n'
   }
 
   if (data.payments.length > 0) {

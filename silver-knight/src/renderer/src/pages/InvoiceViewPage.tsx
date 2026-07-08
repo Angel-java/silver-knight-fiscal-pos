@@ -259,11 +259,11 @@ export default function InvoiceViewPage(): JSX.Element {
         <div className="border-t pt-4 space-y-1 text-right">
           <div className="flex justify-end gap-8 text-sm text-gray-500">
             <span>Subtotal:</span>
-            <span className="w-32 text-right">
-              {currency === 'USD'
-                ? `$${(invoice.totalUsd - invoice.ivaUsd).toFixed(2)}`
-                : `Bs.${(invoice.totalVes - invoice.ivaVes).toFixed(2)}`}
-            </span>
+              <span className="w-32 text-right">
+                {currency === 'USD'
+                  ? `$${invoice.totalUsd.toFixed(2)}`
+                  : `Bs.${invoice.totalVes.toFixed(2)}`}
+              </span>
           </div>
           <div className="flex justify-end gap-8 text-sm text-gray-500">
             <span>IVA:</span>
@@ -275,17 +275,17 @@ export default function InvoiceViewPage(): JSX.Element {
           </div>
           <div className="flex justify-end gap-8 text-lg font-bold text-gray-800 border-t pt-2">
             <span>Total:</span>
-            <span className="w-32 text-right">
-              {currency === 'USD'
-                ? `$${invoice.totalUsd.toFixed(2)}`
-                : `Bs.${invoice.totalVes.toFixed(2)}`}
-            </span>
-          </div>
-          {currency === 'USD' && (
+              <span className="w-32 text-right">
+                {currency === 'USD'
+                  ? `$${(invoice.totalUsd + invoice.ivaUsd).toFixed(2)}`
+                  : `Bs.${(invoice.totalVes + invoice.ivaVes).toFixed(2)}`}
+              </span>
+            </div>
+            {currency === 'USD' && (
             <div className="flex justify-end gap-8 text-sm text-gray-400">
               <span>Total en Bs.:</span>
               <span className="w-32 text-right">
-                Bs.{(invoice.totalUsd * invoice.exchangeRate).toFixed(2)}
+                Bs.{((invoice.totalUsd + invoice.ivaUsd) * invoice.exchangeRate).toFixed(2)}
               </span>
             </div>
           )}
@@ -293,7 +293,7 @@ export default function InvoiceViewPage(): JSX.Element {
             <div className="flex justify-end gap-8 text-sm text-gray-400">
               <span>Total en USD:</span>
               <span className="w-32 text-right">
-                ${(invoice.totalVes / (invoice.exchangeRate || 1)).toFixed(2)}
+                ${((invoice.totalVes + invoice.ivaVes) / (invoice.exchangeRate || 1)).toFixed(2)}
               </span>
             </div>
           )}

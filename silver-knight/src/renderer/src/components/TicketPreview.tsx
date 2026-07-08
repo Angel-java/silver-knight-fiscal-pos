@@ -20,9 +20,9 @@ interface TicketPreviewProps {
 export default function TicketPreview({ invoice }: TicketPreviewProps): JSX.Element {
   const c = invoice.currency
   const isUsd = c === 'USD'
-  const total = isUsd ? invoice.totalUsd : invoice.totalVes
+  const subtotal = isUsd ? invoice.totalUsd : invoice.totalVes
   const iva = isUsd ? invoice.ivaUsd : invoice.ivaVes
-  const subtotal = total - iva
+  const total = subtotal + iva
 
   let payments: Array<{ method: string; amount: number; currency: string }> = []
   try {
@@ -100,7 +100,7 @@ export default function TicketPreview({ invoice }: TicketPreviewProps): JSX.Elem
             {'Tasa BCV:'.padEnd(10)} Bs.{invoice.exchangeRate.toFixed(2)}
           </div>
           <div>
-            {'Total en Bs.:'.padEnd(10)} Bs.{(invoice.totalUsd * invoice.exchangeRate).toFixed(2)}
+            {'Total en Bs.:'.padEnd(10)} Bs.{(total * invoice.exchangeRate).toFixed(2)}
           </div>
         </>
       )}
@@ -110,7 +110,7 @@ export default function TicketPreview({ invoice }: TicketPreviewProps): JSX.Elem
             {'Tasa BCV:'.padEnd(10)} Bs.{invoice.exchangeRate.toFixed(2)}
           </div>
           <div>
-            {'Total en USD:'.padEnd(10)} ${(invoice.totalVes / invoice.exchangeRate).toFixed(2)}
+            {'Total en USD:'.padEnd(10)} ${(total / invoice.exchangeRate).toFixed(2)}
           </div>
         </>
       )}

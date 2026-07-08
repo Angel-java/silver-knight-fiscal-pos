@@ -33,7 +33,7 @@ export default function PaymentModal({
 }: PaymentModalProps): JSX.Element | null {
   const [payments, setPayments] = useState<
     Array<{ method: string; amount: string; currency: string; approvalCode?: string }>
-  >([{ method: 'cash', amount: String(totalDisplay), currency: 'USD' }])
+  >([{ method: 'cash', amount: String(Math.round(totalDisplay * 100) / 100), currency }])
   const [submitting, setSubmitting] = useState(false)
   const [posConnected, setPosConnected] = useState(false)
   const [posProcessing, setPosProcessing] = useState(false)
@@ -46,6 +46,10 @@ export default function PaymentModal({
 
   useEffect(() => {
     if (open) {
+      setPayments([
+        { method: 'cash', amount: String(Math.round(totalDisplay * 100) / 100), currency }
+      ])
+      setPosResult(null)
       api.puntoVenta
         .status()
         .then((r) => setPosConnected(r.connected))
@@ -53,8 +57,9 @@ export default function PaymentModal({
     }
   }, [open])
 
-  const totalPaid = payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
-  const change = totalPaid - totalDisplay
+  const totalPaid = Math.round(payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) * 100) / 100
+  const roundedDisplay = Math.round(totalDisplay * 100) / 100
+  const change = Math.round((totalPaid - roundedDisplay) * 100) / 100
 
   const addPayment = (): void => {
     setPayments((prev) => [...prev, { method: 'transfer', amount: '', currency }])
@@ -108,7 +113,7 @@ export default function PaymentModal({
   }
 
   const handleSubmit = async (): Promise<void> => {
-    if (cart.length === 0 || totalPaid < totalDisplay) return
+    if (cart.length === 0 || totalPaid < roundedDisplay) return
     setSubmitting(true)
     try {
       const res = await api.invoices.create({
@@ -270,7 +275,7 @@ export default function PaymentModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={submitting || totalPaid < totalDisplay}
+            disabled={submitting || totalPaid < roundedDisplay}
             className="flex-1 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 transition-colors font-bold"
           >
             {submitting
