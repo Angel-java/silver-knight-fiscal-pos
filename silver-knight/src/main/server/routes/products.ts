@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createProductSchema, updateProductSchema, stockAdjustSchema } from '../validation/schemas'
 import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('products'))
 
 router.get('/', async (req: Request, res: Response) => {
   const search = (req.query.search as string) || ''
@@ -161,7 +162,7 @@ router.patch('/:id/stock', validate(stockAdjustSchema), async (req: Request, res
   try {
     const id = req.params.id as string
     const { quantity, type } = req.body
-    const userId = (req as any).user?.id || null
+    const userId = req.user?.userId || null
 
     const product = await prisma.product.findUnique({ where: { id } })
     if (!product) {

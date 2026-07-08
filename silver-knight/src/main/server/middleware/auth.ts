@@ -75,3 +75,42 @@ export function adminMiddleware(req: Request, res: Response, next: NextFunction)
   }
   next()
 }
+
+export function gerenteOrAdminMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const role = req.user?.role
+  if (role !== 'gerente' && role !== 'admin') {
+    res.status(403).json({ error: 'Acción solo permitida para gerentes o administradores' })
+    return
+  }
+  next()
+}
+
+export function requirePermission(module: string) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const role = req.user?.role
+    // Admin y gerente tienen acceso completo a todos los módulos
+    if (role === 'admin' || role === 'gerente') {
+      next()
+      return
+    }
+    // Operador: verificar permisos
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user?.userId },
+        select: { permissions: true }
+      })
+      if (!user || !user.permissions) {
+        res.status(403).json({ error: 'No tienes permiso para acceder a este módulo' })
+        return
+      }
+      const perms: string[] = JSON.parse(user.permissions)
+      if (!perms.includes(module)) {
+        res.status(403).json({ error: 'No tienes permiso para acceder a este módulo' })
+        return
+      }
+      next()
+    } catch {
+      res.status(500).json({ error: 'Error interno del servidor' })
+    }
+  }
+}

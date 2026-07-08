@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { JSX, ReactElement } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth'
-import { api } from '../lib/api'
+import { api, type PermissionModule } from '../lib/api'
 
 const icons: Record<string, ReactElement> = {
   pos: (
@@ -104,17 +104,30 @@ const icons: Record<string, ReactElement> = {
   )
 }
 
-const menuItems = [
-  { label: 'POS', key: 'pos', path: '/pos' },
-  { label: 'Inventario', key: 'products', path: '/inventory' },
-  { label: 'Clientes', key: 'customers', path: '/customers' },
-  { label: 'Reportes', key: 'reports', path: '/reports' },
-  { label: 'Usuarios', key: 'users', path: '/users' },
-  { label: 'Configuración', key: 'settings', path: '/settings' }
+interface MenuItem {
+  label: string
+  key: string
+  path: string
+  module: PermissionModule
+}
+
+const allMenuItems: MenuItem[] = [
+  { label: 'POS', key: 'pos', path: '/pos', module: 'pos' },
+  { label: 'Inventario', key: 'products', path: '/inventory', module: 'products' },
+  { label: 'Clientes', key: 'customers', path: '/customers', module: 'customers' },
+  { label: 'Reportes', key: 'reports', path: '/reports', module: 'reports' },
+  { label: 'Usuarios', key: 'users', path: '/users', module: 'dashboard' },
+  { label: 'Configuración', key: 'settings', path: '/settings', module: 'settings' }
 ]
 
+const roleLabels: Record<string, string> = {
+  admin: 'Admin',
+  gerente: 'Gerente',
+  operador: 'Operador'
+}
+
 export default function DashboardPage(): JSX.Element {
-  const { user, company, logout } = useAuth()
+  const { user, company, logout, hasPermission } = useAuth()
   const navigate = useNavigate()
   const [summary, setSummary] = useState<{
     invoicesCount: number
@@ -129,6 +142,17 @@ export default function DashboardPage(): JSX.Element {
       .then((r) => setSummary(r.summary))
       .catch(() => {})
   }, [])
+
+  const menuItems = useMemo(
+    () =>
+      allMenuItems.filter((item) => {
+        if (item.module === 'dashboard') {
+          return user?.role === 'admin' || user?.role === 'gerente'
+        }
+        return hasPermission(item.module)
+      }),
+    [hasPermission, user]
+  )
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -145,7 +169,10 @@ export default function DashboardPage(): JSX.Element {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">
-              {user?.username} ({user?.role})
+              {user?.fullName || user?.username}{' '}
+              <span className="text-xs text-gray-400">
+                ({roleLabels[user?.role || ''] || user?.role})
+              </span>
             </span>
             <button onClick={logout} className="text-sm text-red-600 hover:text-red-800">
               Cerrar sesión

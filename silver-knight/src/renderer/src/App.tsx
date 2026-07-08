@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/useAuth'
+import type { PermissionModule } from './lib/api'
 import LoginPage from './pages/LoginPage'
 import SetupWizardPage from './pages/SetupWizardPage'
 import DashboardPage from './pages/DashboardPage'
@@ -15,6 +16,20 @@ import ReportsPage from './pages/ReportsPage'
 import UsersPage from './pages/UsersPage'
 import POSPage from './pages/POSPage'
 import InvoiceViewPage from './pages/InvoiceViewPage'
+
+function ProtectedRoute({
+  children,
+  module
+}: {
+  children: React.ReactNode
+  module: PermissionModule
+}): React.ReactElement {
+  const { user, hasPermission } = useAuth()
+
+  if (!user) return <Navigate to="/" replace />
+  if (!hasPermission(module)) return <Navigate to="/" replace />
+  return <>{children}</>
+}
 
 function App(): React.JSX.Element {
   const { user, company, loading } = useAuth()
@@ -47,21 +62,105 @@ function App(): React.JSX.Element {
     <div className="min-h-screen bg-gray-100">
       <Routes>
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/inventory" element={<InventoryPage />}>
+        <Route
+          path="/inventory"
+          element={
+            <ProtectedRoute module="inventory">
+              <InventoryPage />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<ProductsPage embedded />} />
           <Route path="entries" element={<InventoryEntriesPage embedded />} />
         </Route>
-        <Route path="/products/categories" element={<CategoriesPage />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/inventory-entries" element={<InventoryEntriesPage />} />
-        <Route path="/customers" element={<CustomersPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/settings/fiscal-control" element={<FiscalControlPage />} />
-        <Route path="/iva" element={<IvaBooksPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/users" element={<UsersPage />} />
-        <Route path="/pos" element={<POSPage />} />
-        <Route path="/invoices/:id" element={<InvoiceViewPage />} />
+        <Route
+          path="/products/categories"
+          element={
+            <ProtectedRoute module="categories">
+              <CategoriesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <ProtectedRoute module="products">
+              <ProductsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory-entries"
+          element={
+            <ProtectedRoute module="inventory-entries">
+              <InventoryEntriesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/customers"
+          element={
+            <ProtectedRoute module="customers">
+              <CustomersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute module="settings">
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/fiscal-control"
+          element={
+            <ProtectedRoute module="fiscal-control">
+              <FiscalControlPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/iva"
+          element={
+            <ProtectedRoute module="iva-books">
+              <IvaBooksPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute module="reports">
+              <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute module="dashboard">
+              <UsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pos"
+          element={
+            <ProtectedRoute module="pos">
+              <POSPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/invoices/:id"
+          element={
+            <ProtectedRoute module="invoices">
+              <InvoiceViewPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

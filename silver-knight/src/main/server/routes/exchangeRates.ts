@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createExchangeRateSchema } from '../validation/schemas'
 import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('exchange-rates'))
 
 const BCV_URL = 'https://www.bcv.org.ve/'
 const DOLARAPI_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'

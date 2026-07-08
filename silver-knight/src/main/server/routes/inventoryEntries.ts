@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createInventoryEntrySchema } from '../validation/schemas'
 import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('inventory-entries'))
 
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -53,7 +54,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.post('/', validate(createInventoryEntrySchema), async (req: Request, res: Response) => {
   try {
     const { productId, type, quantity, unitCostUsd, unitCostVes, reference, notes } = req.body
-    const userId = (req as any).user?.id || null
+    const userId = req.user?.userId || null
 
     const product = await prisma.product.findUnique({ where: { id: productId } })
     if (!product) {

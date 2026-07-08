@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import { AuthContext } from './AuthContext'
-import type { User, Company } from '../lib/api'
+import type { User, Company, PermissionModule } from '../lib/api'
 
 export type { User, Company }
 
@@ -12,9 +12,10 @@ export interface AuthState {
   login: (username: string, pin: string) => Promise<void>
   setup: (
     company: { name: string; rif: string; address?: string; phone?: string; email?: string },
-    adminUser: { username: string; pin: string }
+    adminUser: { username: string; fullName?: string; pin: string }
   ) => Promise<void>
   logout: () => void
+  hasPermission: (module: PermissionModule | string) => boolean
 }
 
 export function useAuth(): AuthState {

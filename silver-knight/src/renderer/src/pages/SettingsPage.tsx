@@ -1,9 +1,12 @@
 import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/useAuth'
 import { api } from '../lib/api'
 
 export default function SettingsPage(): JSX.Element {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [rate, setRate] = useState('')
   const [currentRate, setCurrentRate] = useState<{
     rate: number
@@ -632,7 +635,7 @@ export default function SettingsPage(): JSX.Element {
         </div>
 
         {/* 1.9.4 — Perfil del Sistema */}
-        <div className="bg-white rounded-lg shadow p-6">
+        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">Perfil del Sistema</h2>
           <p className="text-sm text-gray-500 mb-4">
             Define el alcance del sistema. Actualmente solo el perfil Small está disponible.
@@ -657,10 +660,10 @@ export default function SettingsPage(): JSX.Element {
               </button>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* 1.9.3 + 1.10 — Impresión Térmica */}
-        <div className="bg-white rounded-lg shadow p-6">
+        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">Configuración de Impresión</h2>
           <p className="text-sm text-gray-500 mb-4">
             Personaliza el formato de impresión para tickets y facturas.
@@ -743,10 +746,10 @@ export default function SettingsPage(): JSX.Element {
               {saving ? 'Guardando...' : 'Guardar Configuración'}
             </button>
           </form>
-        </div>
+        </div>}
 
         {/* Configuración de Terminal POS */}
-        <div className="bg-white rounded-lg shadow p-6">
+        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">Terminal Punto de Venta</h2>
           <p className="text-sm text-gray-500 mb-4">
             Configura la conexión con el terminal POS (pinpad) para procesar pagos con tarjeta de
@@ -951,10 +954,10 @@ export default function SettingsPage(): JSX.Element {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Sincronización en la Nube */}
-        <div className="bg-white rounded-lg shadow p-6">
+        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">Sincronización en la Nube</h2>
           <p className="text-sm text-gray-500 mb-4">
             Configura la sincronización automática de tus datos con un servidor en la nube para
@@ -1174,10 +1177,10 @@ export default function SettingsPage(): JSX.Element {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Configuración de conexión API */}
-        <div className="bg-white rounded-lg shadow p-6">
+        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">Conexión al Servidor</h2>
           <p className="text-sm text-gray-500 mb-4">
             URL base de la API. En perfil Small es <code>http://localhost:3001/api</code>. Para
@@ -1208,7 +1211,7 @@ export default function SettingsPage(): JSX.Element {
           <p className="text-xs text-gray-400 mt-1">
             El cambio se aplica inmediatamente. Asegúrate de que el servidor sea accesible.
           </p>
-        </div>
+        </div>}
 
         {/* Navegación a secciones existentes */}
         <div className="bg-white rounded-lg shadow p-6">

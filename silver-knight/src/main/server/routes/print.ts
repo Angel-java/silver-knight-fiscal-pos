@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 import { logger } from '../utils/logger'
 import { getAvailablePrinters, printInvoice } from '../printer'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('invoices'))
 
 router.get('/printers', async (_req: Request, res: Response) => {
   try {

@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('iva-books'))
 
 router.get('/ventas', async (req: Request, res: Response) => {
   const from = req.query.from ? new Date(req.query.from as string) : new Date(new Date().setDate(1))

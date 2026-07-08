@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createCategorySchema, updateCategorySchema } from '../validation/schemas'
 import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('categories'))
 
 router.get('/', async (_req: Request, res: Response) => {
   const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })

@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 import { logger } from '../utils/logger'
 import { parsePayments } from '../utils/payments'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('reports'))
 
 router.get('/sales-daily', async (_req: Request, res: Response) => {
   try {

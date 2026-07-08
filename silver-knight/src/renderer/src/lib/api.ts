@@ -22,8 +22,20 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export interface User {
   id: string
   username: string
+  fullName: string | null
   role: string
+  permissions: string[] | null
+  isActive?: boolean
+  createdAt?: string
 }
+
+export const PERMISSION_MODULES = [
+  'dashboard', 'pos', 'products', 'categories', 'inventory',
+  'inventory-entries', 'customers', 'invoices', 'reports',
+  'settings', 'exchange-rates', 'iva-books', 'fiscal-control'
+] as const
+
+export type PermissionModule = (typeof PERMISSION_MODULES)[number]
 
 export interface Company {
   id: string
@@ -172,7 +184,7 @@ export const api = {
 
   setup: (
     company: { name: string; rif: string; address?: string; phone?: string; email?: string },
-    adminUser: { username: string; pin: string }
+    adminUser: { username: string; fullName?: string; pin: string }
   ) =>
     request<{ token: string; user: User; company: Company }>('/auth/setup', {
       method: 'POST',
@@ -518,28 +530,16 @@ export const api = {
 
   users: {
     list: () =>
-      request<{
-        users: Array<{
-          id: string
-          username: string
-          role: string
-          isActive: boolean
-          createdAt: string
-        }>
-      }>('/users'),
+      request<{ users: User[] }>('/users'),
 
-    create: (data: { username: string; pin: string; role?: string }) =>
-      request<{
-        user: { id: string; username: string; role: string; isActive: boolean }
-      }>('/users', { method: 'POST', body: JSON.stringify(data) }),
+    create: (data: { username: string; fullName?: string | null; pin: string; role?: string; permissions?: string[] | null }) =>
+      request<{ user: User }>('/users', { method: 'POST', body: JSON.stringify(data) }),
 
     update: (
       id: string,
-      data: { username?: string; pin?: string; role?: string; isActive?: boolean }
+      data: { username?: string; fullName?: string | null; pin?: string; role?: string; isActive?: boolean; permissions?: string[] | null }
     ) =>
-      request<{
-        user: { id: string; username: string; role: string; isActive: boolean }
-      }>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+      request<{ user: User }>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   },
 
   inventoryEntries: {

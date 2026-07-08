@@ -9,7 +9,7 @@ export default function SetupWizardPage(): JSX.Element {
   const [submitting, setSubmitting] = useState(false)
 
   const [company, setCompany] = useState({ name: '', rif: '', address: '', phone: '', email: '' })
-  const [admin, setAdmin] = useState({ username: '', pin: '', confirmPin: '' })
+  const [admin, setAdmin] = useState({ username: '', fullName: '', pin: '', confirmPin: '' })
 
   const handleCompanySubmit = (e: FormEvent): void => {
     e.preventDefault()
@@ -47,7 +47,7 @@ export default function SetupWizardPage(): JSX.Element {
           phone: company.phone || undefined,
           email: company.email || undefined
         },
-        { username: admin.username, pin: admin.pin }
+        { username: admin.username, fullName: admin.fullName || undefined, pin: admin.pin }
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al configurar')
@@ -152,6 +152,18 @@ export default function SetupWizardPage(): JSX.Element {
               onChange={(e) => setAdmin({ ...admin, username: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nombre completo
+            </label>
+            <input
+              type="text"
+              value={admin.fullName}
+              onChange={(e) => setAdmin({ ...admin, fullName: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Nombre y apellido"
             />
           </div>
           <div>

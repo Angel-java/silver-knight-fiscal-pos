@@ -1,24 +1,49 @@
 import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
+import { useAuth } from '../contexts/useAuth'
+import { api, PERMISSION_MODULES, type User } from '../lib/api'
 
-interface User {
-  id: string
-  username: string
-  role: string
-  isActive: boolean
-  createdAt: string
+const roleLabels: Record<string, string> = {
+  admin: 'Admin',
+  gerente: 'Gerente',
+  operador: 'Operador'
+}
+
+const permissionLabels: Record<string, string> = {
+  dashboard: 'Dashboard',
+  pos: 'Punto de Venta',
+  products: 'Productos',
+  categories: 'Categorías',
+  inventory: 'Inventario',
+  'inventory-entries': 'Entradas/Salidas',
+  customers: 'Clientes',
+  invoices: 'Facturas',
+  reports: 'Reportes',
+  settings: 'Configuración',
+  'exchange-rates': 'Tasas de Cambio',
+  'iva-books': 'Libros IVA',
+  'fiscal-control': 'Control Fiscal'
 }
 
 export default function UsersPage(): JSX.Element {
   const navigate = useNavigate()
+  const { user: currentUser } = useAuth()
+  const isGerente = currentUser?.role === 'gerente'
+  const isAdmin = currentUser?.role === 'admin'
+
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
-  const [form, setForm] = useState({ username: '', pin: '', role: 'operator' })
+  const [form, setForm] = useState({
+    username: '',
+    fullName: '',
+    pin: '',
+    role: 'operador',
+    permissions: [] as string[]
+  })
   const [saving, setSaving] = useState(false)
 
   const load = async (): Promise<void> => {
@@ -48,14 +73,29 @@ export default function UsersPage(): JSX.Element {
 
   const openCreate = (): void => {
     setEditing(null)
-    setForm({ username: '', pin: '', role: 'operator' })
+    setForm({ username: '', fullName: '', pin: '', role: 'operador', permissions: [] })
     setShowModal(true)
   }
 
   const openEdit = (u: User): void => {
     setEditing(u)
-    setForm({ username: u.username, pin: '', role: u.role })
+    setForm({
+      username: u.username,
+      fullName: u.fullName || '',
+      pin: '',
+      role: u.role === 'admin' ? 'admin' : u.role === 'gerente' ? 'gerente' : 'operador',
+      permissions: u.permissions || []
+    })
     setShowModal(true)
+  }
+
+  const togglePermission = (mod: string): void => {
+    setForm((prev) => ({
+      ...prev,
+      permissions: prev.permissions.includes(mod)
+        ? prev.permissions.filter((p) => p !== mod)
+        : [...prev.permissions, mod]
+    }))
   }
 
   const handleSubmit = async (e: FormEvent): Promise<void> => {
@@ -71,16 +111,21 @@ export default function UsersPage(): JSX.Element {
     }
     setSaving(true)
     try {
+      const payload: Record<string, unknown> = {
+        username: form.username,
+        fullName: form.fullName || null,
+        role: form.role
+      }
+      if (form.role === 'operador') {
+        payload.permissions = form.permissions
+      }
+      if (form.pin) payload.pin = form.pin
+
       if (editing) {
-        const payload: { username?: string; pin?: string; role?: string } = {
-          username: form.username,
-          role: form.role
-        }
-        if (form.pin) payload.pin = form.pin
         await api.users.update(editing.id, payload)
         setSuccess('Usuario actualizado')
       } else {
-        await api.users.create(form)
+        await api.users.create(payload as any)
         setSuccess('Usuario creado')
       }
       setShowModal(false)
@@ -93,6 +138,7 @@ export default function UsersPage(): JSX.Element {
   }
 
   const toggleActive = async (u: User): Promise<void> => {
+    if (isGerente && u.role !== 'operador') return
     try {
       await api.users.update(u.id, { isActive: !u.isActive })
       setSuccess(u.isActive ? 'Usuario desactivado' : 'Usuario activado')
@@ -101,6 +147,14 @@ export default function UsersPage(): JSX.Element {
       setError(err instanceof Error ? err.message : 'Error al actualizar')
     }
   }
+
+  const canEditUser = (u: User): boolean => {
+    if (isAdmin) return true
+    if (isGerente) return u.role === 'operador'
+    return false
+  }
+
+  const filteredUsers = users.filter(() => isAdmin || isGerente)
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -127,16 +181,19 @@ export default function UsersPage(): JSX.Element {
 
       {loading && <p className="text-gray-500 text-center py-8">Cargando...</p>}
 
-      {!loading && users.length === 0 && (
+      {!loading && filteredUsers.length === 0 && (
         <p className="text-gray-400 text-center py-8">No hay usuarios registrados</p>
       )}
 
-      {!loading && users.length > 0 && (
+      {!loading && filteredUsers.length > 0 && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Usuario</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                  Nombre completo
+                </th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Rol</th>
                 <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Estado</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Creado</th>
@@ -144,18 +201,21 @@ export default function UsersPage(): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr key={u.id} className="border-b last:border-0 hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium">{u.username}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{u.fullName || '—'}</td>
                   <td className="px-4 py-3 text-sm">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
                         u.role === 'admin'
                           ? 'bg-purple-100 text-purple-700'
-                          : 'bg-blue-100 text-blue-700'
+                          : u.role === 'gerente'
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-blue-100 text-blue-700'
                       }`}
                     >
-                      {u.role === 'admin' ? 'Admin' : 'Operador'}
+                      {roleLabels[u.role] || u.role}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -167,21 +227,25 @@ export default function UsersPage(): JSX.Element {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-gray-500">
-                    {new Date(u.createdAt).toLocaleDateString()}
+                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => openEdit(u)}
-                      className="text-sm text-primary hover:text-primary-dark mr-3"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => toggleActive(u)}
-                      className={`text-sm ${u.isActive ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
-                    >
-                      {u.isActive ? 'Desactivar' : 'Activar'}
-                    </button>
+                    {canEditUser(u) && (
+                      <>
+                        <button
+                          onClick={() => openEdit(u)}
+                          className="text-sm text-primary hover:text-primary-dark mr-3"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => toggleActive(u)}
+                          className={`text-sm ${u.isActive ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
+                        >
+                          {u.isActive ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -192,7 +256,7 @@ export default function UsersPage(): JSX.Element {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6">
             <h2 className="text-lg font-bold mb-4">
               {editing ? 'Editar Usuario' : 'Nuevo Usuario'}
             </h2>
@@ -206,6 +270,18 @@ export default function UsersPage(): JSX.Element {
                   value={form.username}
                   onChange={(e) => setForm({ ...form, username: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre completo
+                </label>
+                <input
+                  type="text"
+                  value={form.fullName}
+                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="Nombre y apellido"
                 />
               </div>
               <div>
@@ -228,10 +304,36 @@ export default function UsersPage(): JSX.Element {
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
-                  <option value="operator">Operador</option>
-                  <option value="admin">Admin</option>
+                  {isAdmin && <option value="admin">Admin</option>}
+                  {isAdmin && <option value="gerente">Gerente</option>}
+                  <option value="operador">Operador</option>
                 </select>
               </div>
+
+              {form.role === 'operador' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Módulos permitidos
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                    {PERMISSION_MODULES.map((mod) => (
+                      <label
+                        key={mod}
+                        className="flex items-center gap-2 p-2 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.permissions.includes(mod)}
+                          onChange={() => togglePermission(mod)}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        {permissionLabels[mod] || mod}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-3 justify-end pt-2">
                 <button
                   type="button"

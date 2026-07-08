@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createInvoiceSchema, cancelInvoiceSchema } from '../validation/schemas'
 import { logger } from '../utils/logger'
@@ -8,6 +8,7 @@ import { ensureDefaultControl } from './fiscalControl'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('invoices'))
 
 async function nextControlNumber(
   documentType: string
@@ -160,6 +161,7 @@ router.post('/', validate(createInvoiceSchema), async (req: Request, res: Respon
           controlNumber,
           fiscalControlId,
           customerId: customerId || null,
+          userId: req.user?.userId || null,
           currency: currency || 'USD',
           exchangeRate: Number(exchangeRate) || 0,
           totalUsd: Math.round(totalUsd * 100) / 100,

@@ -1,20 +1,28 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware, adminMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
+
+const SYSTEM_KEYS = ['profile']
 
 const router = Router()
 router.use(authMiddleware)
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', requirePermission('settings'), async (_req: Request, res: Response) => {
   const all = await prisma.setting.findMany()
   const map: Record<string, string> = {}
   for (const s of all) map[s.key] = s.value
   res.json({ settings: map })
 })
 
-router.put('/:key', adminMiddleware, async (req: Request, res: Response) => {
+router.put('/:key', requirePermission('settings'), async (req: Request, res: Response) => {
   const key = req.params.key as string
   const { value } = req.body
+
+  if (SYSTEM_KEYS.includes(key) && req.user?.role !== 'admin') {
+    res.status(403).json({ error: 'Solo administradores pueden modificar esta configuración' })
+    return
+  }
+
   const setting = await prisma.setting.upsert({
     where: { key },
     update: { value: String(value) },

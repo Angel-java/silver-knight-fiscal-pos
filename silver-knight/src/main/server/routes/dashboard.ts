@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('dashboard'))
 
 router.get('/summary', async (_req: Request, res: Response) => {
   const today = new Date()

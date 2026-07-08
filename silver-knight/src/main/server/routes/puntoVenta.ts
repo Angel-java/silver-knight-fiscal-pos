@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { authMiddleware, adminMiddleware } from '../middleware/auth'
+import { authMiddleware, requirePermission } from '../middleware/auth'
 import { logger } from '../utils/logger'
 import { puntoVentaService } from '../puntoVenta'
 
@@ -30,7 +30,7 @@ router.get('/ports', async (_req: Request, res: Response) => {
   }
 })
 
-router.post('/connect', adminMiddleware, async (req: Request, res: Response) => {
+router.post('/connect', requirePermission('settings'), async (req: Request, res: Response) => {
   try {
     const { port, baudRate } = req.body
     const config = await puntoVentaService.saveConfig({
@@ -45,7 +45,7 @@ router.post('/connect', adminMiddleware, async (req: Request, res: Response) => 
   }
 })
 
-router.post('/disconnect', adminMiddleware, async (_req: Request, res: Response) => {
+router.post('/disconnect', requirePermission('settings'), async (_req: Request, res: Response) => {
   try {
     await puntoVentaService.disconnect()
     res.json({ connected: false })
@@ -55,7 +55,7 @@ router.post('/disconnect', adminMiddleware, async (_req: Request, res: Response)
   }
 })
 
-router.post('/test', adminMiddleware, async (_req: Request, res: Response) => {
+router.post('/test', requirePermission('settings'), async (_req: Request, res: Response) => {
   try {
     await puntoVentaService.loadConfig()
     const msg = await puntoVentaService.testConnection()
@@ -83,7 +83,7 @@ router.post('/pay', async (req: Request, res: Response) => {
   }
 })
 
-router.put('/settings', adminMiddleware, async (req: Request, res: Response) => {
+router.put('/settings', requirePermission('settings'), async (req: Request, res: Response) => {
   try {
     const { port, baudRate, enabled } = req.body
     const config = await puntoVentaService.saveConfig({ port, baudRate, enabled })

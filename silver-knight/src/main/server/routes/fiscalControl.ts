@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../../database/prisma'
-import { authMiddleware, adminMiddleware } from '../middleware/auth'
+import { authMiddleware, adminMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createFiscalControlSchema, updateFiscalControlSchema } from '../validation/schemas'
 import { logger } from '../utils/logger'
 
 const router = Router()
 router.use(authMiddleware)
+router.use(requirePermission('fiscal-control'))
 
 const DOCUMENT_TYPES: Record<string, string> = {
   FACT: 'Factura',

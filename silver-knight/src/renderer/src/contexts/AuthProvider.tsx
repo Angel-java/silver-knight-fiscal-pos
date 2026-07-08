@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, type ReactNode, type JSX } from 'react'
-import { api, type User, type Company } from '../lib/api'
+import { api, type User, type Company, type PermissionModule } from '../lib/api'
 import { AuthContext } from './AuthContext'
 
 export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   const setup = useCallback(
     async (
       companyData: { name: string; rif: string; address?: string; phone?: string; email?: string },
-      adminUser: { username: string; pin: string }
+      adminUser: { username: string; fullName?: string; pin: string }
     ): Promise<void> => {
       const res = await api.setup(companyData, adminUser)
       localStorage.setItem('token', res.token)
@@ -51,12 +51,25 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   const logout = useCallback((): void => {
     localStorage.removeItem('token')
     setUser(null)
-    setCompany(null)
   }, [])
+
+  const hasPermission = useCallback(
+    (module: PermissionModule | string): boolean => {
+      if (!user) return false
+      const role = user.role
+      if (role === 'admin') return true
+      if (role === 'gerente') return true
+      if (role === 'operador' && user.permissions) {
+        return user.permissions.includes(module)
+      }
+      return false
+    },
+    [user]
+  )
 
   return (
     <AuthContext.Provider
-      value={{ user, company, loading, isReady: !loading, login, setup, logout }}
+      value={{ user, company, loading, isReady: !loading, login, setup, logout, hasPermission }}
     >
       {children}
     </AuthContext.Provider>

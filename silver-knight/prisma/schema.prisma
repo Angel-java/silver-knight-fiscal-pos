@@ -19,13 +19,16 @@ model Company {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  pin       String
-  role      String   @default("operator")
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(cuid())
+  username    String    @unique
+  fullName    String?
+  pin         String
+  role        String    @default("operador")
+  permissions String?
+  isActive    Boolean   @default(true)
+  invoices    Invoice[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model ExchangeRate {
@@ -108,6 +111,8 @@ model Invoice {
   fiscalControl   FiscalControl? @relation(fields: [fiscalControlId], references: [id])
   customerId      String?
   customer        Customer?     @relation(fields: [customerId], references: [id])
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
   cancelReason    String?
   cancelledAt     DateTime?
   items           InvoiceItem[]
@@ -127,6 +132,7 @@ model Invoice {
   @@index([documentType, status])
   @@index([customerId])
   @@index([fiscalControlId])
+  @@index([userId])
 }
 
 model InvoiceItem {

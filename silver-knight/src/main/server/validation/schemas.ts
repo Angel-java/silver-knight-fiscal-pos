@@ -15,6 +15,7 @@ export const setupSchema = z.object({
   }),
   adminUser: z.object({
     username: z.string().min(1, 'Username requerido'),
+    fullName: z.string().optional().nullable(),
     pin: z.string().min(1, 'PIN requerido')
   })
 })
@@ -120,17 +121,29 @@ export const updateFiscalControlSchema = z.object({
   isActive: z.boolean().optional()
 })
 
+const PERMISSION_MODULES = [
+  'dashboard', 'pos', 'products', 'categories', 'inventory',
+  'inventory-entries', 'customers', 'invoices', 'reports',
+  'settings', 'exchange-rates', 'iva-books', 'fiscal-control'
+] as const
+
+export const permissionModules = PERMISSION_MODULES
+
 export const createUserSchema = z.object({
   username: z.string().min(1, 'Username requerido'),
+  fullName: z.string().optional().nullable(),
   pin: z.string().min(1, 'PIN requerido'),
-  role: z.enum(['admin', 'operator']).default('operator')
+  role: z.enum(['admin', 'gerente', 'operador']).default('operador'),
+  permissions: z.array(z.enum(PERMISSION_MODULES)).optional().nullable()
 })
 
 export const updateUserSchema = z.object({
   username: z.string().optional(),
+  fullName: z.string().optional().nullable(),
   pin: z.string().optional(),
-  role: z.enum(['admin', 'operator']).optional(),
-  isActive: z.boolean().optional()
+  role: z.enum(['admin', 'gerente', 'operador']).optional(),
+  isActive: z.boolean().optional(),
+  permissions: z.array(z.enum(PERMISSION_MODULES)).optional().nullable()
 })
 
 export const createExchangeRateSchema = z.object({

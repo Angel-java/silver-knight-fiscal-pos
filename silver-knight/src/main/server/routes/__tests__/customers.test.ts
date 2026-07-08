@@ -22,6 +22,9 @@ vi.mock('../../middleware/auth', () => ({
   authMiddleware: (req: any, _res: any, next: any) => {
     req.user = { userId: 'test-user', username: 'test', role: 'admin' }
     next()
+  },
+  requirePermission: () => (_req: any, _res: any, next: any) => {
+    next()
   }
 }))
 

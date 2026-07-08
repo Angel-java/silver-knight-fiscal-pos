@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import rateLimit from 'express-rate-limit'
 import { prisma } from '../../database/prisma'
-import { generateToken, authMiddleware, adminMiddleware } from '../middleware/auth'
+import { generateToken, authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { loginSchema, setupSchema, updateCompanySchema } from '../validation/schemas'
 import { logger } from '../utils/logger'
@@ -38,7 +38,16 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req: Request, 
     }
 
     const token = await generateToken({ userId: user.id, username: user.username, role: user.role })
-    res.json({ token, user: { id: user.id, username: user.username, role: user.role } })
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role,
+        permissions: user.permissions ? JSON.parse(user.permissions) : null
+      }
+    })
   } catch (error) {
     logger.error('auth', 'login error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
@@ -56,6 +65,7 @@ router.post('/setup', validate(setupSchema), async (req: Request, res: Response)
     const { company, adminUser } = req.body
 
     const hashedPin = await bcrypt.hash(adminUser.pin, 10)
+    const adminFullName = adminUser.fullName || null
 
     const result = await prisma.$transaction(async (tx) => {
       const newCompany = await tx.company.create({
@@ -71,6 +81,7 @@ router.post('/setup', validate(setupSchema), async (req: Request, res: Response)
       const newUser = await tx.user.create({
         data: {
           username: adminUser.username,
+          fullName: adminFullName,
           pin: hashedPin,
           role: 'admin'
         }
@@ -78,7 +89,7 @@ router.post('/setup', validate(setupSchema), async (req: Request, res: Response)
 
       return {
         company: newCompany,
-        user: { id: newUser.id, username: newUser.username, role: newUser.role }
+        user: { id: newUser.id, username: newUser.username, fullName: newUser.fullName, role: newUser.role, permissions: null }
       }
     })
 
@@ -99,13 +110,18 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
     const user = req.user!
     const dbUser = await prisma.user.findUnique({
       where: { id: user.userId },
-      select: { id: true, username: true, role: true }
+      select: { id: true, username: true, fullName: true, role: true, permissions: true }
     })
     if (!dbUser) {
       res.status(404).json({ error: 'Usuario no encontrado' })
       return
     }
-    res.json({ user: dbUser })
+    res.json({
+      user: {
+        ...dbUser,
+        permissions: dbUser.permissions ? JSON.parse(dbUser.permissions) : null
+      }
+    })
   } catch (error) {
     logger.error('auth', 'me error', error)
     res.status(500).json({ error: 'Error interno del servidor' })
@@ -125,7 +141,7 @@ router.get('/company', async (_req: Request, res: Response) => {
 router.put(
   '/company',
   authMiddleware,
-  adminMiddleware,
+  requirePermission('settings'),
   validate(updateCompanySchema),
   async (req: Request, res: Response) => {
     try {
