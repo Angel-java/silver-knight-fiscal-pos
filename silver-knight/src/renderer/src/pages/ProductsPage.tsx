@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { api, type Product, type Category } from '../lib/api'
 import ProductFormPage from './ProductFormPage'
 
-export default function ProductsPage(): JSX.Element {
+interface Props {
+  embedded?: boolean
+}
+
+export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
   const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -87,20 +91,17 @@ export default function ProductsPage(): JSX.Element {
   if (loading) return <p className="text-gray-500 p-4">Cargando...</p>
 
   return (
-    <div className="p-6">
+    <div className={embedded ? 'p-4' : 'p-6'}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/')}
-            className="text-gray-500 hover:text-gray-700 text-lg"
-          >
-            ←
-          </button>
+          {!embedded && (
+            <button onClick={() => navigate('/')} className="text-gray-500 hover:text-gray-700 text-lg">←</button>
+          )}
           <h1 className="text-2xl font-bold text-gray-800">Productos ({total})</h1>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => navigate('/products/categories')}
+            onClick={() => navigate(embedded ? '/products/categories' : '/products/categories')}
             className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm"
           >
             Categorías

@@ -10,7 +10,11 @@ vi.mock('../../../database/prisma', () => ({
       create: vi.fn(),
       update: vi.fn(),
       count: vi.fn()
-    }
+    },
+    inventoryMovement: {
+      create: vi.fn()
+    },
+    $transaction: vi.fn()
   }
 }))
 
@@ -154,9 +158,19 @@ describe('PUT /api/products/:id', () => {
 })
 
 describe('PATCH /api/products/:id/stock', () => {
+  function mockTx() {
+    const tx = {
+      product: { update: vi.fn() },
+      inventoryMovement: { create: vi.fn() }
+    }
+    vi.mocked(prisma.$transaction).mockImplementation((cb: any) => cb(tx))
+    return tx
+  }
+
   it('increases stock (type=in)', async () => {
     vi.mocked(prisma.product.findUnique).mockResolvedValue({ id: 'p-1', stock: 10 } as any)
-    vi.mocked(prisma.product.update).mockResolvedValue({
+    const tx = mockTx()
+    vi.mocked(tx.product.update).mockResolvedValue({
       id: 'p-1',
       stock: 15,
       category: null
@@ -172,7 +186,8 @@ describe('PATCH /api/products/:id/stock', () => {
 
   it('decreases stock (type=out)', async () => {
     vi.mocked(prisma.product.findUnique).mockResolvedValue({ id: 'p-1', stock: 10 } as any)
-    vi.mocked(prisma.product.update).mockResolvedValue({
+    const tx = mockTx()
+    vi.mocked(tx.product.update).mockResolvedValue({
       id: 'p-1',
       stock: 7,
       category: null

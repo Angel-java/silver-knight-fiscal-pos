@@ -106,7 +106,7 @@ const icons: Record<string, ReactElement> = {
 
 const menuItems = [
   { label: 'POS', key: 'pos', path: '/pos' },
-  { label: 'Productos', key: 'products', path: '/products' },
+  { label: 'Inventario', key: 'products', path: '/inventory' },
   { label: 'Clientes', key: 'customers', path: '/customers' },
   { label: 'Reportes', key: 'reports', path: '/reports' },
   { label: 'Usuarios', key: 'users', path: '/users' },

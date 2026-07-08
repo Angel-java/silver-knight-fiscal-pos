@@ -28,4 +28,5 @@ Ver detalle completo en [[plan-vision]]. Resumen: Electron + Vite + React 19 + T
 
 - **Fase**: Fase 1 (Small Profile) completada ✅
 - **Tareas**: 70/70
+- **Módulos**: POS, Productos/Inventario, Clientes, Facturación Fiscal (Fact/NC/ND), Control de Entradas de Inventario (audit trail), Reportes, Dashboard, Impresión Térmica, Configuración, Sincronización Cloud
 - **Próximo paso**: Evaluar Fase 2 (Medium Profile) o features adicionales

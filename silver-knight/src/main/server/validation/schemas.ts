@@ -138,3 +138,13 @@ export const createExchangeRateSchema = z.object({
   source: z.string().default('manual'),
   date: z.string().optional()
 })
+
+export const createInventoryEntrySchema = z.object({
+  productId: z.string().min(1, 'Producto requerido'),
+  type: z.enum(['entry', 'exit'], { message: 'Tipo debe ser entry o exit' }),
+  quantity: z.number().positive('Cantidad debe ser positiva'),
+  unitCostUsd: z.number().min(0).optional().nullable(),
+  unitCostVes: z.number().min(0).optional().nullable(),
+  reference: z.string().optional().nullable(),
+  notes: z.string().optional().nullable()
+})

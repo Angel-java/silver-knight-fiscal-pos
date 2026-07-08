@@ -58,6 +58,20 @@ export interface Product {
   isActive: boolean
 }
 
+export interface InventoryMovement {
+  id: string
+  productId: string
+  product: { id: string; name: string; code: string | null } | null
+  type: string
+  quantity: number
+  unitCostUsd: number | null
+  unitCostVes: number | null
+  reference: string | null
+  notes: string | null
+  userId: string | null
+  createdAt: string
+}
+
 export interface ProductInput {
   name: string
   code?: string | null
@@ -526,6 +540,35 @@ export const api = {
       request<{
         user: { id: string; username: string; role: string; isActive: boolean }
       }>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  },
+
+  inventoryEntries: {
+    list: (params?: { productId?: string; type?: string; from?: string; to?: string; page?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.productId) q.set('productId', params.productId)
+      if (params?.type) q.set('type', params.type)
+      if (params?.from) q.set('from', params.from)
+      if (params?.to) q.set('to', params.to)
+      if (params?.page) q.set('page', String(params.page))
+      const qs = q.toString()
+      return request<{ movements: InventoryMovement[]; total: number; page: number; pages: number }>(
+        `/inventory-entries${qs ? '?' + qs : ''}`
+      )
+    },
+
+    create: (data: {
+      productId: string
+      type: 'entry' | 'exit'
+      quantity: number
+      unitCostUsd?: number | null
+      unitCostVes?: number | null
+      reference?: string | null
+      notes?: string | null
+    }) =>
+      request<{ product: Product; movement: InventoryMovement }>('/inventory-entries', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      })
   },
 
   sync: {

@@ -174,9 +174,19 @@ router.post('/', validate(createInvoiceSchema), async (req: Request, res: Respon
 
       for (const item of items) {
         if (item.productId) {
+          const qty = Number(item.quantity)
           await tx.product.update({
             where: { id: item.productId },
-            data: { stock: { decrement: Number(item.quantity) } }
+            data: { stock: { decrement: qty } }
+          })
+          await tx.inventoryMovement.create({
+            data: {
+              productId: item.productId,
+              type: 'sale',
+              quantity: qty,
+              reference: number,
+              userId: null
+            }
           })
         }
       }
@@ -222,6 +232,15 @@ router.patch('/:id/cancel', validate(cancelInvoiceSchema), async (req: Request, 
         await prisma.product.update({
           where: { id: item.productId },
           data: { stock: { increment: item.quantity } }
+        })
+        await prisma.inventoryMovement.create({
+          data: {
+            productId: item.productId,
+            type: 'cancellation',
+            quantity: item.quantity,
+            reference: updated.number,
+            notes: reason
+          }
         })
       }
     }

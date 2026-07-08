@@ -3,12 +3,14 @@ import { useAuth } from './contexts/useAuth'
 import LoginPage from './pages/LoginPage'
 import SetupWizardPage from './pages/SetupWizardPage'
 import DashboardPage from './pages/DashboardPage'
+import InventoryPage from './pages/InventoryPage'
 import ProductsPage from './pages/ProductsPage'
 import CategoriesPage from './pages/CategoriesPage'
 import CustomersPage from './pages/CustomersPage'
 import SettingsPage from './pages/SettingsPage'
 import FiscalControlPage from './pages/FiscalControlPage'
 import IvaBooksPage from './pages/IvaBooksPage'
+import InventoryEntriesPage from './pages/InventoryEntriesPage'
 import ReportsPage from './pages/ReportsPage'
 import UsersPage from './pages/UsersPage'
 import POSPage from './pages/POSPage'
@@ -45,8 +47,13 @@ function App(): React.JSX.Element {
     <div className="min-h-screen bg-gray-100">
       <Routes>
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/inventory" element={<InventoryPage />}>
+          <Route index element={<ProductsPage embedded />} />
+          <Route path="entries" element={<InventoryEntriesPage embedded />} />
+        </Route>
         <Route path="/products/categories" element={<CategoriesPage />} />
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/inventory-entries" element={<InventoryEntriesPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/fiscal-control" element={<FiscalControlPage />} />

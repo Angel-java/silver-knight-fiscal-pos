@@ -47,23 +47,24 @@ model Category {
 }
 
 model Product {
-  id            String   @id @default(cuid())
+  id            String              @id @default(cuid())
   name          String
-  code          String?  @unique
-  barcode       String?  @unique
+  code          String?             @unique
+  barcode       String?             @unique
   description   String?
   priceUsd      Float
   priceVes      Float
   costUsd       Float?
   costVes       Float?
-  ivaRate       Float    @default(16)
-  stock         Float    @default(0)
-  minStock      Float    @default(0)
+  ivaRate       Float               @default(16)
+  stock         Float               @default(0)
+  minStock      Float               @default(0)
   categoryId    String?
-  category      Category? @relation(fields: [categoryId], references: [id])
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  category      Category?           @relation(fields: [categoryId], references: [id])
+  movements     InventoryMovement[]
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 }
 
 model Customer {
@@ -164,6 +165,24 @@ model SyncLog {
   error     String?
   createdAt DateTime  @default(now())
   syncedAt  DateTime?
+}
+
+model InventoryMovement {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  type        String   // entry | exit | sale | cancellation
+  quantity    Float
+  unitCostUsd Float?
+  unitCostVes Float?
+  reference   String?
+  notes       String?
+  userId      String?
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+  @@index([type])
 }
 
 model SyncConfig {

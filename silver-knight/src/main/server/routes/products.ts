@@ -161,6 +161,7 @@ router.patch('/:id/stock', validate(stockAdjustSchema), async (req: Request, res
   try {
     const id = req.params.id as string
     const { quantity, type } = req.body
+    const userId = (req as any).user?.id || null
 
     const product = await prisma.product.findUnique({ where: { id } })
     if (!product) {
@@ -175,12 +176,26 @@ router.patch('/:id/stock', validate(stockAdjustSchema), async (req: Request, res
       return
     }
 
-    const updated = await prisma.product.update({
-      where: { id },
-      data: { stock: newStock },
-      include: { category: { select: { id: true, name: true } } }
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({
+        where: { id },
+        data: { stock: newStock },
+        include: { category: { select: { id: true, name: true } } }
+      })
+
+      await tx.inventoryMovement.create({
+        data: {
+          productId: id,
+          type: type === 'in' ? 'entry' : 'exit',
+          quantity: parseFloat(quantity),
+          userId
+        }
+      })
+
+      return updated
     })
-    res.json({ product: updated })
+
+    res.json({ product: result })
   } catch (error) {
     logger.error('products', 'stock error', error)
     res.status(500).json({ error: 'Error interno del servidor' })

@@ -19,6 +19,9 @@ vi.mock('../../../database/prisma', () => ({
       findUnique: vi.fn(),
       update: vi.fn()
     },
+    inventoryMovement: {
+      create: vi.fn()
+    },
     setting: {
       findMany: vi.fn()
     },
@@ -72,6 +75,9 @@ function mockTransaction() {
     product: {
       findUnique: vi.fn(),
       update: vi.fn()
+    },
+    inventoryMovement: {
+      create: vi.fn()
     }
   }
   vi.mocked(prisma.$transaction).mockImplementation((cb: any) => cb(mockTx))

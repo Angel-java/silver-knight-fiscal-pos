@@ -2,7 +2,7 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-07-03
+updated: 2026-07-06
 ---
 
 # Log de operaciones — Silver Knight
@@ -145,3 +145,26 @@ updated: 2026-07-03
 - **Hallazgos críticos**: 0 tests (0/10), API_BASE hardcodeada (viola ADR-004), error handling repetitivo en 45+ lugares, POSPage monolítico (647 líneas)
 - **Fortalezas**: separación de capas sólida, dual currency nativo, fiscal compliance desde día 1, Prisma migrations
 - **Recomendaciones**: agregar tests primero, centralizar errores, hacer API_BASE configurable, rate limiting en login
+
+## [2026-07-04] plan | Plan de Cliente Web + Cloud Server
+- **Descripción**: Creación del plan técnico para extender Silver Knight con cloud sync (Fase 3.1) y web client SPA (Fase 3.3). Arquitectura Cloud → Web Client con PostgreSQL, sync receiver, y React SPA independiente.
+- **Páginas creadas**: [[web-client-cloud-plan|Plan — Cliente Web + Cloud Server]]
+- **Páginas actualizadas**: [[index]]
+- **Notas**: Archivo guardado en `PlanDeTrabajo/planning/web-client-cloud-plan.md`. 2 fases: Cloud Server (A.1-A.6) y Web Client (B.1-B.10). Pendiente de iniciar implementación.
+
+## [2026-07-06] delete | Eliminación del plan Cliente Web + Cloud Server
+- **Descripción**: Eliminado el plan de Cliente Web + Cloud Server por replanteamiento de la dirección del proyecto. Se removió el archivo `web-client-cloud-plan.md`, la referencia en `PLAN.md` ("Web client para gestión centralizada") y la etapa 3.3 de `ROADMAP.md`.
+- **Archivos eliminados**: `PlanDeTrabajo/planning/web-client-cloud-plan.md`
+- **Páginas actualizadas**: [[index]]
+- **Notas**: El usuario va a replantear desde cero cómo debe funcionar el cliente web.
+
+## [2026-07-07] build | Sistema de Control de Entradas de Inventario
+- **Descripción**: Implementación del módulo de movimientos de inventario con audit trail completo. Nuevo modelo `InventoryMovement` con tipos `entry`, `exit`, `sale`, `cancellation`. El stock adjustment manual ahora crea movimientos, las facturas registran `sale`, y las anulaciones registran `cancellation`.
+- **Páginas creadas**: [[inventory-movement]]
+- **Páginas actualizadas**: [[product]], [[index]]
+- **Archivos creados**:
+  - `src/main/server/routes/inventoryEntries.ts` — API CRUD de movimientos
+  - `src/renderer/src/pages/InventoryEntriesPage.tsx` — UI con tabla, filtros por tipo, modal de creación
+- **Archivos modificados**: `schema.prisma`, `products.ts`, `invoices.ts`, `server/index.ts`, `api.ts`, `ProductsPage.tsx`, `App.tsx`, `DashboardPage.tsx`, `schemas.ts`
+- **Migración**: `20260708022835_add_inventory_movement`
+- **Tests**: 82/82 pasan

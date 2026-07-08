@@ -29,5 +29,6 @@ Un **[[product|Product]]** es la unidad básica del inventario. Tiene precios en
 
 - Un **Product** pertenece a una **[[category|Category]]**
 - Un **Product** aparece en múltiples **[[invoice-item|InvoiceItems]]** (líneas de factura)
+- Un **Product** tiene un historial de **[[inventory-movement|InventoryMovements]]** (audit trail de stock)
 - Un **Product** tiene precios en **[[dual-currency|ambas monedas]]**
 - Un **Product** tiene IVA configurable para **[[fiscal-compliance|cumplimiento fiscal]]**

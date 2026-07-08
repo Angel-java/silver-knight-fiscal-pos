@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-07-03
+updated: 2026-07-06
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -16,6 +16,7 @@ updated: 2026-07-03
 - [[company|Company]] — Empresa propietaria del sistema
 - [[customer|Customer]] — Cliente / receptor de factura
 - [[exchange-rate|Exchange Rate]] — Tasas de cambio USD/VES
+- [[inventory-movement|Inventory Movement]] — Movimiento de inventario (audit trail)
 - [[invoice|Invoice]] — Factura fiscal
 - [[invoice-item|Invoice Item]] — Línea de factura
 - [[cash-register|Cash Register]] — Apertura/cierre de caja
