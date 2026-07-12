@@ -18,6 +18,7 @@ import printRoutes from './routes/print'
 import puntoVentaRoutes from './routes/puntoVenta'
 import syncRoutes from './routes/sync'
 import inventoryEntriesRoutes from './routes/inventoryEntries'
+import suppliersRoutes from './routes/suppliers'
 import { ensureDefaultControl } from './routes/fiscalControl'
 import { startBcvScheduler } from './scheduler'
 import { syncService } from './syncService'
@@ -55,6 +56,7 @@ export async function createServer(): Promise<ReturnType<typeof express>> {
   app.use('/api/print', printRoutes)
   app.use('/api/punto-venta', puntoVentaRoutes)
   app.use('/api/inventory-entries', inventoryEntriesRoutes)
+  app.use('/api/suppliers', suppliersRoutes)
   app.use('/api/sync', syncRoutes)
 
   app.use(errorHandler)

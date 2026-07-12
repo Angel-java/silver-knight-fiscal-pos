@@ -22,7 +22,8 @@ const permissionLabels: Record<string, string> = {
   settings: 'Configuración',
   'exchange-rates': 'Tasas de Cambio',
   'iva-books': 'Libros IVA',
-  'fiscal-control': 'Control Fiscal'
+  'fiscal-control': 'Control Fiscal',
+  users: 'Usuarios'
 }
 
 export default function UsersPage(): JSX.Element {

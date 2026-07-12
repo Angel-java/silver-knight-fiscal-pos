@@ -129,8 +129,8 @@ export default function InventoryEntriesPage({ embedded }: Props = {}): JSX.Elem
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Producto</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Tipo</th>
               <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Cantidad</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Costo USD</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Costo VES</th>
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Ganancia</th>
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Costo Prod.</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Referencia</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Notas</th>
             </tr>
@@ -151,10 +151,10 @@ export default function InventoryEntriesPage({ embedded }: Props = {}): JSX.Elem
                   {m.type === 'entry' || m.type === 'cancellation' ? '+' : '-'}{m.quantity}
                 </td>
                 <td className="px-4 py-3 text-right text-sm">
-                  {m.unitCostUsd != null ? `$${m.unitCostUsd.toFixed(2)}` : '—'}
+                  {m.product ? `$${(m.product.priceUsd - (m.product.costUsd || 0)).toFixed(2)}` : '—'}
                 </td>
                 <td className="px-4 py-3 text-right text-sm">
-                  {m.unitCostVes != null ? `Bs.${m.unitCostVes.toFixed(2)}` : '—'}
+                  {m.product?.costUsd != null ? `$${m.product.costUsd.toFixed(2)}` : '—'}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{m.reference || '—'}</td>
                 <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{m.notes || '—'}</td>

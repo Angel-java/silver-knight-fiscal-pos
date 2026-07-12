@@ -72,7 +72,8 @@ export const createProductSchema = z.object({
   ivaRate: z.number().min(0).max(100).default(16),
   stock: z.number().min(0).default(0),
   minStock: z.number().min(0).default(0),
-  categoryId: z.string().optional().nullable()
+  categoryId: z.string().optional().nullable(),
+  supplierId: z.string().optional().nullable()
 })
 
 export const updateProductSchema = createProductSchema
@@ -103,6 +104,16 @@ export const createCategorySchema = z.object({
 
 export const updateCategorySchema = createCategorySchema.partial().required({ name: true })
 
+export const createSupplierSchema = z.object({
+  name: z.string().min(1, 'Nombre requerido'),
+  rif: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  email: z.string().email('Email inválido').optional().nullable(),
+  address: z.string().optional().nullable()
+})
+
+export const updateSupplierSchema = createSupplierSchema.partial().required({ name: true })
+
 export const createFiscalControlSchema = z.object({
   documentType: z.enum(['FACT', 'NCR', 'NDB'], { message: 'Tipo de documento inválido' }),
   resolution: z.string().min(1, 'Número de resolución requerido'),
@@ -124,7 +135,7 @@ export const updateFiscalControlSchema = z.object({
 const PERMISSION_MODULES = [
   'dashboard', 'pos', 'products', 'categories', 'inventory',
   'inventory-entries', 'customers', 'invoices', 'reports',
-  'settings', 'exchange-rates', 'iva-books', 'fiscal-control'
+  'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users'
 ] as const
 
 export const permissionModules = PERMISSION_MODULES

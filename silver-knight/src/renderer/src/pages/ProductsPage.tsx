@@ -107,6 +107,12 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
             Categorías
           </button>
           <button
+            onClick={() => navigate('/suppliers')}
+            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm"
+          >
+            Proveedores
+          </button>
+          <button
             onClick={openCreate}
             className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors"
           >
@@ -134,6 +140,7 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
             <tr>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Nombre</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Código</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Proveedor</th>
               <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Precio USD</th>
               <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Precio VES</th>
               <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Stock</th>
@@ -151,6 +158,7 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
                   <div className="text-xs text-gray-400">{p.category?.name}</div>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{p.code || p.barcode || '—'}</td>
+                <td className="px-4 py-3 text-sm text-gray-500">{p.supplier?.name || '—'}</td>
                 <td className="px-4 py-3 text-right">${p.priceUsd.toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">Bs.{p.priceVes.toFixed(2)}</td>
                 <td
@@ -195,7 +203,7 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
             ))}
             {products.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                   No hay productos
                 </td>
               </tr>

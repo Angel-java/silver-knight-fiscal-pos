@@ -32,7 +32,7 @@ export interface User {
 export const PERMISSION_MODULES = [
   'dashboard', 'pos', 'products', 'categories', 'inventory',
   'inventory-entries', 'customers', 'invoices', 'reports',
-  'settings', 'exchange-rates', 'iva-books', 'fiscal-control'
+  'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users'
 ] as const
 
 export type PermissionModule = (typeof PERMISSION_MODULES)[number]
@@ -52,6 +52,15 @@ export interface Category {
   description: string | null
 }
 
+export interface Supplier {
+  id: string
+  name: string
+  rif: string | null
+  phone: string | null
+  email: string | null
+  address: string | null
+}
+
 export interface Product {
   id: string
   name: string
@@ -67,13 +76,15 @@ export interface Product {
   minStock: number
   categoryId: string | null
   category: { id: string; name: string } | null
+  supplierId: string | null
+  supplier: { id: string; name: string } | null
   isActive: boolean
 }
 
 export interface InventoryMovement {
   id: string
   productId: string
-  product: { id: string; name: string; code: string | null } | null
+  product: { id: string; name: string; code: string | null; costUsd: number | null; costVes: number | null; priceUsd: number; priceVes: number } | null
   type: string
   quantity: number
   unitCostUsd: number | null
@@ -97,6 +108,7 @@ export interface ProductInput {
   stock?: number
   minStock?: number
   categoryId?: string | null
+  supplierId?: string | null
 }
 
 export interface Customer {
@@ -122,6 +134,7 @@ export interface InvoiceItem {
   ivaRate: number
   totalUsd: number
   totalVes: number
+  product?: { id: string; name: string; costUsd: number; costVes: number } | null
 }
 
 export interface FiscalControl {
@@ -213,6 +226,33 @@ export const api = {
       }),
 
     delete: (id: string) => request<{ ok: boolean }>(`/categories/${id}`, { method: 'DELETE' })
+  },
+
+  suppliers: {
+    list: (params?: { search?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      const qs = q.toString()
+      return request<{ suppliers: (Supplier & { _count?: { products: number } })[] }>(
+        `/suppliers${qs ? '?' + qs : ''}`
+      )
+    },
+
+    get: (id: string) => request<{ supplier: Supplier & { products?: { id: string; name: string; code: string | null }[] } }>(`/suppliers/${id}`),
+
+    create: (data: { name: string; rif?: string; phone?: string; email?: string; address?: string }) =>
+      request<{ supplier: Supplier }>('/suppliers', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    update: (id: string, data: { name: string; rif?: string | null; phone?: string | null; email?: string | null; address?: string | null }) =>
+      request<{ supplier: Supplier }>(`/suppliers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      }),
+
+    delete: (id: string) => request<{ ok: boolean }>(`/suppliers/${id}`, { method: 'DELETE' })
   },
 
   products: {
@@ -471,8 +511,9 @@ export const api = {
           quantity: number
           totalUsd: number
           totalVes: number
+          costUsd: number
         }>
-        summary: { totalQty: number; totalUsd: number; count: number }
+        summary: { totalQty: number; totalUsd: number; totalCost: number; count: number }
       }>(`/reports/top-products${qs ? '?' + qs : ''}`)
     },
 

@@ -65,8 +65,8 @@ export default function ReportsPage(): JSX.Element {
   } | null>(null)
 
   const [topData, setTopData] = useState<{
-    top: Array<{ productName: string; quantity: number; totalUsd: number; totalVes: number }>
-    summary: { totalQty: number; totalUsd: number; count: number }
+    top: Array<{ productName: string; quantity: number; totalUsd: number; totalVes: number; costUsd: number }>
+    summary: { totalQty: number; totalUsd: number; totalCost: number; count: number }
   } | null>(null)
 
   const [cashDate, setCashDate] = useState(() => new Date().toISOString().split('T')[0])
@@ -374,10 +374,13 @@ export default function ReportsPage(): JSX.Element {
                       Cantidad
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+                      Costo USD
+                    </th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
                       Total USD
                     </th>
                     <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
-                      Total VES
+                      Ganancia
                     </th>
                   </tr>
                 </thead>
@@ -387,8 +390,11 @@ export default function ReportsPage(): JSX.Element {
                       <td className="px-4 py-3 text-sm text-gray-500">{i + 1}</td>
                       <td className="px-4 py-3 font-medium">{p.productName}</td>
                       <td className="px-4 py-3 text-right">{p.quantity}</td>
+                      <td className="px-4 py-3 text-right text-gray-500">${p.costUsd.toFixed(2)}</td>
                       <td className="px-4 py-3 text-right">${p.totalUsd.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right">Bs.{p.totalVes.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right text-green-600 font-medium">
+                        ${(p.totalUsd - p.costUsd).toFixed(2)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
