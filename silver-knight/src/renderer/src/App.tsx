@@ -16,6 +16,7 @@ import ReportsPage from './pages/ReportsPage'
 import UsersPage from './pages/UsersPage'
 import POSPage from './pages/POSPage'
 import InvoiceViewPage from './pages/InvoiceViewPage'
+import SuppliersPage from './pages/SuppliersPage'
 
 function ProtectedRoute({
   children,
@@ -90,6 +91,14 @@ function App(): React.JSX.Element {
           }
         />
         <Route
+          path="/suppliers"
+          element={
+            <ProtectedRoute module="products">
+              <SuppliersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/inventory-entries"
           element={
             <ProtectedRoute module="inventory-entries">
@@ -140,7 +149,7 @@ function App(): React.JSX.Element {
         <Route
           path="/users"
           element={
-            <ProtectedRoute module="dashboard">
+            <ProtectedRoute module="users">
               <UsersPage />
             </ProtectedRoute>
           }

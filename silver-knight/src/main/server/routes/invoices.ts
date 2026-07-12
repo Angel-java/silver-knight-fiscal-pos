@@ -47,7 +47,16 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const invoice = await prisma.invoice.findUnique({
       where: { id: req.params.id as string },
-      include: { items: true, customer: true }
+      include: {
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, costUsd: true, costVes: true }
+            }
+          }
+        },
+        customer: true
+      }
     })
     if (!invoice) {
       res.status(404).json({ error: 'Factura no encontrada' })

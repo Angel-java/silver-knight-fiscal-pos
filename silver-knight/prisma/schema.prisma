@@ -49,6 +49,18 @@ model Category {
   updatedAt   DateTime  @updatedAt
 }
 
+model Supplier {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  rif       String?
+  phone     String?
+  email     String?
+  address   String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
 model Product {
   id            String              @id @default(cuid())
   name          String
@@ -64,7 +76,10 @@ model Product {
   minStock      Float               @default(0)
   categoryId    String?
   category      Category?           @relation(fields: [categoryId], references: [id])
+  supplierId    String?
+  supplier      Supplier?           @relation(fields: [supplierId], references: [id])
   movements     InventoryMovement[]
+  invoiceItems  InvoiceItem[]
   isActive      Boolean             @default(true)
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
@@ -140,6 +155,7 @@ model InvoiceItem {
   invoiceId   String
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
   productName String
   quantity    Float
   unitPriceUsd Float

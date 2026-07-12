@@ -228,6 +228,12 @@ export default function InvoiceViewPage(): JSX.Element {
                 Precio
               </th>
               <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase">
+                Costo
+              </th>
+              <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase">
+                Ganancia
+              </th>
+              <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase">
                 IVA
               </th>
               <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase">
@@ -236,23 +242,34 @@ export default function InvoiceViewPage(): JSX.Element {
             </tr>
           </thead>
           <tbody>
-            {invoice.items.map((item, i) => (
-              <tr key={item.id || i} className="border-b">
-                <td className="py-2 px-2 text-gray-800">{item.productName}</td>
-                <td className="text-center py-2 px-2 text-gray-600">{item.quantity}</td>
-                <td className="text-right py-2 px-2 text-gray-800">
-                  {currency === 'USD'
-                    ? `$${item.unitPriceUsd.toFixed(2)}`
-                    : `Bs.${item.unitPriceVes.toFixed(2)}`}
-                </td>
-                <td className="text-right py-2 px-2 text-gray-600">{item.ivaRate}%</td>
-                <td className="text-right py-2 px-2 text-gray-800 font-medium">
-                  {currency === 'USD'
-                    ? `$${item.totalUsd.toFixed(2)}`
-                    : `Bs.${item.totalVes.toFixed(2)}`}
-                </td>
-              </tr>
-            ))}
+            {invoice.items.map((item, i) => {
+              const cost = item.product?.costUsd || 0
+              const costLine = cost * item.quantity
+              const profit = item.totalUsd - costLine
+              return (
+                <tr key={item.id || i} className="border-b">
+                  <td className="py-2 px-2 text-gray-800">{item.productName}</td>
+                  <td className="text-center py-2 px-2 text-gray-600">{item.quantity}</td>
+                  <td className="text-right py-2 px-2 text-gray-800">
+                    {currency === 'USD'
+                      ? `$${item.unitPriceUsd.toFixed(2)}`
+                      : `Bs.${item.unitPriceVes.toFixed(2)}`}
+                  </td>
+                  <td className="text-right py-2 px-2 text-gray-500">
+                    ${cost.toFixed(2)}
+                  </td>
+                  <td className="text-right py-2 px-2 text-green-600 font-medium">
+                    ${profit.toFixed(2)}
+                  </td>
+                  <td className="text-right py-2 px-2 text-gray-600">{item.ivaRate}%</td>
+                  <td className="text-right py-2 px-2 text-gray-800 font-medium">
+                    {currency === 'USD'
+                      ? `$${item.totalUsd.toFixed(2)}`
+                      : `Bs.${item.totalVes.toFixed(2)}`}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
 

@@ -113,10 +113,10 @@ interface MenuItem {
 
 const allMenuItems: MenuItem[] = [
   { label: 'POS', key: 'pos', path: '/pos', module: 'pos' },
-  { label: 'Inventario', key: 'products', path: '/inventory', module: 'products' },
+  { label: 'Inventario', key: 'products', path: '/inventory', module: 'inventory' },
   { label: 'Clientes', key: 'customers', path: '/customers', module: 'customers' },
   { label: 'Reportes', key: 'reports', path: '/reports', module: 'reports' },
-  { label: 'Usuarios', key: 'users', path: '/users', module: 'dashboard' },
+  { label: 'Usuarios', key: 'users', path: '/users', module: 'users' },
   { label: 'Configuración', key: 'settings', path: '/settings', module: 'settings' }
 ]
 
@@ -145,13 +145,8 @@ export default function DashboardPage(): JSX.Element {
 
   const menuItems = useMemo(
     () =>
-      allMenuItems.filter((item) => {
-        if (item.module === 'dashboard') {
-          return user?.role === 'admin' || user?.role === 'gerente'
-        }
-        return hasPermission(item.module)
-      }),
-    [hasPermission, user]
+      allMenuItems.filter((item) => hasPermission(item.module)),
+    [hasPermission]
   )
 
   return (

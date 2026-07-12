@@ -2,7 +2,7 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-07-06
+updated: 2026-07-11
 ---
 
 # Log de operaciones — Silver Knight
@@ -168,3 +168,10 @@ updated: 2026-07-06
 - **Archivos modificados**: `schema.prisma`, `products.ts`, `invoices.ts`, `server/index.ts`, `api.ts`, `ProductsPage.tsx`, `App.tsx`, `DashboardPage.tsx`, `schemas.ts`
 - **Migración**: `20260708022835_add_inventory_movement`
 - **Tests**: 82/82 pasan
+
+## [2026-07-11] docs | .env.example + README de replicación
+- **Descripción**: Creado `.env.example` con todas las variables de entorno documentadas y reescrito `README.md` con guía completa de replicación del entorno de desarrollo en otra terminal.
+- **Archivos creados**: `silver-knight/.env.example`
+- **Archivos modificados**: `silver-knight/README.md`
+- **Contenido README**: stack tecnológico, prerequisitos (Node 20+, build tools), pasos de replicación (clone → env → install → prisma → dev), tabla de variables de entorno, scripts npm, modo Docker, estructura del proyecto, endpoints API, CI/CD pipeline, requisitos de hardware
+- **Commit**: `e09cf3c`

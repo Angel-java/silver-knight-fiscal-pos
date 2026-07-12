@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import type { JSX } from 'react'
-import { api, type Product, type Category } from '../lib/api'
+import { api, type Product, type Category, type Supplier } from '../lib/api'
 
 interface ProductFormProps {
   product?: Product | null
@@ -17,6 +17,7 @@ export default function ProductFormPage({
 }: ProductFormProps): JSX.Element {
   const [exchangeRate, setExchangeRate] = useState(0)
   const [profitMargin, setProfitMargin] = useState(0)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [form, setForm] = useState({
     name: product?.name || '',
     code: product?.code || '',
@@ -29,17 +30,19 @@ export default function ProductFormPage({
     ivaRate: product?.ivaRate ?? 16,
     stock: product?.stock ?? 0,
     minStock: product?.minStock ?? 0,
-    categoryId: product?.categoryId || ''
+    categoryId: product?.categoryId || '',
+    supplierId: product?.supplierId || ''
   })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    Promise.all([api.exchangeRates.getLatest(), api.settings.getAll()])
-      .then(([rateRes, settingsRes]) => {
+    Promise.all([api.exchangeRates.getLatest(), api.settings.getAll(), api.suppliers.list()])
+      .then(([rateRes, settingsRes, suppliersRes]) => {
         if (rateRes.rate) setExchangeRate(rateRes.rate.rate)
         const m = settingsRes.settings['profitMargin']
         if (m) setProfitMargin(Number(m))
+        setSuppliers(suppliersRes.suppliers)
       })
       .catch(() => {})
   }, [])
@@ -92,7 +95,8 @@ export default function ProductFormPage({
         ivaRate: Number(form.ivaRate),
         stock: Number(form.stock),
         minStock: Number(form.minStock),
-        categoryId: form.categoryId || null
+        categoryId: form.categoryId || null,
+        supplierId: form.supplierId || null
       }
       if (product) {
         await api.products.update(product.id, data)
@@ -245,6 +249,21 @@ export default function ProductFormPage({
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+          <select
+            value={form.supplierId}
+            onChange={(e) => set('supplierId', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">Sin proveedor</option>
+            {suppliers.map((sup) => (
+              <option key={sup.id} value={sup.id}>
+                {sup.name}
               </option>
             ))}
           </select>

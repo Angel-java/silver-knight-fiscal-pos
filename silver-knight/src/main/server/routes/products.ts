@@ -29,7 +29,10 @@ router.get('/', async (req: Request, res: Response) => {
   const [products, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      include: { category: { select: { id: true, name: true } } },
+      include: {
+        category: { select: { id: true, name: true } },
+        supplier: { select: { id: true, name: true } }
+      },
       orderBy: { name: 'asc' },
       skip,
       take: limit
@@ -44,7 +47,10 @@ router.get('/:id', async (req: Request, res: Response) => {
   const id = req.params.id as string
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { category: { select: { id: true, name: true } } }
+    include: {
+      category: { select: { id: true, name: true } },
+      supplier: { select: { id: true, name: true } }
+    }
   })
   if (!product) {
     res.status(404).json({ error: 'Producto no encontrado' })
@@ -67,7 +73,8 @@ router.post('/', validate(createProductSchema), async (req: Request, res: Respon
       ivaRate,
       stock,
       minStock,
-      categoryId
+      categoryId,
+      supplierId
     } = req.body
 
     const product = await prisma.product.create({
@@ -83,9 +90,13 @@ router.post('/', validate(createProductSchema), async (req: Request, res: Respon
         ivaRate: parseFloat(ivaRate) || 16,
         stock: parseFloat(stock) || 0,
         minStock: parseFloat(minStock) || 0,
-        categoryId: categoryId || null
+        categoryId: categoryId || null,
+        supplierId: supplierId || null
       },
-      include: { category: { select: { id: true, name: true } } }
+      include: {
+        category: { select: { id: true, name: true } },
+        supplier: { select: { id: true, name: true } }
+      }
     })
     res.status(201).json({ product })
   } catch (error: unknown) {
@@ -118,6 +129,7 @@ router.put('/:id', validate(updateProductSchema), async (req: Request, res: Resp
       stock,
       minStock,
       categoryId,
+      supplierId,
       isActive
     } = req.body
 
@@ -136,9 +148,13 @@ router.put('/:id', validate(updateProductSchema), async (req: Request, res: Resp
         stock: stock != null ? parseFloat(stock) : undefined,
         minStock: parseFloat(minStock) || 0,
         categoryId: categoryId ?? null,
+        supplierId: supplierId ?? null,
         isActive: isActive ?? undefined
       },
-      include: { category: { select: { id: true, name: true } } }
+      include: {
+        category: { select: { id: true, name: true } },
+        supplier: { select: { id: true, name: true } }
+      }
     })
     res.json({ product })
   } catch (error: unknown) {
@@ -181,7 +197,10 @@ router.patch('/:id/stock', validate(stockAdjustSchema), async (req: Request, res
       const updated = await tx.product.update({
         where: { id },
         data: { stock: newStock },
-        include: { category: { select: { id: true, name: true } } }
+        include: {
+          category: { select: { id: true, name: true } },
+          supplier: { select: { id: true, name: true } }
+        }
       })
 
       await tx.inventoryMovement.create({

@@ -36,7 +36,7 @@ router.get('/', async (req: Request, res: Response) => {
     const [movements, total] = await Promise.all([
       prisma.inventoryMovement.findMany({
         where,
-        include: { product: { select: { id: true, name: true, code: true } } },
+        include: { product: { select: { id: true, name: true, code: true, costUsd: true, costVes: true, priceUsd: true, priceVes: true } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit

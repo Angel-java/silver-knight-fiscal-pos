@@ -18,7 +18,16 @@ router.get('/sales-daily', async (_req: Request, res: Response) => {
     const invoices = await prisma.invoice.findMany({
       where: { createdAt: { gte: today, lt: tomorrow }, status: 'active', documentType: 'FACT' },
       orderBy: { createdAt: 'asc' },
-      include: { customer: true, items: true }
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, costUsd: true, costVes: true }
+            }
+          }
+        }
+      }
     })
 
     const totalUsd = invoices.reduce((s, i) => s + i.totalUsd, 0)
@@ -73,7 +82,16 @@ router.get('/sales-range', async (req: Request, res: Response) => {
         createdAt: { gte: from, lte: to }
       },
       orderBy: { createdAt: 'asc' },
-      include: { customer: true, items: true }
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, costUsd: true, costVes: true }
+            }
+          }
+        }
+      }
     })
 
     const activeInvoices = invoices.filter((i) => i.status === 'active')
@@ -163,26 +181,52 @@ router.get('/top-products', async (req: Request, res: Response) => {
       }
     }
 
-    const items = await prisma.invoiceItem.groupBy({
-      by: ['productId', 'productName'],
+    const items = await prisma.invoiceItem.findMany({
       where,
-      _sum: { quantity: true, totalUsd: true, totalVes: true },
-      orderBy: { _sum: { quantity: 'desc' } },
-      take: limit
+      include: {
+        product: {
+          select: { id: true, name: true, costUsd: true, costVes: true }
+        }
+      }
     })
 
-    const top = items.map((i) => ({
-      productId: i.productId,
-      productName: i.productName,
-      quantity: i._sum.quantity || 0,
-      totalUsd: i._sum.totalUsd || 0,
-      totalVes: i._sum.totalVes || 0
-    }))
+    const grouped = new Map<string, {
+      productId: string | null
+      productName: string
+      quantity: number
+      totalUsd: number
+      totalVes: number
+      costUsd: number
+    }>()
+
+    for (const item of items) {
+      const key = item.productId || item.productName
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          productId: item.productId,
+          productName: item.productName,
+          quantity: 0,
+          totalUsd: 0,
+          totalVes: 0,
+          costUsd: 0
+        })
+      }
+      const g = grouped.get(key)!
+      g.quantity += item.quantity
+      g.totalUsd += item.totalUsd
+      g.totalVes += item.totalVes
+      g.costUsd += (item.product?.costUsd || 0) * item.quantity
+    }
+
+    const top = Array.from(grouped.values())
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, limit)
 
     const totalQty = top.reduce((s, i) => s + i.quantity, 0)
     const totalUsd = top.reduce((s, i) => s + i.totalUsd, 0)
+    const totalCost = top.reduce((s, i) => s + i.costUsd, 0)
 
-    res.json({ top, summary: { totalQty, totalUsd, count: top.length } })
+    res.json({ top, summary: { totalQty, totalUsd, totalCost, count: top.length } })
   } catch (error) {
     logger.error('reports', 'top-products error', error)
     res.status(500).json({ error: 'Error interno del servidor' })

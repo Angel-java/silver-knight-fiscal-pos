@@ -58,9 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       if (!user) return false
       const role = user.role
       if (role === 'admin') return true
-      if (role === 'gerente') return true
-      if (role === 'operador' && user.permissions) {
-        return user.permissions.includes(module)
+      if (role === 'operador' || role === 'gerente') {
+        return user.permissions?.includes(module) ?? false
       }
       return false
     },
