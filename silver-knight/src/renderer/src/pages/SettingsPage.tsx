@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth'
 import { api } from '../lib/api'
 
+const APP_VERSION = '1.0.0'
+
 export default function SettingsPage(): JSX.Element {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -83,6 +85,12 @@ export default function SettingsPage(): JSX.Element {
     phone: '',
     email: ''
   })
+
+  const [updateStatus, setUpdateStatus] = useState<
+    'idle' | 'checking' | 'available' | 'downloading' | 'downloaded'
+  >('idle')
+  const [updateVersion, setUpdateVersion] = useState('')
+  const [updateProgress, setUpdateProgress] = useState(0)
 
   const load = async (): Promise<void> => {
     try {
@@ -196,6 +204,23 @@ export default function SettingsPage(): JSX.Element {
       .listPrinters()
       .then((r) => setPrinters(r.printers))
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    window.api.onUpdateAvailable((version) => {
+      setUpdateStatus('available')
+      setUpdateVersion(version)
+    })
+    window.api.onUpdateNotAvailable(() => {
+      setUpdateStatus('idle')
+    })
+    window.api.onUpdateProgress((percent) => {
+      setUpdateStatus('downloading')
+      setUpdateProgress(percent)
+    })
+    window.api.onUpdateDownloaded(() => {
+      setUpdateStatus('downloaded')
+    })
   }, [])
 
   useEffect(() => {
@@ -414,6 +439,68 @@ export default function SettingsPage(): JSX.Element {
       {success && <p className="text-green-600 text-sm mb-4 bg-green-50 rounded p-3">{success}</p>}
 
       <div className="space-y-6">
+        {/* Actualizaciones */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-bold mb-4">Actualizaciones</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">
+                Versión actual: <span className="font-mono">v{APP_VERSION}</span>
+              </p>
+              {updateStatus === 'available' && (
+                <p className="text-sm text-blue-600 mt-1">
+                  Nueva versión disponible: v{updateVersion}
+                </p>
+              )}
+              {updateStatus === 'downloading' && (
+                <p className="text-sm text-blue-600 mt-1">
+                  Descargando... {Math.round(updateProgress)}%
+                </p>
+              )}
+              {updateStatus === 'downloaded' && (
+                <p className="text-sm text-green-600 mt-1">Actualización lista para instalar</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {updateStatus === 'idle' && (
+                <button
+                  onClick={() => {
+                    setUpdateStatus('checking')
+                    window.api.checkForUpdates()
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
+                >
+                  Buscar actualizaciones
+                </button>
+              )}
+              {updateStatus === 'available' && (
+                <button
+                  onClick={() => window.api.downloadUpdate()}
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark text-sm"
+                >
+                  Descargar
+                </button>
+              )}
+              {updateStatus === 'downloading' && (
+                <div className="w-32 bg-gray-200 rounded-full h-2 self-center">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${updateProgress}%` }}
+                  />
+                </div>
+              )}
+              {updateStatus === 'downloaded' && (
+                <button
+                  onClick={() => window.api.installUpdate()}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                >
+                  Instalar y reiniciar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* 1.9.1 + 1.9.2 — Tasa de Cambio */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">Tasa de Cambio USD/VES</h2>
@@ -635,234 +722,296 @@ export default function SettingsPage(): JSX.Element {
         </div>
 
         {/* 1.9.4 — Perfil del Sistema */}
-        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold mb-4">Perfil del Sistema</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Define el alcance del sistema. Actualmente solo el perfil Small está disponible.
-          </p>
-          <div className="flex gap-4">
-            {[
-              { value: 'small', label: 'Small', desc: 'Una máquina' },
-              { value: 'medium', label: 'Medium', desc: 'Red local (próximamente)' },
-              { value: 'big', label: 'Big', desc: 'Multi-sucursal (próximamente)' }
-            ].map((p) => (
-              <button
-                key={p.value}
-                onClick={() => handleProfileChange(p.value)}
-                className={`flex-1 p-4 rounded-lg border-2 text-center transition-colors ${
-                  profile === p.value
-                    ? 'border-primary bg-primary/5'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="font-bold text-lg">{p.label}</p>
-                <p className="text-xs text-gray-500 mt-1">{p.desc}</p>
-              </button>
-            ))}
+        {isAdmin && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold mb-4">Perfil del Sistema</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Define el alcance del sistema. Actualmente solo el perfil Small está disponible.
+            </p>
+            <div className="flex gap-4">
+              {[
+                { value: 'small', label: 'Small', desc: 'Una máquina' },
+                { value: 'medium', label: 'Medium', desc: 'Red local (próximamente)' },
+                { value: 'big', label: 'Big', desc: 'Multi-sucursal (próximamente)' }
+              ].map((p) => (
+                <button
+                  key={p.value}
+                  onClick={() => handleProfileChange(p.value)}
+                  className={`flex-1 p-4 rounded-lg border-2 text-center transition-colors ${
+                    profile === p.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="font-bold text-lg">{p.label}</p>
+                  <p className="text-xs text-gray-500 mt-1">{p.desc}</p>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>}
+        )}
 
         {/* 1.9.3 + 1.10 — Impresión Térmica */}
-        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold mb-4">Configuración de Impresión</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Personaliza el formato de impresión para tickets y facturas.
-          </p>
+        {isAdmin && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold mb-4">Configuración de Impresión</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Personaliza el formato de impresión para tickets y facturas.
+            </p>
 
-          <div className="space-y-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Impresora térmica
-              </label>
-              <select
-                value={selectedPrinter}
-                onChange={(e) => handlePrinterChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="">Seleccionar impresora...</option>
-                {printers.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-              {printers.length === 0 && (
-                <p className="text-xs text-yellow-600 mt-1">
-                  No se detectaron impresoras. Asegúrate de tener una conectada.
-                </p>
-              )}
-            </div>
-            <button
-              onClick={handleTestPrint}
-              disabled={testPrinting || !selectedPrinter}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            >
-              {testPrinting ? 'Imprimiendo...' : 'Imprimir prueba'}
-            </button>
-          </div>
-
-          <form onSubmit={handlePrinterSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ancho del papel (mm)
-              </label>
-              <select
-                value={paperWidth}
-                onChange={(e) => setPaperWidth(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="58">58 mm (ticket pequeño)</option>
-                <option value="80">80 mm (ticket estándar)</option>
-                <option value="216">216 mm (carta)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Encabezado personalizado
-              </label>
-              <textarea
-                value={printHeader}
-                onChange={(e) => setPrintHeader(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
-                placeholder="Nombre del negocio&#10;Dirección&#10;Teléfono"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pie de página</label>
-              <textarea
-                value={printFooter}
-                onChange={(e) => setPrintFooter(e.target.value)}
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
-                placeholder="Gracias por su compra&#10;RIF: J-XXXXXXXX-X"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-dark disabled:opacity-50 transition-colors"
-            >
-              {saving ? 'Guardando...' : 'Guardar Configuración'}
-            </button>
-          </form>
-        </div>}
-
-        {/* Configuración de Terminal POS */}
-        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold mb-4">Terminal Punto de Venta</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Configura la conexión con el terminal POS (pinpad) para procesar pagos con tarjeta de
-            débito/crédito de forma automática.
-          </p>
-
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-700">Terminal habilitado</span>
-            <button
-              onClick={async () => {
-                const newVal = !posEnabled
-                setPosEnabled(newVal)
-                try {
-                  await api.puntoVenta.saveSettings({ enabled: newVal })
-                  if (!newVal) {
-                    setPosConnected(false)
-                    await api.puntoVenta.disconnect().catch(() => {})
-                  }
-                  showSuccess(newVal ? 'Terminal POS habilitado' : 'Terminal POS deshabilitado')
-                } catch (err) {
-                  setPosEnabled(!newVal)
-                  showError(err instanceof Error ? err.message : 'Error al guardar')
-                }
-              }}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                posEnabled ? 'bg-primary' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                  posEnabled ? 'translate-x-6' : ''
-                }`}
-              />
-            </button>
-          </div>
-
-          {posEnabled && (
-            <div className="space-y-4">
+            <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Puerto de conexión
+                  Impresora térmica
                 </label>
-                <div className="flex gap-2">
-                  <select
-                    value={posPort}
-                    onChange={(e) => setPosPort(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option value="">Seleccionar puerto...</option>
-                    {availablePorts.map((p) => (
-                      <option key={p.path} value={p.path}>
-                        {p.path}
-                        {p.manufacturer ? ` (${p.manufacturer})` : ''}
-                      </option>
-                    ))}
+                <select
+                  value={selectedPrinter}
+                  onChange={(e) => handlePrinterChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="">Seleccionar impresora...</option>
+                  {printers.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                {printers.length === 0 && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    No se detectaron impresoras. Asegúrate de tener una conectada.
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={handleTestPrint}
+                disabled={testPrinting || !selectedPrinter}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                {testPrinting ? 'Imprimiendo...' : 'Imprimir prueba'}
+              </button>
+            </div>
+
+            <form onSubmit={handlePrinterSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ancho del papel (mm)
+                </label>
+                <select
+                  value={paperWidth}
+                  onChange={(e) => setPaperWidth(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="58">58 mm (ticket pequeño)</option>
+                  <option value="80">80 mm (ticket estándar)</option>
+                  <option value="216">216 mm (carta)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Encabezado personalizado
+                </label>
+                <textarea
+                  value={printHeader}
+                  onChange={(e) => setPrintHeader(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
+                  placeholder="Nombre del negocio&#10;Dirección&#10;Teléfono"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pie de página
+                </label>
+                <textarea
+                  value={printFooter}
+                  onChange={(e) => setPrintFooter(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none"
+                  placeholder="Gracias por su compra&#10;RIF: J-XXXXXXXX-X"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-dark disabled:opacity-50 transition-colors"
+              >
+                {saving ? 'Guardando...' : 'Guardar Configuración'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Configuración de Terminal POS */}
+        {isAdmin && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold mb-4">Terminal Punto de Venta</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Configura la conexión con el terminal POS (pinpad) para procesar pagos con tarjeta de
+              débito/crédito de forma automática.
+            </p>
+
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-gray-700">Terminal habilitado</span>
+              <button
+                onClick={async () => {
+                  const newVal = !posEnabled
+                  setPosEnabled(newVal)
+                  try {
+                    await api.puntoVenta.saveSettings({ enabled: newVal })
+                    if (!newVal) {
+                      setPosConnected(false)
+                      await api.puntoVenta.disconnect().catch(() => {})
+                    }
+                    showSuccess(newVal ? 'Terminal POS habilitado' : 'Terminal POS deshabilitado')
+                  } catch (err) {
+                    setPosEnabled(!newVal)
+                    showError(err instanceof Error ? err.message : 'Error al guardar')
+                  }
+                }}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  posEnabled ? 'bg-primary' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    posEnabled ? 'translate-x-6' : ''
+                  }`}
+                />
+              </button>
+            </div>
+
+            {posEnabled && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Puerto de conexión
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={posPort}
+                      onChange={(e) => setPosPort(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    >
+                      <option value="">Seleccionar puerto...</option>
+                      {availablePorts.map((p) => (
+                        <option key={p.path} value={p.path}>
+                          {p.path}
+                          {p.manufacturer ? ` (${p.manufacturer})` : ''}
+                        </option>
+                      ))}
+                      {availablePorts.length === 0 && (
+                        <option value="/dev/ttyUSB0">/dev/ttyUSB0</option>
+                      )}
+                      {availablePorts.length === 0 && (
+                        <option value="/dev/ttyS0">/dev/ttyS0</option>
+                      )}
+                      {availablePorts.length === 0 && <option value="COM1">COM1</option>}
+                    </select>
                     {availablePorts.length === 0 && (
-                      <option value="/dev/ttyUSB0">/dev/ttyUSB0</option>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const ports = await api.puntoVenta.ports()
+                            setAvailablePorts(ports.ports)
+                            showSuccess(`Puertos actualizados (${ports.ports.length} encontrados)`)
+                          } catch (err) {
+                            showError(err instanceof Error ? err.message : 'Error al escanear')
+                          }
+                        }}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                      >
+                        Escanear
+                      </button>
                     )}
-                    {availablePorts.length === 0 && <option value="/dev/ttyS0">/dev/ttyS0</option>}
-                    {availablePorts.length === 0 && <option value="COM1">COM1</option>}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Conecta el terminal POS por USB/serial y selecciona el puerto.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Baud rate</label>
+                  <select
+                    value={posBaudRate}
+                    onChange={(e) => setPosBaudRate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="9600">9600</option>
+                    <option value="19200">19200</option>
+                    <option value="38400">38400</option>
+                    <option value="57600">57600</option>
+                    <option value="115200">115200</option>
                   </select>
-                  {availablePorts.length === 0 && (
+                </div>
+
+                <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        posConnecting
+                          ? 'bg-yellow-400 animate-pulse'
+                          : posConnected
+                            ? 'bg-green-500'
+                            : 'bg-gray-400'
+                      }`}
+                    />
+                    <span className="text-sm text-gray-600">
+                      {posConnecting
+                        ? 'Conectando...'
+                        : posConnected
+                          ? 'Conectado'
+                          : 'Desconectado'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        if (!posPort) {
+                          showError('Selecciona un puerto primero')
+                          return
+                        }
+                        setPosConnecting(true)
+                        try {
+                          await api.puntoVenta.saveSettings({
+                            port: posPort,
+                            baudRate: parseInt(posBaudRate)
+                          })
+                          const res = await api.puntoVenta.connect({
+                            port: posPort,
+                            baudRate: parseInt(posBaudRate)
+                          })
+                          setPosConnected(res.connected)
+                          showSuccess('Conectado al terminal POS')
+                        } catch (err) {
+                          setPosConnected(false)
+                          showError(err instanceof Error ? err.message : 'Error al conectar')
+                        } finally {
+                          setPosConnecting(false)
+                        }
+                      }}
+                      disabled={posConnecting || !posPort}
+                      className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50 transition-colors"
+                    >
+                      {posConnecting ? 'Conectando...' : 'Conectar'}
+                    </button>
                     <button
                       onClick={async () => {
                         try {
-                          const ports = await api.puntoVenta.ports()
-                          setAvailablePorts(ports.ports)
-                          showSuccess(`Puertos actualizados (${ports.ports.length} encontrados)`)
+                          await api.puntoVenta.disconnect()
+                          setPosConnected(false)
+                          showSuccess('Desconectado')
                         } catch (err) {
-                          showError(err instanceof Error ? err.message : 'Error al escanear')
+                          showError(err instanceof Error ? err.message : 'Error al desconectar')
                         }
                       }}
-                      className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                      disabled={!posConnected}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
                     >
-                      Escanear
+                      Desconectar
                     </button>
-                  )}
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Conecta el terminal POS por USB/serial y selecciona el puerto.
-                </p>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Baud rate</label>
-                <select
-                  value={posBaudRate}
-                  onChange={(e) => setPosBaudRate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                >
-                  <option value="9600">9600</option>
-                  <option value="19200">19200</option>
-                  <option value="38400">38400</option>
-                  <option value="57600">57600</option>
-                  <option value="115200">115200</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      posConnecting
-                        ? 'bg-yellow-400 animate-pulse'
-                        : posConnected
-                          ? 'bg-green-500'
-                          : 'bg-gray-400'
-                    }`}
-                  />
-                  <span className="text-sm text-gray-600">
-                    {posConnecting ? 'Conectando...' : posConnected ? 'Conectado' : 'Desconectado'}
-                  </span>
-                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={async () => {
@@ -870,348 +1019,306 @@ export default function SettingsPage(): JSX.Element {
                         showError('Selecciona un puerto primero')
                         return
                       }
-                      setPosConnecting(true)
                       try {
                         await api.puntoVenta.saveSettings({
                           port: posPort,
                           baudRate: parseInt(posBaudRate)
                         })
-                        const res = await api.puntoVenta.connect({
-                          port: posPort,
-                          baudRate: parseInt(posBaudRate)
-                        })
-                        setPosConnected(res.connected)
-                        showSuccess('Conectado al terminal POS')
+                        const res = await api.puntoVenta.test()
+                        showSuccess(res.message)
                       } catch (err) {
-                        setPosConnected(false)
-                        showError(err instanceof Error ? err.message : 'Error al conectar')
-                      } finally {
-                        setPosConnecting(false)
+                        showError(err instanceof Error ? err.message : 'Error en prueba')
                       }
                     }}
-                    disabled={posConnecting || !posPort}
-                    className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50 transition-colors"
+                    disabled={!posPort}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
                   >
-                    {posConnecting ? 'Conectando...' : 'Conectar'}
+                    Probar conexión
                   </button>
                   <button
                     onClick={async () => {
                       try {
-                        await api.puntoVenta.disconnect()
-                        setPosConnected(false)
-                        showSuccess('Desconectado')
+                        await api.puntoVenta.saveSettings({
+                          port: posPort,
+                          baudRate: parseInt(posBaudRate)
+                        })
+                        showSuccess('Configuración guardada')
                       } catch (err) {
-                        showError(err instanceof Error ? err.message : 'Error al desconectar')
+                        showError(err instanceof Error ? err.message : 'Error al guardar')
                       }
                     }}
-                    disabled={!posConnected}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors"
                   >
-                    Desconectar
+                    Guardar configuración
                   </button>
                 </div>
               </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    if (!posPort) {
-                      showError('Selecciona un puerto primero')
-                      return
-                    }
-                    try {
-                      await api.puntoVenta.saveSettings({
-                        port: posPort,
-                        baudRate: parseInt(posBaudRate)
-                      })
-                      const res = await api.puntoVenta.test()
-                      showSuccess(res.message)
-                    } catch (err) {
-                      showError(err instanceof Error ? err.message : 'Error en prueba')
-                    }
-                  }}
-                  disabled={!posPort}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                >
-                  Probar conexión
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      await api.puntoVenta.saveSettings({
-                        port: posPort,
-                        baudRate: parseInt(posBaudRate)
-                      })
-                      showSuccess('Configuración guardada')
-                    } catch (err) {
-                      showError(err instanceof Error ? err.message : 'Error al guardar')
-                    }
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors"
-                >
-                  Guardar configuración
-                </button>
-              </div>
-            </div>
-          )}
-        </div>}
+            )}
+          </div>
+        )}
 
         {/* Sincronización en la Nube */}
-        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold mb-4">Sincronización en la Nube</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Configura la sincronización automática de tus datos con un servidor en la nube para
-            respaldo y acceso remoto.
-          </p>
+        {isAdmin && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold mb-4">Sincronización en la Nube</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Configura la sincronización automática de tus datos con un servidor en la nube para
+              respaldo y acceso remoto.
+            </p>
 
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-700">Sync habilitado</span>
-            <button
-              onClick={async () => {
-                const newVal = !syncEnabled
-                setSyncEnabled(newVal)
-                try {
-                  await api.sync.saveConfig({ enabled: newVal })
-                  showSuccess(newVal ? 'Sync habilitado' : 'Sync deshabilitado')
-                } catch (err) {
-                  setSyncEnabled(!newVal)
-                  showError(err instanceof Error ? err.message : 'Error al guardar')
-                }
-              }}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                syncEnabled ? 'bg-primary' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                  syncEnabled ? 'translate-x-6' : ''
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-gray-700">Sync habilitado</span>
+              <button
+                onClick={async () => {
+                  const newVal = !syncEnabled
+                  setSyncEnabled(newVal)
+                  try {
+                    await api.sync.saveConfig({ enabled: newVal })
+                    showSuccess(newVal ? 'Sync habilitado' : 'Sync deshabilitado')
+                  } catch (err) {
+                    setSyncEnabled(!newVal)
+                    showError(err instanceof Error ? err.message : 'Error al guardar')
+                  }
+                }}
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  syncEnabled ? 'bg-primary' : 'bg-gray-300'
                 }`}
-              />
-            </button>
-          </div>
-
-          {syncEnabled && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL del servidor cloud
-                </label>
-                <input
-                  type="url"
-                  value={syncUrl}
-                  onChange={(e) => setSyncUrl(e.target.value)}
-                  onBlur={async () => {
-                    try {
-                      await api.sync.saveConfig({ url: syncUrl })
-                    } catch {
-                      /* ignore */
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  placeholder="https://tu-servidor.com"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  URL base del servidor cloud (ej: https://api.silverknight.app)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-                <input
-                  type="password"
-                  value={syncApiKey}
-                  onChange={(e) => setSyncApiKey(e.target.value)}
-                  onBlur={async () => {
-                    try {
-                      await api.sync.saveConfig({ apiKey: syncApiKey })
-                    } catch {
-                      /* ignore */
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  placeholder="Clave de API del servidor cloud"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Intervalo de sincronización
-                </label>
-                <select
-                  value={syncInterval}
-                  onChange={async (e) => {
-                    const val = parseInt(e.target.value)
-                    setSyncInterval(val)
-                    try {
-                      await api.sync.saveConfig({ interval: val })
-                    } catch {
-                      /* ignore */
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                >
-                  <option value={5}>Cada 5 minutos</option>
-                  <option value={15}>Cada 15 minutos</option>
-                  <option value={30}>Cada 30 minutos</option>
-                  <option value={60}>Cada 1 hora</option>
-                  <option value={360}>Cada 6 horas</option>
-                  <option value={1440}>Cada 24 horas</option>
-                </select>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      syncing
-                        ? 'bg-yellow-400 animate-pulse'
-                        : syncLastResult?.success
-                          ? 'bg-green-500'
-                          : syncLastResult
-                            ? 'bg-red-500'
-                            : 'bg-gray-400'
-                    }`}
-                  />
-                  <span className="text-sm text-gray-600">
-                    {syncing
-                      ? 'Sincronizando...'
-                      : syncLastSync
-                        ? `Último sync: ${new Date(syncLastSync).toLocaleString()}`
-                        : 'Sin sincronizar'}
-                  </span>
-                </div>
-                <button
-                  onClick={async () => {
-                    setSyncing(true)
-                    try {
-                      const res = await api.sync.now()
-                      setSyncLastResult(res.result)
-                      if (res.result.success) {
-                        showSuccess(`${res.result.entitiesSynced} registro(s) sincronizado(s)`)
-                      } else {
-                        showError(res.result.errors.join('; '))
-                      }
-                    } catch (err) {
-                      showError(err instanceof Error ? err.message : 'Error de sincronización')
-                    } finally {
-                      setSyncing(false)
-                    }
-                  }}
-                  disabled={syncing}
-                  className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50 transition-colors"
-                >
-                  {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
-                </button>
-              </div>
-
-              {syncLastResult && (
-                <div
-                  className={`rounded-lg p-3 text-sm ${
-                    syncLastResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    syncEnabled ? 'translate-x-6' : ''
                   }`}
-                >
-                  <p className="font-medium">
-                    {syncLastResult.success
-                      ? 'Última sincronización exitosa'
-                      : 'Errores en última sincronización'}
-                  </p>
-                  {syncLastResult.success && (
-                    <p>{syncLastResult.entitiesSynced} registro(s) sincronizado(s)</p>
-                  )}
-                  {syncLastResult.duration > 0 && (
-                    <p className="text-xs opacity-75">Duración: {syncLastResult.duration}ms</p>
-                  )}
-                  {syncLastResult.errors.length > 0 && (
-                    <ul className="list-disc pl-4 mt-1 text-xs">
-                      {syncLastResult.errors.map((e, i) => (
-                        <li key={i}>{e}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+                />
+              </button>
+            </div>
 
-              <div>
-                <button
-                  onClick={async () => {
-                    setShowSyncLogs(!showSyncLogs)
-                    if (!showSyncLogs) {
+            {syncEnabled && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    URL del servidor cloud
+                  </label>
+                  <input
+                    type="url"
+                    value={syncUrl}
+                    onChange={(e) => setSyncUrl(e.target.value)}
+                    onBlur={async () => {
                       try {
-                        const res = await api.sync.logs(20)
-                        setSyncLogs(res.logs)
+                        await api.sync.saveConfig({ url: syncUrl })
                       } catch {
                         /* ignore */
                       }
-                    }
-                  }}
-                  className="text-sm text-primary hover:text-primary-dark font-medium"
-                >
-                  {showSyncLogs ? 'Ocultar historial' : 'Ver historial de sincronización'}
-                </button>
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="https://tu-servidor.com"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    URL base del servidor cloud (ej: https://api.silverknight.app)
+                  </p>
+                </div>
 
-                {showSyncLogs && (
-                  <div className="mt-2 max-h-48 overflow-y-auto space-y-1">
-                    {syncLogs.length === 0 && (
-                      <p className="text-xs text-gray-400 py-2">Sin registros</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                  <input
+                    type="password"
+                    value={syncApiKey}
+                    onChange={(e) => setSyncApiKey(e.target.value)}
+                    onBlur={async () => {
+                      try {
+                        await api.sync.saveConfig({ apiKey: syncApiKey })
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="Clave de API del servidor cloud"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Intervalo de sincronización
+                  </label>
+                  <select
+                    value={syncInterval}
+                    onChange={async (e) => {
+                      const val = parseInt(e.target.value)
+                      setSyncInterval(val)
+                      try {
+                        await api.sync.saveConfig({ interval: val })
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value={5}>Cada 5 minutos</option>
+                    <option value={15}>Cada 15 minutos</option>
+                    <option value={30}>Cada 30 minutos</option>
+                    <option value={60}>Cada 1 hora</option>
+                    <option value={360}>Cada 6 horas</option>
+                    <option value={1440}>Cada 24 horas</option>
+                  </select>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        syncing
+                          ? 'bg-yellow-400 animate-pulse'
+                          : syncLastResult?.success
+                            ? 'bg-green-500'
+                            : syncLastResult
+                              ? 'bg-red-500'
+                              : 'bg-gray-400'
+                      }`}
+                    />
+                    <span className="text-sm text-gray-600">
+                      {syncing
+                        ? 'Sincronizando...'
+                        : syncLastSync
+                          ? `Último sync: ${new Date(syncLastSync).toLocaleString()}`
+                          : 'Sin sincronizar'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setSyncing(true)
+                      try {
+                        const res = await api.sync.now()
+                        setSyncLastResult(res.result)
+                        if (res.result.success) {
+                          showSuccess(`${res.result.entitiesSynced} registro(s) sincronizado(s)`)
+                        } else {
+                          showError(res.result.errors.join('; '))
+                        }
+                      } catch (err) {
+                        showError(err instanceof Error ? err.message : 'Error de sincronización')
+                      } finally {
+                        setSyncing(false)
+                      }
+                    }}
+                    disabled={syncing}
+                    className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50 transition-colors"
+                  >
+                    {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+                  </button>
+                </div>
+
+                {syncLastResult && (
+                  <div
+                    className={`rounded-lg p-3 text-sm ${
+                      syncLastResult.success
+                        ? 'bg-green-50 text-green-700'
+                        : 'bg-red-50 text-red-700'
+                    }`}
+                  >
+                    <p className="font-medium">
+                      {syncLastResult.success
+                        ? 'Última sincronización exitosa'
+                        : 'Errores en última sincronización'}
+                    </p>
+                    {syncLastResult.success && (
+                      <p>{syncLastResult.entitiesSynced} registro(s) sincronizado(s)</p>
                     )}
-                    {syncLogs.map((log) => (
-                      <div
-                        key={log.id}
-                        className="flex items-center gap-2 text-xs p-2 bg-gray-50 rounded"
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            log.status === 'synced' ? 'bg-green-500' : 'bg-red-500'
-                          }`}
-                        />
-                        <span className="text-gray-500 shrink-0">
-                          {new Date(log.createdAt).toLocaleTimeString()}
-                        </span>
-                        <span className="font-medium text-gray-700">{log.entity}</span>
-                        <span className="text-gray-400">{log.action}</span>
-                        {log.error && <span className="text-red-500 ml-auto">{log.error}</span>}
-                      </div>
-                    ))}
+                    {syncLastResult.duration > 0 && (
+                      <p className="text-xs opacity-75">Duración: {syncLastResult.duration}ms</p>
+                    )}
+                    {syncLastResult.errors.length > 0 && (
+                      <ul className="list-disc pl-4 mt-1 text-xs">
+                        {syncLastResult.errors.map((e, i) => (
+                          <li key={i}>{e}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 )}
+
+                <div>
+                  <button
+                    onClick={async () => {
+                      setShowSyncLogs(!showSyncLogs)
+                      if (!showSyncLogs) {
+                        try {
+                          const res = await api.sync.logs(20)
+                          setSyncLogs(res.logs)
+                        } catch {
+                          /* ignore */
+                        }
+                      }
+                    }}
+                    className="text-sm text-primary hover:text-primary-dark font-medium"
+                  >
+                    {showSyncLogs ? 'Ocultar historial' : 'Ver historial de sincronización'}
+                  </button>
+
+                  {showSyncLogs && (
+                    <div className="mt-2 max-h-48 overflow-y-auto space-y-1">
+                      {syncLogs.length === 0 && (
+                        <p className="text-xs text-gray-400 py-2">Sin registros</p>
+                      )}
+                      {syncLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="flex items-center gap-2 text-xs p-2 bg-gray-50 rounded"
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                              log.status === 'synced' ? 'bg-green-500' : 'bg-red-500'
+                            }`}
+                          />
+                          <span className="text-gray-500 shrink-0">
+                            {new Date(log.createdAt).toLocaleTimeString()}
+                          </span>
+                          <span className="font-medium text-gray-700">{log.entity}</span>
+                          <span className="text-gray-400">{log.action}</span>
+                          {log.error && <span className="text-red-500 ml-auto">{log.error}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>}
+            )}
+          </div>
+        )}
 
         {/* Configuración de conexión API */}
-        {isAdmin && <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold mb-4">Conexión al Servidor</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            URL base de la API. En perfil Small es <code>http://localhost:3001/api</code>. Para
-            perfil Medium/Big, cambia a la URL de tu servidor.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
-              placeholder="http://localhost:3001/api"
-            />
-            <button
-              onClick={async () => {
-                try {
-                  api.setApiBase(apiUrl)
-                  showSuccess('URL de API actualizada')
-                } catch (err) {
-                  showError(err instanceof Error ? err.message : 'Error al guardar')
-                }
-              }}
-              className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark transition-colors"
-            >
-              Aplicar
-            </button>
+        {isAdmin && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold mb-4">Conexión al Servidor</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              URL base de la API. En perfil Small es <code>http://localhost:3001/api</code>. Para
+              perfil Medium/Big, cambia a la URL de tu servidor.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                placeholder="http://localhost:3001/api"
+              />
+              <button
+                onClick={async () => {
+                  try {
+                    api.setApiBase(apiUrl)
+                    showSuccess('URL de API actualizada')
+                  } catch (err) {
+                    showError(err instanceof Error ? err.message : 'Error al guardar')
+                  }
+                }}
+                className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark transition-colors"
+              >
+                Aplicar
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              El cambio se aplica inmediatamente. Asegúrate de que el servidor sea accesible.
+            </p>
           </div>
-          <p className="text-xs text-gray-400 mt-1">
-            El cambio se aplica inmediatamente. Asegúrate de que el servidor sea accesible.
-          </p>
-        </div>}
+        )}
 
         {/* Navegación a secciones existentes */}
         <div className="bg-white rounded-lg shadow p-6">

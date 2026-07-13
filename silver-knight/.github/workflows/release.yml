@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: silver-knight/package-lock.json
+
+      - name: Install dependencies
+        working-directory: silver-knight
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: silver-knight
+        run: npx prisma generate
+
+      - name: Build and Package
+        working-directory: silver-knight
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: silver-knight/dist/*.exe
+          generate_release_notes: true

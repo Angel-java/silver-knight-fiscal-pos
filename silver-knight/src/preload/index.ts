@@ -1,12 +1,24 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Custom APIs for renderer
-const api = {}
+const api = {
+  checkForUpdates: (): void => ipcRenderer.send('check-for-updates'),
+  downloadUpdate: (): void => ipcRenderer.send('download-update'),
+  installUpdate: (): void => ipcRenderer.send('install-update'),
+  onUpdateAvailable: (callback: (version: string) => void): void => {
+    ipcRenderer.on('update-available', (_event, version) => callback(version))
+  },
+  onUpdateNotAvailable: (callback: () => void): void => {
+    ipcRenderer.on('update-not-available', () => callback())
+  },
+  onUpdateProgress: (callback: (percent: number) => void): void => {
+    ipcRenderer.on('update-download-progress', (_event, percent) => callback(percent))
+  },
+  onUpdateDownloaded: (callback: () => void): void => {
+    ipcRenderer.on('update-downloaded', () => callback())
+  }
+}
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
