@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: silver-knight
+appId: com.silverknight.pos
+productName: Silver Knight
 directories:
   buildResources: build
 files:
@@ -11,13 +11,24 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  - node_modules/@prisma/engines/**
+  - node_modules/.prisma/**
+  - node_modules/better-sqlite3/prebuilds/**
+  - node_modules/serialport/**
 win:
-  executableName: silver-knight
+  executableName: SilverKnight
+  target:
+    target: nsis
+    arch: x64
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
+  oneClick: true
+  perMachine: false
   createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Silver Knight
+  artifactName: ${name}-${version}-setup.${ext}
+  uninstallDisplayName: ${productName}
+  deleteAppDataOnUninstall: false
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
@@ -37,7 +48,8 @@ linux:
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
-npmRebuild: false
+npmRebuild: true
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: alucard
+  repo: BalancesSilverKnigth
