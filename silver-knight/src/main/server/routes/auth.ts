@@ -5,7 +5,8 @@ import { prisma } from '../../database/prisma'
 import { generateToken, authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { loginSchema, setupSchema, updateCompanySchema } from '../validation/schemas'
-import { logger } from '../utils/logger'
+import { asyncHandler } from '../middleware/errorHandler'
+import { ADMIN_USERNAME } from '../auth/autoAdmin'
 
 const router = Router()
 
@@ -17,8 +18,11 @@ const loginLimiter = rateLimit({
   legacyHeaders: false
 })
 
-router.post('/login', loginLimiter, validate(loginSchema), async (req: Request, res: Response) => {
-  try {
+router.post(
+  '/login',
+  loginLimiter,
+  validate(loginSchema),
+  asyncHandler(async (req: Request, res: Response) => {
     const { username, pin } = req.body
     if (!username || !pin) {
       res.status(400).json({ error: 'Username y PIN requeridos' })
@@ -48,16 +52,17 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req: Request, 
         permissions: user.permissions ? JSON.parse(user.permissions) : null
       }
     })
-  } catch (error) {
-    logger.error('auth', 'login error', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
-})
+  })
+)
 
-router.post('/setup', validate(setupSchema), async (req: Request, res: Response) => {
-  try {
-    const existingUsers = await prisma.user.count()
-    if (existingUsers > 0) {
+router.post(
+  '/setup',
+  validate(setupSchema),
+  asyncHandler(async (req: Request, res: Response) => {
+    const nonAdminUsers = await prisma.user.count({
+      where: { username: { not: ADMIN_USERNAME } }
+    })
+    if (nonAdminUsers > 0) {
       res.status(400).json({ error: 'El sistema ya está configurado' })
       return
     }
@@ -83,13 +88,19 @@ router.post('/setup', validate(setupSchema), async (req: Request, res: Response)
           username: adminUser.username,
           fullName: adminFullName,
           pin: hashedPin,
-          role: 'admin'
+          role: 'gerente'
         }
       })
 
       return {
         company: newCompany,
-        user: { id: newUser.id, username: newUser.username, fullName: newUser.fullName, role: newUser.role, permissions: null }
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          fullName: newUser.fullName,
+          role: newUser.role,
+          permissions: null
+        }
       }
     })
 
@@ -99,14 +110,13 @@ router.post('/setup', validate(setupSchema), async (req: Request, res: Response)
       role: result.user.role
     })
     res.status(201).json({ token, user: result.user, company: result.company })
-  } catch (error) {
-    logger.error('auth', 'setup error', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
-})
+  })
+)
 
-router.get('/me', authMiddleware, async (req: Request, res: Response) => {
-  try {
+router.get(
+  '/me',
+  authMiddleware,
+  asyncHandler(async (req: Request, res: Response) => {
     const user = req.user!
     const dbUser = await prisma.user.findUnique({
       where: { id: user.userId },
@@ -122,50 +132,40 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
         permissions: dbUser.permissions ? JSON.parse(dbUser.permissions) : null
       }
     })
-  } catch (error) {
-    logger.error('auth', 'me error', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
-})
+  })
+)
 
-router.get('/company', async (_req: Request, res: Response) => {
-  try {
+router.get(
+  '/company',
+  asyncHandler(async (_req: Request, res: Response) => {
     const company = await prisma.company.findFirst()
     res.json({ company })
-  } catch (error) {
-    logger.error('auth', 'company error', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
-})
+  })
+)
 
 router.put(
   '/company',
   authMiddleware,
   requirePermission('settings'),
   validate(updateCompanySchema),
-  async (req: Request, res: Response) => {
-    try {
-      const { name, rif, address, phone, email } = req.body
-      const existing = await prisma.company.findFirst()
-      if (!existing) {
-        res.status(404).json({ error: 'Empresa no encontrada' })
-        return
-      }
-      const dupRif = await prisma.company.findFirst({ where: { rif, id: { not: existing.id } } })
-      if (dupRif) {
-        res.status(409).json({ error: 'Ya existe otra empresa con ese RIF' })
-        return
-      }
-      const company = await prisma.company.update({
-        where: { id: existing.id },
-        data: { name, rif, address: address || null, phone: phone || null, email: email || null }
-      })
-      res.json({ company })
-    } catch (error) {
-      logger.error('auth', 'company update error', error)
-      res.status(500).json({ error: 'Error interno del servidor' })
+  asyncHandler(async (req: Request, res: Response) => {
+    const { name, rif, address, phone, email } = req.body
+    const existing = await prisma.company.findFirst()
+    if (!existing) {
+      res.status(404).json({ error: 'Empresa no encontrada' })
+      return
     }
-  }
+    const dupRif = await prisma.company.findFirst({ where: { rif, id: { not: existing.id } } })
+    if (dupRif) {
+      res.status(409).json({ error: 'Ya existe otra empresa con ese RIF' })
+      return
+    }
+    const company = await prisma.company.update({
+      where: { id: existing.id },
+      data: { name, rif, address: address || null, phone: phone || null, email: email || null }
+    })
+    res.json({ company })
+  })
 )
 
 export default router

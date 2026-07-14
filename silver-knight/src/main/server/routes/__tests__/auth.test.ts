@@ -24,6 +24,11 @@ vi.mock('../../../database/prisma', () => ({
   }
 }))
 
+vi.mock('../../auth/autoAdmin', () => ({
+  ADMIN_USERNAME: 'admin',
+  autoCreateAdmin: vi.fn()
+}))
+
 vi.mock('../../middleware/auth', async (importOriginal) => {
   const actual = await importOriginal()
   return {
@@ -126,11 +131,11 @@ describe('POST /api/auth/login', () => {
 })
 
 describe('POST /api/auth/setup', () => {
-  it('creates company and admin user', async () => {
+  it('creates company and gerente user', async () => {
     vi.mocked(prisma.user.count).mockResolvedValue(0)
     const mockTx = {
       company: { create: vi.fn().mockResolvedValue({ id: 'c-1', name: 'TestCo', rif: 'J-123' }) },
-      user: { create: vi.fn().mockResolvedValue({ id: 'u-1', username: 'admin', role: 'admin' }) }
+      user: { create: vi.fn().mockResolvedValue({ id: 'u-1', username: 'gerente', role: 'gerente' }) }
     }
     vi.mocked(prisma.$transaction).mockImplementation((cb: any) => cb(mockTx))
 
@@ -138,14 +143,15 @@ describe('POST /api/auth/setup', () => {
       .post('/api/auth/setup')
       .send({
         company: { name: 'TestCo', rif: 'J-123', address: 'Addr' },
-        adminUser: { username: 'admin', pin: 'admin123' }
+        adminUser: { username: 'gerente', pin: 'gerente123' }
       })
 
     expect(res.status).toBe(201)
     expect(res.body.token).toBeDefined()
     expect(res.body.company.name).toBe('TestCo')
-    expect(mockTx.company.create).toHaveBeenCalled()
-    expect(mockTx.user.create).toHaveBeenCalled()
+    expect(mockTx.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ role: 'gerente' }) })
+    )
   })
 
   it('returns 400 when system already set up', async () => {
