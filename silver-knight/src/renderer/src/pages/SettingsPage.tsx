@@ -8,7 +8,7 @@ const APP_VERSION = '1.0.0'
 export default function SettingsPage(): JSX.Element {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'gerente'
   const [rate, setRate] = useState('')
   const [currentRate, setCurrentRate] = useState<{
     rate: number

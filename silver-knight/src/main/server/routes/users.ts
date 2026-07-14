@@ -4,7 +4,8 @@ import { prisma } from '../../database/prisma'
 import { authMiddleware, gerenteOrAdminMiddleware } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createUserSchema, updateUserSchema } from '../validation/schemas'
-import { logger } from '../utils/logger'
+import { asyncHandler } from '../middleware/errorHandler'
+import { ADMIN_USERNAME } from '../auth/autoAdmin'
 
 const router = Router()
 router.use(authMiddleware)
@@ -20,9 +21,11 @@ const userSelect = {
   createdAt: true
 }
 
-router.get('/', async (_req: Request, res: Response) => {
-  try {
+router.get(
+  '/',
+  asyncHandler(async (_req: Request, res: Response) => {
     const users = await prisma.user.findMany({
+      where: { username: { not: ADMIN_USERNAME } },
       select: userSelect,
       orderBy: { createdAt: 'asc' }
     })
@@ -31,14 +34,13 @@ router.get('/', async (_req: Request, res: Response) => {
       permissions: u.permissions ? JSON.parse(u.permissions) : null
     }))
     res.json({ users: mapped })
-  } catch (error) {
-    logger.error('users', 'list error', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
-})
+  })
+)
 
-router.post('/', validate(createUserSchema), async (req: Request, res: Response) => {
-  try {
+router.post(
+  '/',
+  validate(createUserSchema),
+  asyncHandler(async (req: Request, res: Response) => {
     const { username, fullName, pin, role, permissions } = req.body
     const requestingRole = req.user?.role
 
@@ -66,14 +68,13 @@ router.post('/', validate(createUserSchema), async (req: Request, res: Response)
     res.status(201).json({
       user: { ...user, permissions: user.permissions ? JSON.parse(user.permissions) : null }
     })
-  } catch (error) {
-    logger.error('users', 'create error', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
-})
+  })
+)
 
-router.put('/:id', validate(updateUserSchema), async (req: Request, res: Response) => {
-  try {
+router.put(
+  '/:id',
+  validate(updateUserSchema),
+  asyncHandler(async (req: Request, res: Response) => {
     const id = String(req.params.id)
     const { username, fullName, pin, role, isActive, permissions } = req.body
     const requestingRole = req.user?.role
@@ -81,6 +82,11 @@ router.put('/:id', validate(updateUserSchema), async (req: Request, res: Respons
     const existing = await prisma.user.findUnique({ where: { id } })
     if (!existing) {
       res.status(404).json({ error: 'Usuario no encontrado' })
+      return
+    }
+
+    if (existing.username === ADMIN_USERNAME) {
+      res.status(403).json({ error: 'No se puede modificar el usuario administrador del sistema' })
       return
     }
 
@@ -121,10 +127,7 @@ router.put('/:id', validate(updateUserSchema), async (req: Request, res: Respons
     res.json({
       user: { ...user, permissions: user.permissions ? JSON.parse(user.permissions) : null }
     })
-  } catch (error) {
-    logger.error('users', 'update error', error)
-    res.status(500).json({ error: 'Error interno del servidor' })
-  }
-})
+  })
+)
 
 export default router

@@ -139,7 +139,7 @@ export default function SetupWizardPage(): JSX.Element {
           <span className="text-white text-2xl font-bold">SK</span>
         </div>
         <h1 className="text-xl font-bold text-center text-gray-800">Configuración Inicial</h1>
-        <p className="text-sm text-gray-500 text-center mb-6">Paso 2: Usuario administrador</p>
+        <p className="text-sm text-gray-500 text-center mb-6">Paso 2: Usuario gerente</p>
 
         <form onSubmit={handleAdminSubmit} className="space-y-4">
           <div>

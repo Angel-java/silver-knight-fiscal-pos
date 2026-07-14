@@ -19,22 +19,35 @@ import puntoVentaRoutes from './routes/puntoVenta'
 import syncRoutes from './routes/sync'
 import inventoryEntriesRoutes from './routes/inventoryEntries'
 import suppliersRoutes from './routes/suppliers'
-import { ensureDefaultControl } from './routes/fiscalControl'
 import { startBcvScheduler } from './scheduler'
 import { syncService } from './syncService'
+import { autoCreateAdmin } from './auth/autoAdmin'
 
 export { stopBcvScheduler } from './scheduler'
+
+const ALLOWED_ORIGINS = process.env['CORS_ORIGIN']
+  ? process.env['CORS_ORIGIN'].split(',')
+  : ['http://localhost:5173', 'http://localhost:3001']
 
 export async function createServer(): Promise<ReturnType<typeof express>> {
   const app = express()
 
   app.use(
     cors({
-      origin: process.env['CORS_ORIGIN'] || true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+      origin(origin, callback) {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true)
+        } else {
+          callback(new Error('Not allowed by CORS'))
+        }
+      },
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+      credentials: true
     })
   )
   app.use(express.json())
+
+  await autoCreateAdmin()
 
   app.get('/api/health', async (_req: Request, res: Response) => {
     const companyCount = await prisma.company.count()
@@ -63,7 +76,6 @@ export async function createServer(): Promise<ReturnType<typeof express>> {
 
   syncService.start()
   await startBcvScheduler()
-  ensureDefaultControl()
 
   return app
 }
