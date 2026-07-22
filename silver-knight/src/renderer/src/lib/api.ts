@@ -211,6 +211,9 @@ export const api = {
 
   health: () => request<{ ok: boolean; service: string; companyCount: number }>('/health'),
 
+  deploy: () =>
+    request<{ success: boolean; output: string }>('/deploy', { method: 'POST' }),
+
   categories: {
     list: () => request<{ categories: Category[] }>('/categories'),
 

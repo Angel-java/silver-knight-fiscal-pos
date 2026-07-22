@@ -1,8 +1,11 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { prisma } from './database/prisma'
-import { errorHandler } from './middleware/errorHandler'
+import { errorHandler, asyncHandler } from './middleware/errorHandler'
+import { authMiddleware, requirePermission } from './middleware/auth'
 import authRoutes from './routes/auth'
 import categoriesRoutes from './routes/categories'
 import productsRoutes from './routes/products'
@@ -55,6 +58,26 @@ export async function createServer(): Promise<ReturnType<typeof express>> {
     const companyCount = await prisma.company.count()
     res.json({ ok: true, service: 'silver-knight-api', companyCount })
   })
+
+  const execAsync = promisify(exec)
+
+  app.post(
+    '/api/deploy',
+    authMiddleware,
+    requirePermission('settings'),
+    asyncHandler(async (_req: Request, res: Response) => {
+      try {
+        const { stdout, stderr } = await execAsync('docker compose up -d --build', {
+          cwd: process.cwd(),
+          timeout: 120000
+        })
+        res.json({ success: true, output: stdout || stderr })
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err)
+        res.status(500).json({ success: false, error: message })
+      }
+    })
+  )
 
   app.use('/api/auth', authRoutes)
   app.use('/api/categories', categoriesRoutes)
