@@ -2,33 +2,36 @@ appId: com.silverknight.pos
 productName: Silver Knight
 directories:
   buildResources: build
+afterPack: ./scripts/afterPack.js
+asar: false
 files:
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-asarUnpack:
-  - resources/**
-  - node_modules/@prisma/engines/**
-  - node_modules/.prisma/**
-  - node_modules/better-sqlite3/prebuilds/**
-  - node_modules/serialport/**
+  - "**/*"
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!electron.vite.config.{js,ts,mjs,cjs}"
+  - "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
+  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
+  - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
+  - "!**/node_modules/**/{test,__tests__,tests}/**"
+  - "!**/*.{map,ts}"
 win:
   executableName: SilverKnight
   target:
     target: nsis
     arch: x64
 nsis:
-  oneClick: true
+  oneClick: false
   perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: Silver Knight
   artifactName: ${name}-${version}-setup.${ext}
   uninstallDisplayName: ${productName}
   deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  menuCategory: Silver Knight
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:

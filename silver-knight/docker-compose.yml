@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: silverknight-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-silverknight}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skpass}
+      POSTGRES_DB: ${POSTGRES_DB:-silverknight}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-silverknight} -d ${POSTGRES_DB:-silverknight}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - silverknight
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: silverknight-server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-silverknight}:${POSTGRES_PASSWORD:-skpass}@db:5432/${POSTGRES_DB:-silverknight}?schema=public
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      JWT_SECRET: ${JWT_SECRET:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3001:3001"
+    # Passthrough de hardwareserial POS terminal (Linux host):
+    #   devices:
+    #     - /dev/ttyUSB0:/dev/ttyUSB0
+    # Para impresora térmica CUPS:
+    #   volumes:
+    #     - /var/run/cups:/var/run/cups
+    networks:
+      - silverknight
+
+volumes:
+  pgdata:
+    name: silverknight-pgdata
+
+networks:
+  silverknight:
+    name: silverknight
+    driver: bridge

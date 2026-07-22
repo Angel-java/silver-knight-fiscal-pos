@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+
+const electronAPI = {
+  send: (channel: string, ...args: unknown[]): void => ipcRenderer.send(channel, ...args),
+  on: (channel: string, callback: (...args: unknown[]) => void): void => {
+    ipcRenderer.on(channel, (_event, ...args) => callback(...args))
+  }
+}
 
 const api = {
   checkForUpdates: (): void => ipcRenderer.send('check-for-updates'),

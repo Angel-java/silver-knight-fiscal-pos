@@ -1289,8 +1289,11 @@ export default function SettingsPage(): JSX.Element {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-bold mb-4">Conexión al Servidor</h2>
             <p className="text-sm text-gray-500 mb-4">
-              URL base de la API. En perfil Small es <code>http://localhost:3001/api</code>. Para
-              perfil Medium/Big, cambia a la URL de tu servidor.
+              URL base de la API del backend. Por defecto es{' '}
+              <code>http://localhost:3001/api</code> (perfil Small, backend Docker local). Para
+              perfil Medium, usa la IP del servidor en la LAN (ej.{' '}
+              <code>http://192.168.1.10:3001/api</code>). Para perfil Big, usa la URL cloud (ej.{' '}
+              <code>https://api.miapp.com/api</code>).
             </p>
             <div className="flex gap-2">
               <input

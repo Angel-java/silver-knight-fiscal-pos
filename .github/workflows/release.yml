@@ -28,14 +28,8 @@ jobs:
         working-directory: silver-knight
         run: npx prisma generate
 
-      - name: Build and Package
+      - name: Build and Publish
         working-directory: silver-knight
-        run: npm run build:win
+        run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: silver-knight/dist/*.exe
-          generate_release_notes: true
