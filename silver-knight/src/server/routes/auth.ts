@@ -77,7 +77,7 @@ router.post(
       return
     }
 
-    const { company, adminUser } = req.body
+    const { profile, company, adminUser } = req.body
 
     const hashedPin = await bcrypt.hash(adminUser.pin, 10)
     const adminFullName = adminUser.fullName || null
@@ -100,6 +100,12 @@ router.post(
           pin: hashedPin,
           role: 'gerente'
         }
+      })
+
+      await tx.setting.upsert({
+        where: { key: 'profile' },
+        update: { value: profile },
+        create: { key: 'profile', value: profile }
       })
 
       return {

@@ -37,10 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
 
   const setup = useCallback(
     async (
+      profile: 'small' | 'medium' | 'big',
       companyData: { name: string; rif: string; address?: string; phone?: string; email?: string },
       adminUser: { username: string; fullName?: string; pin: string }
     ): Promise<void> => {
-      const res = await api.setup(companyData, adminUser)
+      const res = await api.setup(profile, companyData, adminUser)
       localStorage.setItem('token', res.token)
       setUser(res.user)
       setCompany(res.company)
