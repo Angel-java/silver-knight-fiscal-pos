@@ -11,6 +11,7 @@ export interface AuthState {
   isReady: boolean
   login: (username: string, pin: string) => Promise<void>
   setup: (
+    profile: 'small' | 'medium' | 'big',
     company: { name: string; rif: string; address?: string; phone?: string; email?: string },
     adminUser: { username: string; fullName?: string; pin: string }
   ) => Promise<void>

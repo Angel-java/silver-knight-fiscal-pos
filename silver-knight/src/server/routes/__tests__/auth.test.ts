@@ -135,13 +135,15 @@ describe('POST /api/auth/setup', () => {
     vi.mocked(prisma.user.count).mockResolvedValue(0)
     const mockTx = {
       company: { create: vi.fn().mockResolvedValue({ id: 'c-1', name: 'TestCo', rif: 'J-123' }) },
-      user: { create: vi.fn().mockResolvedValue({ id: 'u-1', username: 'gerente', role: 'gerente' }) }
+      user: { create: vi.fn().mockResolvedValue({ id: 'u-1', username: 'gerente', role: 'gerente' }) },
+      setting: { upsert: vi.fn().mockResolvedValue({ key: 'profile', value: 'small' }) }
     }
     vi.mocked(prisma.$transaction).mockImplementation((cb: any) => cb(mockTx))
 
     const res = await request(createApp())
       .post('/api/auth/setup')
       .send({
+        profile: 'small',
         company: { name: 'TestCo', rif: 'J-123', address: 'Addr' },
         adminUser: { username: 'gerente', pin: 'gerente123' }
       })
@@ -159,7 +161,7 @@ describe('POST /api/auth/setup', () => {
 
     const res = await request(createApp())
       .post('/api/auth/setup')
-      .send({ company: { name: 'Test', rif: 'J-1' }, adminUser: { username: 'a', pin: '1' } })
+      .send({ profile: 'small', company: { name: 'Test', rif: 'J-1' }, adminUser: { username: 'a', pin: '1' } })
 
     expect(res.status).toBe(400)
     expect(res.body.error).toContain('ya está configurado')
@@ -170,7 +172,7 @@ describe('POST /api/auth/setup', () => {
 
     const res = await request(createApp())
       .post('/api/auth/setup')
-      .send({ company: { name: 'Test' }, adminUser: {} })
+      .send({ profile: 'small', company: { name: 'Test' }, adminUser: {} })
 
     expect(res.status).toBe(400)
     expect(res.body.error).toBeDefined()

@@ -196,12 +196,13 @@ export const api = {
     }),
 
   setup: (
+    profile: 'small' | 'medium' | 'big',
     company: { name: string; rif: string; address?: string; phone?: string; email?: string },
     adminUser: { username: string; fullName?: string; pin: string }
   ) =>
     request<{ token: string; user: User; company: Company }>('/auth/setup', {
       method: 'POST',
-      body: JSON.stringify({ company, adminUser })
+      body: JSON.stringify({ profile, company, adminUser })
     }),
 
   me: () => request<{ user: User }>('/auth/me'),

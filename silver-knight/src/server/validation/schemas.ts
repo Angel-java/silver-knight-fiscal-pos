@@ -7,6 +7,7 @@ export const loginSchema = z.object({
 })
 
 export const setupSchema = z.object({
+  profile: z.enum(['small', 'medium', 'big']),
   company: z.object({
     name: z.string().min(1, 'Nombre de empresa requerido'),
     rif: z.string().min(1, 'RIF requerido'),
