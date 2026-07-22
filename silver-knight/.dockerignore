@@ -8,6 +8,10 @@ dist
 **/*.test.ts
 **/*.test.tsx
 **/__snapshots__
-*.md
 .DS_Store
 coverage
+prisma/dev.db
+prisma/migrations/dev
+*.log
+.env
+.env.local

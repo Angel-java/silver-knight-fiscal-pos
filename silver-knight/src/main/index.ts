@@ -2,27 +2,10 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { createServer, stopBcvScheduler } from './server'
-import { logger } from './server/utils/logger'
-import { resolveDbPath, getDbUrl } from './database/dbPath'
-import { runMigrations } from './database/migrations'
 import { autoUpdater } from 'electron-updater'
 
-const SERVER_PORT = 3001
-let server: ReturnType<typeof import('http').createServer> | null = null
-
-async function initDatabase(): Promise<void> {
-  process.env.DATABASE_URL = getDbUrl()
-  logger.info('main', `Database URL: ${process.env.DATABASE_URL}`)
-
-  if (app.isPackaged) {
-    const result = await runMigrations(resolveDbPath())
-    if (!result.success) {
-      logger.error('main', `Migration failed: ${result.error}`)
-    } else {
-      logger.info('main', 'Database migrations applied successfully')
-    }
-  }
+function log(tag: string, message: string): void {
+  console.log(`[main] [${tag}] ${message}`)
 }
 
 function setupAutoUpdate(): void {
@@ -31,13 +14,13 @@ function setupAutoUpdate(): void {
 
   ipcMain.on('check-for-updates', () => {
     autoUpdater.checkForUpdates().catch((err) => {
-      logger.error('main', `Update check failed: ${err}`)
+      log('updater', `Update check failed: ${err}`)
     })
   })
 
   ipcMain.on('download-update', () => {
     autoUpdater.downloadUpdate().catch((err) => {
-      logger.error('main', `Update download failed: ${err}`)
+      log('updater', `Update download failed: ${err}`)
     })
   })
 
@@ -46,49 +29,39 @@ function setupAutoUpdate(): void {
   })
 
   autoUpdater.on('update-available', (info) => {
-    logger.info('main', `Update available: ${info.version}`)
+    log('updater', `Update available: ${info.version}`)
     BrowserWindow.getAllWindows().forEach((w) => {
       w.webContents.send('update-available', info.version)
     })
   })
 
   autoUpdater.on('update-not-available', () => {
-    logger.info('main', 'No updates available')
+    log('updater', 'No updates available')
     BrowserWindow.getAllWindows().forEach((w) => {
       w.webContents.send('update-not-available')
     })
   })
 
   autoUpdater.on('download-progress', (progress) => {
+    log('updater', `Download progress: ${progress.percent}%`)
     BrowserWindow.getAllWindows().forEach((w) => {
       w.webContents.send('update-download-progress', progress.percent)
     })
   })
 
   autoUpdater.on('update-downloaded', () => {
-    logger.info('main', 'Update downloaded, ready to install')
+    log('updater', 'Update downloaded, ready to install')
     BrowserWindow.getAllWindows().forEach((w) => {
       w.webContents.send('update-downloaded')
     })
   })
 
   autoUpdater.on('error', (err) => {
-    logger.error('main', `Auto-updater error: ${err}`)
-  })
-}
-
-async function startEmbeddedServer(): Promise<void> {
-  const expressApp = await createServer()
-  await new Promise<void>((resolve) => {
-    server = expressApp.listen(SERVER_PORT, () => {
-      logger.info('main', `Express server running on http://localhost:${SERVER_PORT}`)
-      resolve()
-    })
+    log('updater', `Auto-updater error: ${err}`)
   })
 }
 
 function createWindow(): void {
-  // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -110,8 +83,11 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const levels = ['verbose', 'info', 'warning', 'error']
+    console.log(`[renderer ${levels[level] || level}] ${message} (${sourceId}:${line})`)
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -119,23 +95,16 @@ function createWindow(): void {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.silverknight.pos')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  await initDatabase()
-
   setupAutoUpdate()
 
-  await startEmbeddedServer()
-
-  ipcMain.on('ping', () => logger.info('main', 'pong'))
+  ipcMain.on('ping', () => log('ipc', 'pong'))
 
   createWindow()
 
@@ -148,19 +117,8 @@ app.whenReady().then(async () => {
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  stopBcvScheduler()
-  if (server) {
-    server.close()
-    server = null
-  }
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

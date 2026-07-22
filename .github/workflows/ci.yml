@@ -11,7 +11,7 @@ env:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -19,13 +19,19 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          cache-dependency-path: silver-knight/package-lock.json
 
       - run: npm ci
+        working-directory: silver-knight
 
       - run: npx prisma generate
+        working-directory: silver-knight
 
       - run: npm run lint
+        working-directory: silver-knight
 
       - run: npm run typecheck
+        working-directory: silver-knight
 
       - run: npm test
+        working-directory: silver-knight

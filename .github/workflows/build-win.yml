@@ -45,3 +45,10 @@ jobs:
           name: silver-knight-windows-setup
           path: silver-knight/dist/*.exe
           retention-days: 30
+
+      - name: Upload update manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: silver-knight-update-manifest
+          path: silver-knight/dist/latest.yml
+          retention-days: 30

@@ -5,13 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   main: {
     resolve: {
-      external: [
-        'better-sqlite3',
-        '@prisma/client',
-        '@prisma/engines',
-        'serialport',
-        '@serialport/bindings-cpp'
-      ]
+      external: ['electron-updater']
     }
   },
   preload: {},

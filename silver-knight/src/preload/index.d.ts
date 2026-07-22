@@ -1,4 +1,7 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
+interface ElectronAPI {
+  send: (channel: string, ...args: unknown[]) => void
+  on: (channel: string, callback: (...args: unknown[]) => void) => void
+}
 
 interface SilverKnightAPI {
   checkForUpdates: () => void
@@ -16,3 +19,5 @@ declare global {
     api: SilverKnightAPI
   }
 }
+
+export {}

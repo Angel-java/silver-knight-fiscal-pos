@@ -6,6 +6,7 @@ out/
 *.db-journal
 .env
 .env.local
+.env.docker
 .DS_Store
 Thumbs.db
 *.log
@@ -17,3 +18,4 @@ coverage/
 .turbo/
 eslint-report.json
 graphify-out/
+.pgdata/
