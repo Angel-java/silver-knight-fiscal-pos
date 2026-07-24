@@ -4,9 +4,17 @@ import { useAuth } from '../contexts/useAuth'
 import { api, PERMISSION_MODULES, type User } from '../lib/api'
 
 const roleLabels: Record<string, string> = {
+  root: 'Root',
   admin: 'Admin',
   gerente: 'Gerente',
   operador: 'Operador'
+}
+
+const roleBadgeColors: Record<string, string> = {
+  root: 'bg-red-100 text-red-700',
+  admin: 'bg-purple-100 text-purple-700',
+  gerente: 'bg-orange-100 text-orange-700',
+  operador: 'bg-blue-100 text-blue-700'
 }
 
 const permissionLabels: Record<string, string> = {
@@ -29,7 +37,7 @@ const permissionLabels: Record<string, string> = {
 export default function UsersPage(): JSX.Element {
   const navigate = useNavigate()
   const { user: currentUser } = useAuth()
-  const isGerente = currentUser?.role === 'gerente'
+  const isRoot = currentUser?.role === 'root'
   const isAdmin = currentUser?.role === 'admin'
 
   const [users, setUsers] = useState<User[]>([])
@@ -84,7 +92,7 @@ export default function UsersPage(): JSX.Element {
       username: u.username,
       fullName: u.fullName || '',
       pin: '',
-      role: u.role === 'admin' ? 'admin' : u.role === 'gerente' ? 'gerente' : 'operador',
+      role: u.role,
       permissions: u.permissions || []
     })
     setShowModal(true)
@@ -117,7 +125,8 @@ export default function UsersPage(): JSX.Element {
         fullName: form.fullName || null,
         role: form.role
       }
-      if (form.role === 'operador') {
+      // Asignar permisos para roles que los necesitan
+      if (form.role === 'admin' || form.role === 'gerente' || form.role === 'operador') {
         payload.permissions = form.permissions
       }
       if (form.pin) payload.pin = form.pin
@@ -139,7 +148,6 @@ export default function UsersPage(): JSX.Element {
   }
 
   const toggleActive = async (u: User): Promise<void> => {
-    if (isGerente && u.role !== 'operador') return
     try {
       await api.users.update(u.id, { isActive: !u.isActive })
       setSuccess(u.isActive ? 'Usuario desactivado' : 'Usuario activado')
@@ -150,12 +158,23 @@ export default function UsersPage(): JSX.Element {
   }
 
   const canEditUser = (u: User): boolean => {
-    if (isAdmin) return true
-    if (isGerente) return u.role === 'operador'
+    // No se puede editar a sí mismo
+    if (u.id === currentUser?.id) return false
+    // Root puede editar a todos
+    if (isRoot) return true
+    // Admin puede editar gerentes y operadores
+    if (isAdmin && (u.role === 'gerente' || u.role === 'operador')) return true
     return false
   }
 
-  const filteredUsers = users.filter(() => isAdmin || isGerente)
+  const filteredUsers = users
+
+  // Roles disponibles según quién crea
+  const availableRoles = isRoot
+    ? ['admin', 'gerente', 'operador']
+    : isAdmin
+      ? ['gerente', 'operador']
+      : []
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -169,12 +188,14 @@ export default function UsersPage(): JSX.Element {
           </button>
           <h1 className="text-2xl font-bold text-gray-800">Usuarios</h1>
         </div>
-        <button
-          onClick={openCreate}
-          className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors text-sm"
-        >
-          + Nuevo Usuario
-        </button>
+        {(isRoot || isAdmin) && (
+          <button
+            onClick={openCreate}
+            className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors text-sm"
+          >
+            + Nuevo Usuario
+          </button>
+        )}
       </div>
 
       {error && <p className="text-red-600 text-sm mb-4 bg-red-50 rounded p-3">{error}</p>}
@@ -208,13 +229,7 @@ export default function UsersPage(): JSX.Element {
                   <td className="px-4 py-3 text-sm text-gray-500">{u.fullName || '—'}</td>
                   <td className="px-4 py-3 text-sm">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        u.role === 'admin'
-                          ? 'bg-purple-100 text-purple-700'
-                          : u.role === 'gerente'
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'bg-blue-100 text-blue-700'
-                      }`}
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${roleBadgeColors[u.role] || 'bg-gray-100 text-gray-700'}`}
                     >
                       {roleLabels[u.role] || u.role}
                     </span>
@@ -246,6 +261,9 @@ export default function UsersPage(): JSX.Element {
                           {u.isActive ? 'Desactivar' : 'Activar'}
                         </button>
                       </>
+                    )}
+                    {u.id === currentUser?.id && (
+                      <span className="text-xs text-gray-400 italic">Tú</span>
                     )}
                   </td>
                 </tr>
@@ -305,13 +323,15 @@ export default function UsersPage(): JSX.Element {
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
-                  {isAdmin && <option value="admin">Admin</option>}
-                  {isAdmin && <option value="gerente">Gerente</option>}
-                  <option value="operador">Operador</option>
+                  {availableRoles.map((r) => (
+                    <option key={r} value={r}>
+                      {roleLabels[r]}
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              {form.role === 'operador' && (
+              {(form.role === 'admin' || form.role === 'gerente' || form.role === 'operador') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Módulos permitidos

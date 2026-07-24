@@ -5,15 +5,37 @@ directories:
 afterPack: ./scripts/afterPack.js
 asar: false
 files:
+  - package.json
   - "**/*"
   - "!**/.vscode/*"
-  - "!src/*"
   - "!electron.vite.config.{js,ts,mjs,cjs}"
-  - "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
+  - "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml}"
   - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
   - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
   - "!**/node_modules/**/{test,__tests__,tests}/**"
-  - "!**/*.{map,ts}"
+  - "!**/*.{map}"
+  - "!**/__tests__/**"
+extraResources:
+  - from: docker-compose.yml
+    to: docker-compose.yml
+  - from: Dockerfile
+    to: Dockerfile
+  - from: docker-entrypoint.sh
+    to: docker-entrypoint.sh
+  - from: src/server
+    to: src/server
+  - from: prisma
+    to: prisma
+  - from: prisma/schema.prisma
+    to: prisma/schema.prisma
+  - from: package.json
+    to: package.json
+  - from: package-lock.json
+    to: package-lock.json
+  - from: tsconfig.json
+    to: tsconfig.json
+  - from: tsconfig.node.json
+    to: tsconfig.node.json
 win:
   executableName: SilverKnight
   target:

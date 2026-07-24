@@ -1,2 +1,3 @@
-provider: generic
-url: https://example.com/auto-updates
+provider: github
+owner: Angel-java
+repo: silver-knight-fiscal-pos

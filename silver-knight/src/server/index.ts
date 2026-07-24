@@ -25,7 +25,7 @@ import inventoryEntriesRoutes from './routes/inventoryEntries'
 import suppliersRoutes from './routes/suppliers'
 import { startBcvScheduler } from './scheduler'
 import { syncService } from './syncService'
-import { autoCreateAdmin } from './auth/autoAdmin'
+import { autoCreateRoot } from './auth/autoAdmin'
 
 export { stopBcvScheduler } from './scheduler'
 
@@ -39,7 +39,7 @@ export async function createServer(): Promise<ReturnType<typeof express>> {
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        if (!origin || origin === 'null' || ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes('*')) {
           callback(null, true)
         } else {
           callback(new Error(`Not allowed by CORS: ${origin}`))
@@ -52,7 +52,7 @@ export async function createServer(): Promise<ReturnType<typeof express>> {
   app.use(helmet({ contentSecurityPolicy: false }))
   app.use(express.json())
 
-  await autoCreateAdmin()
+  await autoCreateRoot()
 
   app.get('/api/health', async (_req: Request, res: Response) => {
     const companyCount = await prisma.company.count()

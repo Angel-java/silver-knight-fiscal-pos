@@ -1,0 +1,335 @@
+import { exec, spawn } from 'child_process'
+import { promisify } from 'util'
+import path from 'path'
+import { app } from 'electron'
+
+const execAsync = promisify(exec)
+
+export type DockerStatus = 'installed' | 'not-installed' | 'running' | 'stopped'
+export type ComposeStatus = 'running' | 'stopped' | 'starting' | 'error'
+export type BackendStatus = 'ready' | 'starting' | 'error'
+
+interface DockerInfo {
+  installed: boolean
+  running: boolean
+  version?: string
+}
+
+interface ComposeInfo {
+  serverRunning: boolean
+  dbRunning: boolean
+}
+
+function log(tag: string, msg: string): void {
+  console.log(`[docker] [${tag}] ${msg}`)
+}
+
+function getComposeDir(): string {
+  if (app.isPackaged) {
+    return process.resourcesPath
+  }
+  return path.join(__dirname, '..', '..', '..')
+}
+
+function getComposeCmd(): string {
+  return 'docker compose'
+}
+
+export async function checkDockerInstalled(): Promise<DockerInfo> {
+  try {
+    const { stdout } = await execAsync('docker --version', { timeout: 5000 })
+    const versionMatch = stdout.match(/Docker version ([\d.]+)/)
+    const version = versionMatch ? versionMatch[1] : 'unknown'
+    log('check', `Docker installed: v${version}`)
+    return { installed: true, running: false, version }
+  } catch {
+    log('check', 'Docker not installed')
+    return { installed: false, running: false }
+  }
+}
+
+export async function checkDockerRunning(): Promise<boolean> {
+  try {
+    await execAsync('docker info', { timeout: 5000 })
+    log('check', 'Docker daemon is running')
+    return true
+  } catch {
+    log('check', 'Docker daemon is not running')
+    return false
+  }
+}
+
+export async function launchDockerDesktop(): Promise<boolean> {
+  const possiblePaths = [
+    'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe',
+    'C:\\Program Files (x86)\\Docker\\Docker\\Docker Desktop.exe'
+  ]
+
+  for (const exePath of possiblePaths) {
+    try {
+      const { execSync } = await import('child_process')
+      execSync(`start "" "${exePath}"`, { timeout: 5000 })
+      log('launch', `Launched Docker Desktop from ${exePath}`)
+      return true
+    } catch {
+      continue
+    }
+  }
+
+  log('launch', 'Could not find Docker Desktop executable')
+  return false
+}
+
+export async function waitForDocker(timeoutMs = 30000): Promise<boolean> {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    if (await checkDockerRunning()) return true
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+  return false
+}
+
+export async function checkComposeStatus(): Promise<ComposeInfo> {
+  const dir = getComposeDir()
+  try {
+    const { stdout } = await execAsync(`${getComposeCmd()} ps --format json`, {
+      cwd: dir,
+      timeout: 10000
+    })
+
+    let serverRunning = false
+    let dbRunning = false
+
+    const lines = stdout.trim().split('\n').filter(Boolean)
+    for (const line of lines) {
+      try {
+        const svc = JSON.parse(line)
+        if (svc.Service === 'server' && svc.State === 'running') serverRunning = true
+        if (svc.Service === 'db' && svc.State === 'running') dbRunning = true
+      } catch {
+        if (line.includes('silverknight-server') && line.includes('running')) serverRunning = true
+        if (line.includes('silverknight-db') && line.includes('running')) dbRunning = true
+      }
+    }
+
+    log('compose', `Status — server: ${serverRunning}, db: ${dbRunning}`)
+    return { serverRunning, dbRunning }
+  } catch {
+    log('compose', 'Could not determine compose status')
+    return { serverRunning: false, dbRunning: false }
+  }
+}
+
+export async function startCompose(
+  onOutput?: (line: string) => void
+): Promise<{ success: boolean; error?: string }> {
+  const dir = getComposeDir()
+  log('compose', `Starting docker compose in ${dir}`)
+
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['compose', 'up', '-d', '--build'], {
+      cwd: dir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true
+    })
+
+    let stderr = ''
+
+    proc.stdout.on('data', (data: Buffer) => {
+      const line = data.toString().trim()
+      if (line) {
+        log('compose', line)
+        onOutput?.(line)
+      }
+    })
+
+    proc.stderr.on('data', (data: Buffer) => {
+      const line = data.toString().trim()
+      if (line) {
+        stderr += line + '\n'
+        log('compose', `[stderr] ${line}`)
+        onOutput?.(line)
+      }
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        log('compose', 'Docker compose started successfully')
+        resolve({ success: true })
+      } else {
+        log('compose', `Docker compose failed with code ${code}`)
+        resolve({ success: false, error: stderr || `Exit code ${code}` })
+      }
+    })
+
+    proc.on('error', (err) => {
+      log('compose', `Spawn error: ${err.message}`)
+      resolve({ success: false, error: err.message })
+    })
+  })
+}
+
+export async function stopCompose(): Promise<void> {
+  const dir = getComposeDir()
+  log('compose', 'Stopping docker compose')
+
+  try {
+    await execAsync(`${getComposeCmd()} down`, { cwd: dir, timeout: 30000 })
+    log('compose', 'Docker compose stopped')
+  } catch (err) {
+    log('compose', `Error stopping compose: ${err}`)
+  }
+}
+
+export async function restartCompose(
+  onOutput?: (line: string) => void
+): Promise<{ success: boolean; error?: string }> {
+  const dir = getComposeDir()
+  log('compose', 'Restarting docker compose')
+
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['compose', 'down'], {
+      cwd: dir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        startCompose(onOutput).then(resolve)
+      } else {
+        resolve({ success: false, error: `docker compose down failed with code ${code}` })
+      }
+    })
+
+    proc.on('error', (err) => {
+      resolve({ success: false, error: err.message })
+    })
+  })
+}
+
+export async function buildCompose(
+  onOutput?: (line: string) => void
+): Promise<{ success: boolean; error?: string }> {
+  const dir = getComposeDir()
+  log('compose', 'Building docker compose images')
+
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['compose', 'build', '--no-cache'], {
+      cwd: dir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true
+    })
+
+    let stderr = ''
+
+    proc.stdout.on('data', (data: Buffer) => {
+      const line = data.toString().trim()
+      if (line) {
+        log('build', line)
+        onOutput?.(line)
+      }
+    })
+
+    proc.stderr.on('data', (data: Buffer) => {
+      const line = data.toString().trim()
+      if (line) {
+        stderr += line + '\n'
+        log('build', `[stderr] ${line}`)
+        onOutput?.(line)
+      }
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        log('build', 'Build completed successfully')
+        resolve({ success: true })
+      } else {
+        log('build', `Build failed with code ${code}`)
+        resolve({ success: false, error: stderr || `Exit code ${code}` })
+      }
+    })
+
+    proc.on('error', (err) => {
+      log('build', `Spawn error: ${err.message}`)
+      resolve({ success: false, error: err.message })
+    })
+  })
+}
+
+export async function pullImages(
+  onOutput?: (line: string) => void
+): Promise<{ success: boolean; error?: string }> {
+  const dir = getComposeDir()
+  log('compose', 'Pulling latest images')
+
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['compose', 'pull'], {
+      cwd: dir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true
+    })
+
+    let stderr = ''
+
+    proc.stdout.on('data', (data: Buffer) => {
+      const line = data.toString().trim()
+      if (line) {
+        log('pull', line)
+        onOutput?.(line)
+      }
+    })
+
+    proc.stderr.on('data', (data: Buffer) => {
+      const line = data.toString().trim()
+      if (line) {
+        stderr += line + '\n'
+        log('pull', `[stderr] ${line}`)
+        onOutput?.(line)
+      }
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        log('pull', 'Pull completed')
+        resolve({ success: true })
+      } else {
+        log('pull', `Pull failed with code ${code}`)
+        resolve({ success: false, error: stderr || `Exit code ${code}` })
+      }
+    })
+
+    proc.on('error', (err) => {
+      log('pull', `Spawn error: ${err.message}`)
+      resolve({ success: false, error: err.message })
+    })
+  })
+}
+
+export async function waitForBackend(
+  url: string,
+  timeoutMs = 60000,
+  onProgress?: (attempt: number) => void
+): Promise<BackendStatus> {
+  log('backend', `Waiting for backend at ${url} (timeout: ${timeoutMs}ms)`)
+  const start = Date.now()
+  let attempt = 0
+
+  while (Date.now() - start < timeoutMs) {
+    attempt++
+    onProgress?.(attempt)
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
+      if (res.ok) {
+        log('backend', `Backend ready after ${attempt} attempts`)
+        return 'ready'
+      }
+    } catch {
+      // not ready yet
+    }
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+
+  log('backend', 'Backend timeout')
+  return 'error'
+}

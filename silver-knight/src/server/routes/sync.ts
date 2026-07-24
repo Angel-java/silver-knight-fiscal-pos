@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { authMiddleware, adminMiddleware, requirePermission } from '../middleware/auth'
+import { authMiddleware, rootMiddleware, requirePermission } from '../middleware/auth'
 import { syncService } from '../syncService'
 import { asyncHandler } from '../middleware/errorHandler'
 
@@ -11,7 +11,7 @@ router.get('/config', requirePermission('settings'), asyncHandler(async (_req: R
   res.json({ config })
 }))
 
-router.put('/config', adminMiddleware, asyncHandler(async (req: Request, res: Response) => {
+router.put('/config', rootMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { url, apiKey, enabled, interval } = req.body
   const config = await syncService.saveConfig({ url, apiKey, enabled, interval })
   if (enabled) {
@@ -22,7 +22,7 @@ router.put('/config', adminMiddleware, asyncHandler(async (req: Request, res: Re
   res.json({ config })
 }))
 
-router.post('/now', adminMiddleware, asyncHandler(async (_req: Request, res: Response) => {
+router.post('/now', rootMiddleware, asyncHandler(async (_req: Request, res: Response) => {
   const result = await syncService.syncNow()
   res.json({ result })
 }))

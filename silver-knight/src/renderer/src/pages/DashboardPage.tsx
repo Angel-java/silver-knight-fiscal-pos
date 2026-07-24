@@ -3,6 +3,7 @@ import type { JSX, ReactElement } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth'
 import { api, type PermissionModule } from '../lib/api'
+import UpdateNotification from '../components/UpdateNotification'
 
 const icons: Record<string, ReactElement> = {
   pos: (
@@ -217,6 +218,7 @@ export default function DashboardPage(): JSX.Element {
           </div>
         </div>
       </div>
+      <UpdateNotification />
     </div>
   )
 }

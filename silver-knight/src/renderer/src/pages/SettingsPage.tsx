@@ -3,12 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth'
 import { api } from '../lib/api'
 
-const APP_VERSION = '1.0.0'
-
 export default function SettingsPage(): JSX.Element {
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin' || user?.role === 'gerente'
+  const { hasPermission } = useAuth()
+  const isAdmin = hasPermission('settings')
   const [rate, setRate] = useState('')
   const [currentRate, setCurrentRate] = useState<{
     rate: number
@@ -78,6 +76,21 @@ export default function SettingsPage(): JSX.Element {
     email: string
   } | null>(null)
   const [editCompany, setEditCompany] = useState(false)
+
+  const [appVersion] = useState(() => {
+    try {
+      return window.api.getVersion()
+    } catch {
+      return 'dev'
+    }
+  })
+  const [dockerStatus, setDockerStatus] = useState<{
+    installed: boolean
+    running: boolean
+    version?: string
+  }>({ installed: false, running: false })
+  const [dockerLoading, setDockerLoading] = useState(false)
+  const [dockerMsg, setDockerMsg] = useState('')
   const [companyForm, setCompanyForm] = useState({
     name: '',
     rif: '',
@@ -246,6 +259,51 @@ export default function SettingsPage(): JSX.Element {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    window.api.docker
+      .status()
+      .then((st) => setDockerStatus(st))
+      .catch(() => {})
+  }, [])
+
+  const handleDockerRestart = async (): Promise<void> => {
+    setDockerLoading(true)
+    setDockerMsg('')
+    try {
+      const result = await window.api.docker.restart()
+      if (result.success) {
+        setDockerMsg('Servidor reiniciado correctamente')
+        const st = await window.api.docker.status()
+        setDockerStatus(st)
+      } else {
+        setDockerMsg(`Error: ${result.error || 'No se pudo reiniciar'}`)
+      }
+    } catch (err) {
+      setDockerMsg(`Error: ${err instanceof Error ? err.message : 'Error desconocido'}`)
+    } finally {
+      setDockerLoading(false)
+    }
+  }
+
+  const handleDockerRebuild = async (): Promise<void> => {
+    setDockerLoading(true)
+    setDockerMsg('Reconstruyendo imagen del servidor...')
+    try {
+      const result = await window.api.docker.rebuild()
+      if (result.success) {
+        setDockerMsg('Servidor reconstruido y reiniciado')
+        const st = await window.api.docker.status()
+        setDockerStatus(st)
+      } else {
+        setDockerMsg(`Error: ${result.error || 'No se pudo reconstruir'}`)
+      }
+    } catch (err) {
+      setDockerMsg(`Error: ${err instanceof Error ? err.message : 'Error desconocido'}`)
+    } finally {
+      setDockerLoading(false)
+    }
+  }
 
   const showError = (msg: string): void => {
     setError(msg)
@@ -445,7 +503,7 @@ export default function SettingsPage(): JSX.Element {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">
-                Versión actual: <span className="font-mono">v{APP_VERSION}</span>
+                Versión actual: <span className="font-mono">v{appVersion || 'dev'}</span>
               </p>
               {updateStatus === 'available' && (
                 <p className="text-sm text-blue-600 mt-1">
@@ -498,6 +556,73 @@ export default function SettingsPage(): JSX.Element {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Sistema y Docker */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-bold mb-4">Sistema</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Versión del cliente</span>
+              <span className="text-sm font-mono font-medium">{appVersion || 'dev'}</span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Docker</span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 text-sm font-medium ${
+                    dockerStatus.installed && dockerStatus.running
+                      ? 'text-green-700'
+                      : dockerStatus.installed
+                        ? 'text-yellow-600'
+                        : 'text-red-600'
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      dockerStatus.installed && dockerStatus.running
+                        ? 'bg-green-500'
+                        : dockerStatus.installed
+                          ? 'bg-yellow-500'
+                          : 'bg-red-500'
+                    }`}
+                  />
+                  {!dockerStatus.installed
+                    ? 'No instalado'
+                    : dockerStatus.running
+                      ? `Activo${dockerStatus.version ? ` v${dockerStatus.version}` : ''}`
+                      : 'Detenido'}
+                </span>
+              </div>
+            </div>
+            {dockerStatus.installed && dockerStatus.running && (
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleDockerRestart}
+                  disabled={dockerLoading}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {dockerLoading ? 'Procesando...' : 'Reiniciar servidor'}
+                </button>
+                <button
+                  onClick={handleDockerRebuild}
+                  disabled={dockerLoading}
+                  className="px-4 py-2 border border-orange-300 text-orange-700 rounded-md text-sm hover:bg-orange-50 disabled:opacity-50"
+                >
+                  {dockerLoading ? 'Procesando...' : 'Reconstruir imagen'}
+                </button>
+              </div>
+            )}
+            {dockerMsg && (
+              <p
+                className={`text-sm mt-2 ${
+                  dockerMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'
+                }`}
+              >
+                {dockerMsg}
+              </p>
+            )}
           </div>
         </div>
 
