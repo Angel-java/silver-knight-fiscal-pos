@@ -18,6 +18,10 @@ import POSPage from './pages/POSPage'
 import InvoiceViewPage from './pages/InvoiceViewPage'
 import SuppliersPage from './pages/SuppliersPage'
 
+const rlog = (tag: string, msg: string): void => {
+  try { window.electron?.send('renderer-log', 'INFO', tag, msg) } catch {}
+}
+
 function ProtectedRoute({
   children,
   module
@@ -34,6 +38,8 @@ function ProtectedRoute({
 
 function App(): React.JSX.Element {
   const { user, company, loading } = useAuth()
+
+  rlog('app', `render: loading=${loading}, company=${!!company}, user=${!!user}`)
 
   if (loading) {
     return (

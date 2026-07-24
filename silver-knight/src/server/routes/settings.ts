@@ -19,8 +19,10 @@ router.put('/:key', requirePermission('settings'), asyncHandler(async (req: Requ
   const key = req.params.key as string
   const { value } = req.body
 
-  if (SYSTEM_KEYS.includes(key) && req.user?.role !== 'admin') {
-    res.status(403).json({ error: 'Solo administradores pueden modificar esta configuración' })
+  if (SYSTEM_KEYS.includes(key) && req.user?.role !== 'root') {
+    res
+      .status(403)
+      .json({ error: 'Solo el propietario del sistema puede modificar esta configuración' })
     return
   }
 

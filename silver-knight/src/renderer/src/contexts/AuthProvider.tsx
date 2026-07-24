@@ -2,25 +2,36 @@ import { useState, useEffect, useCallback, type ReactNode, type JSX } from 'reac
 import { api, type User, type Company, type PermissionModule } from '../lib/api'
 import { AuthContext } from './AuthContext'
 
+const rlog = (tag: string, msg: string): void => {
+  try { window.electron?.send('renderer-log', 'INFO', tag, msg) } catch {}
+}
+
 export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
   const [user, setUser] = useState<User | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    rlog('auth', 'AuthProvider init: loading=' + loading)
     const init = async (): Promise<void> => {
       try {
         const companyRes = await api.getCompany()
+        rlog('auth', `getCompany: ${JSON.stringify(companyRes.company)}`)
         setCompany(companyRes.company)
 
         const token = localStorage.getItem('token')
         if (token) {
           const meRes = await api.me()
+          rlog('auth', `me: user=${JSON.stringify(meRes.user)}`)
           setUser(meRes.user)
+        } else {
+          rlog('auth', 'No token, skipping me()')
         }
-      } catch {
+      } catch (err) {
+        rlog('auth', `init error: ${err}`)
         localStorage.removeItem('token')
       } finally {
+        rlog('auth', 'init done, setting loading=false')
         setLoading(false)
       }
     }
@@ -58,12 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     (module: PermissionModule | string): boolean => {
       if (!user) return false
       const role = user.role
-      if (role === 'admin') return true
-      if (role === 'gerente') return true
-      if (role === 'operador') {
-        return user.permissions?.includes(module) ?? false
-      }
-      return false
+      if (role === 'root' || role === 'admin' || role === 'gerente') return true
+      return user.permissions?.includes(module) ?? false
     },
     [user]
   )

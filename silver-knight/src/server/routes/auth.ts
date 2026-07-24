@@ -6,7 +6,7 @@ import { generateToken, authMiddleware, requirePermission } from '../middleware/
 import { validate } from '../middleware/validate'
 import { loginSchema, setupSchema, updateCompanySchema } from '../validation/schemas'
 import { asyncHandler } from '../middleware/errorHandler'
-import { ADMIN_USERNAME } from '../auth/autoAdmin'
+import { ROOT_USERNAME } from '../auth/autoAdmin'
 import { parsePermissions } from '../utils/parsePermissions'
 
 const router = Router()
@@ -69,10 +69,10 @@ router.post(
   setupLimiter,
   validate(setupSchema),
   asyncHandler(async (req: Request, res: Response) => {
-    const nonAdminUsers = await prisma.user.count({
-      where: { username: { not: ADMIN_USERNAME } }
+    const nonRootUsers = await prisma.user.count({
+      where: { username: { not: ROOT_USERNAME } }
     })
-    if (nonAdminUsers > 0) {
+    if (nonRootUsers > 0) {
       res.status(400).json({ error: 'El sistema ya está configurado' })
       return
     }
@@ -98,7 +98,7 @@ router.post(
           username: adminUser.username,
           fullName: adminFullName,
           pin: hashedPin,
-          role: 'gerente'
+          role: 'admin'
         }
       })
 

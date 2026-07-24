@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { prisma } from '../database/prisma'
-import { authMiddleware, adminMiddleware, requirePermission } from '../middleware/auth'
+import { authMiddleware, rootMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createFiscalControlSchema, updateFiscalControlSchema } from '../validation/schemas'
 import { asyncHandler } from '../middleware/errorHandler'
@@ -48,7 +48,7 @@ router.get('/', asyncHandler(async (_req: Request, res: Response) => {
 
 router.post(
   '/',
-  adminMiddleware,
+  rootMiddleware,
   validate(createFiscalControlSchema),
   asyncHandler(async (req: Request, res: Response) => {
     const { documentType, resolution, prefix, startNumber, endNumber, issuedAt } = req.body
@@ -69,7 +69,7 @@ router.post(
 
 router.put(
   '/:id',
-  adminMiddleware,
+  rootMiddleware,
   validate(updateFiscalControlSchema),
   asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string

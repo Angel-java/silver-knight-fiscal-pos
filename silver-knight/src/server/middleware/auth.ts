@@ -69,18 +69,18 @@ export async function authMiddleware(
   }
 }
 
-export function adminMiddleware(req: Request, res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'admin') {
-    res.status(403).json({ error: 'Acción solo permitida para administradores' })
+export function rootMiddleware(req: Request, res: Response, next: NextFunction): void {
+  if (req.user?.role !== 'root') {
+    res.status(403).json({ error: 'Acción solo permitida para el propietario del sistema' })
     return
   }
   next()
 }
 
-export function gerenteOrAdminMiddleware(req: Request, res: Response, next: NextFunction): void {
+export function rootOrAdminMiddleware(req: Request, res: Response, next: NextFunction): void {
   const role = req.user?.role
-  if (role !== 'gerente' && role !== 'admin') {
-    res.status(403).json({ error: 'Acción solo permitida para gerentes o administradores' })
+  if (role !== 'root' && role !== 'admin') {
+    res.status(403).json({ error: 'Acción solo permitida para root o administradores' })
     return
   }
   next()
@@ -89,17 +89,18 @@ export function gerenteOrAdminMiddleware(req: Request, res: Response, next: Next
 export function requirePermission(module: string) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const role = req.user?.role
-    // Admin y gerente tienen acceso completo a todos los módulos
-    if (role === 'admin' || role === 'gerente') {
+    // Root siempre tiene acceso total
+    if (role === 'root') {
       next()
       return
     }
-    // Operador: verificar permisos
+    // Admin, gerente y operador: verificar permisos del array
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.user?.userId },
         select: { permissions: true }
       })
+      // Si no tiene permisos definidos, denegar (excepto root que ya pasó)
       if (!user || !user.permissions) {
         res.status(403).json({ error: 'No tienes permiso para acceder a este módulo' })
         return

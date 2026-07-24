@@ -5,8 +5,8 @@
 // (not in dependency tree) from the file copy. This hook copies them to
 // the correct node_modules location regardless of asar mode.
 
-const { cpSync, existsSync } = require('fs')
-const { join } = require('path')
+const { cpSync, existsSync, mkdirSync, copyFileSync } = require('fs')
+const { join, dirname } = require('path')
 
 module.exports = function afterPack(context) {
   const { appOutDir, packager } = context
@@ -35,5 +35,36 @@ module.exports = function afterPack(context) {
 
     cpSync(srcPath, dstPath, { recursive: true })
     console.log(`[afterPack] Copied ${src} -> ${dstPath}`)
+  }
+
+  const splashSrc = join(projectDir, 'src', 'renderer', 'splash.html')
+  const splashDst = join(
+    existsSync(join(appOutDir, 'resources', 'app.asar'))
+      ? join(appOutDir, 'resources', 'app.asar.unpacked')
+      : join(appOutDir, 'resources', 'app'),
+    'out',
+    'renderer',
+    'splash.html'
+  )
+
+  if (existsSync(splashSrc)) {
+    mkdirSync(dirname(splashDst), { recursive: true })
+    copyFileSync(splashSrc, splashDst)
+    console.log(`[afterPack] Copied splash.html -> ${splashDst}`)
+  } else {
+    console.warn(`[afterPack] splash.html not found, skipping`)
+  }
+
+  const pkgSrc = join(projectDir, 'package.json')
+  const pkgDst = join(
+    existsSync(join(appOutDir, 'resources', 'app.asar'))
+      ? join(appOutDir, 'resources', 'app.asar.unpacked')
+      : join(appOutDir, 'resources', 'app'),
+    'package.json'
+  )
+
+  if (existsSync(pkgSrc) && !existsSync(pkgDst)) {
+    copyFileSync(pkgSrc, pkgDst)
+    console.log(`[afterPack] Copied package.json -> ${pkgDst}`)
   }
 }

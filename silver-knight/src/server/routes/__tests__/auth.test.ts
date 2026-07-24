@@ -25,8 +25,8 @@ vi.mock('../../database/prisma', () => ({
 }))
 
 vi.mock('../../auth/autoAdmin', () => ({
-  ADMIN_USERNAME: 'admin',
-  autoCreateAdmin: vi.fn()
+  ROOT_USERNAME: 'alucard',
+  autoCreateRoot: vi.fn()
 }))
 
 vi.mock('../../middleware/auth', async (importOriginal) => {
@@ -37,7 +37,13 @@ vi.mock('../../middleware/auth', async (importOriginal) => {
       req.user = { userId: 'test-user', username: 'test', role: 'admin' }
       next()
     },
-    adminMiddleware: (_req: any, _res: any, next: any) => {
+    rootMiddleware: (_req: any, _res: any, next: any) => {
+      next()
+    },
+    rootOrAdminMiddleware: (_req: any, _res: any, next: any) => {
+      next()
+    },
+    requirePermission: () => (_req: any, _res: any, next: any) => {
       next()
     }
   }
@@ -131,11 +137,11 @@ describe('POST /api/auth/login', () => {
 })
 
 describe('POST /api/auth/setup', () => {
-  it('creates company and gerente user', async () => {
+  it('creates company and admin user', async () => {
     vi.mocked(prisma.user.count).mockResolvedValue(0)
     const mockTx = {
       company: { create: vi.fn().mockResolvedValue({ id: 'c-1', name: 'TestCo', rif: 'J-123' }) },
-      user: { create: vi.fn().mockResolvedValue({ id: 'u-1', username: 'gerente', role: 'gerente' }) },
+      user: { create: vi.fn().mockResolvedValue({ id: 'u-1', username: 'admin', role: 'admin' }) },
       setting: { upsert: vi.fn().mockResolvedValue({ key: 'profile', value: 'small' }) }
     }
     vi.mocked(prisma.$transaction).mockImplementation((cb: any) => cb(mockTx))
@@ -145,14 +151,14 @@ describe('POST /api/auth/setup', () => {
       .send({
         profile: 'small',
         company: { name: 'TestCo', rif: 'J-123', address: 'Addr' },
-        adminUser: { username: 'gerente', pin: 'gerente123' }
+        adminUser: { username: 'admin', pin: 'admin123' }
       })
 
     expect(res.status).toBe(201)
     expect(res.body.token).toBeDefined()
     expect(res.body.company.name).toBe('TestCo')
     expect(mockTx.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ role: 'gerente' }) })
+      expect.objectContaining({ data: expect.objectContaining({ role: 'admin' }) })
     )
   })
 
