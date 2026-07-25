@@ -153,7 +153,7 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   username: z.string().optional(),
   fullName: z.string().optional().nullable(),
-  pin: z.string().optional(),
+  pin: z.string().min(1, 'PIN no puede estar vacío').optional(),
   role: z.enum(['admin', 'gerente', 'operador']).optional(),
   isActive: z.boolean().optional(),
   permissions: z.array(z.enum(PERMISSION_MODULES)).optional().nullable()

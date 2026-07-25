@@ -138,14 +138,29 @@ router.put(
     if (fullName !== undefined) data.fullName = fullName || null
     if (role) data.role = role
     if (typeof isActive === 'boolean') data.isActive = isActive
-    if (permissions !== undefined) data.permissions = permissions ? JSON.stringify(permissions) : null
-    if (pin) data.pin = await bcrypt.hash(pin, 10)
+    if (permissions !== undefined) {
+      const hasExistingPerms = existing.permissions && parsePermissions(existing.permissions)
+      const incomingEmpty = Array.isArray(permissions) && permissions.length === 0
+      if (incomingEmpty && hasExistingPerms) {
+        // No sobrescribir — mantener permisos existentes del usuario
+      } else {
+        data.permissions = permissions.length > 0 ? JSON.stringify(permissions) : null
+      }
+    }
+    if (pin) {
+      console.log(`[DEBUG UPDATE] Updating user ${id}: pin input length=${pin.length}, type=${typeof pin}`)
+      const hashed = await bcrypt.hash(pin, 10)
+      console.log(`[DEBUG UPDATE] Hashed pin: ${hashed.substring(0, 10)}... (length=${hashed.length})`)
+      data.pin = hashed
+    }
 
+    console.log(`[DEBUG UPDATE] Prisma update data keys: ${Object.keys(data)}`)
     const user = await prisma.user.update({
       where: { id },
       data,
       select: userSelect
     })
+    console.log(`[DEBUG UPDATE] Updated user ${user.username} successfully`)
     res.json({
       user: { ...user, permissions: parsePermissions(user.permissions) }
     })
