@@ -125,9 +125,15 @@ export default function UsersPage(): JSX.Element {
         fullName: form.fullName || null,
         role: form.role
       }
-      // Asignar permisos para roles que los necesitan
       if (form.role === 'admin' || form.role === 'gerente' || form.role === 'operador') {
-        payload.permissions = form.permissions
+        const originalPermissions = (editing?.permissions || []) as string[]
+        const currentPermissions = form.permissions
+        const sortedOriginal = [...originalPermissions].sort()
+        const sortedCurrent = [...currentPermissions].sort()
+        const permissionsChanged = JSON.stringify(sortedOriginal) !== JSON.stringify(sortedCurrent)
+        if (permissionsChanged) {
+          payload.permissions = currentPermissions
+        }
       }
       if (form.pin) payload.pin = form.pin
 

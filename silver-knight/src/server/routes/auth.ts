@@ -39,14 +39,21 @@ router.post(
     }
 
     const user = await prisma.user.findUnique({ where: { username } })
-    if (!user || !user.isActive) {
+    if (!user) {
       res.status(401).json({ error: 'Credenciales inválidas' })
       return
     }
+    if (!user.isActive) {
+      res.status(401).json({ error: 'Usuario desactivado. Contacta al administrador.' })
+      return
+    }
 
+    console.log(`[DEBUG LOGIN] User: ${user.username}, pin input type=${typeof pin}, length=${pin.length}`)
+    console.log(`[DEBUG LOGIN] Stored pin hash starts with: ${user.pin?.substring(0, 10)}... (length=${user.pin?.length})`)
     const valid = await bcrypt.compare(pin, user.pin)
+    console.log(`[DEBUG LOGIN] bcrypt.compare result: ${valid}`)
     if (!valid) {
-      res.status(401).json({ error: 'Credenciales inválidas' })
+      res.status(401).json({ error: 'PIN incorrecto' })
       return
     }
 
