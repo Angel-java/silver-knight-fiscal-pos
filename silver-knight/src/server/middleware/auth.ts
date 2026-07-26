@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { prisma } from '../database/prisma'
-import { parsePermissions } from '../utils/parsePermissions'
+import { resolvePermissions } from '../utils/parsePermissions'
 
 let cachedSecret: string | null = null
 
@@ -98,14 +98,13 @@ export function requirePermission(module: string) {
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.user?.userId },
-        select: { permissions: true }
+        select: { permissions: true, role: true }
       })
-      // Si no tiene permisos definidos, denegar (excepto root que ya pasó)
-      if (!user || !user.permissions) {
+      if (!user) {
         res.status(403).json({ error: 'No tienes permiso para acceder a este módulo' })
         return
       }
-      const perms = parsePermissions(user.permissions) || []
+      const perms = resolvePermissions(user.permissions, user.role)
       if (!perms.includes(module)) {
         res.status(403).json({ error: 'No tienes permiso para acceder a este módulo' })
         return

@@ -7,7 +7,8 @@ import { validate } from '../middleware/validate'
 import { loginSchema, setupSchema, updateCompanySchema } from '../validation/schemas'
 import { asyncHandler } from '../middleware/errorHandler'
 import { ROOT_USERNAME } from '../auth/autoAdmin'
-import { parsePermissions } from '../utils/parsePermissions'
+import { resolvePermissions } from '../utils/parsePermissions'
+import { permissionModules } from '../validation/schemas'
 
 const router = Router()
 
@@ -48,10 +49,7 @@ router.post(
       return
     }
 
-    console.log(`[DEBUG LOGIN] User: ${user.username}, pin input type=${typeof pin}, length=${pin.length}`)
-    console.log(`[DEBUG LOGIN] Stored pin hash starts with: ${user.pin?.substring(0, 10)}... (length=${user.pin?.length})`)
     const valid = await bcrypt.compare(pin, user.pin)
-    console.log(`[DEBUG LOGIN] bcrypt.compare result: ${valid}`)
     if (!valid) {
       res.status(401).json({ error: 'PIN incorrecto' })
       return
@@ -65,7 +63,7 @@ router.post(
         username: user.username,
         fullName: user.fullName,
         role: user.role,
-        permissions: parsePermissions(user.permissions)
+        permissions: resolvePermissions(user.permissions, user.role)
       }
     })
   })
@@ -105,7 +103,8 @@ router.post(
           username: adminUser.username,
           fullName: adminFullName,
           pin: hashedPin,
-          role: 'admin'
+          role: 'admin',
+          permissions: JSON.stringify([...permissionModules])
         }
       })
 
@@ -122,7 +121,7 @@ router.post(
           username: newUser.username,
           fullName: newUser.fullName,
           role: newUser.role,
-          permissions: null
+          permissions: [...permissionModules]
         }
       }
     })
@@ -152,7 +151,7 @@ router.get(
     res.json({
       user: {
         ...dbUser,
-        permissions: parsePermissions(dbUser.permissions)
+        permissions: resolvePermissions(dbUser.permissions, dbUser.role)
       }
     })
   })
