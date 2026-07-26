@@ -82,7 +82,13 @@ export default function UsersPage(): JSX.Element {
 
   const openCreate = (): void => {
     setEditing(null)
-    setForm({ username: '', fullName: '', pin: '', role: 'operador', permissions: [] })
+    setForm({
+      username: '',
+      fullName: '',
+      pin: '',
+      role: isRoot ? 'admin' : 'gerente',
+      permissions: [...PERMISSION_MODULES]
+    })
     setShowModal(true)
   }
 
@@ -123,17 +129,8 @@ export default function UsersPage(): JSX.Element {
       const payload: Record<string, unknown> = {
         username: form.username,
         fullName: form.fullName || null,
-        role: form.role
-      }
-      if (form.role === 'admin' || form.role === 'gerente' || form.role === 'operador') {
-        const originalPermissions = (editing?.permissions || []) as string[]
-        const currentPermissions = form.permissions
-        const sortedOriginal = [...originalPermissions].sort()
-        const sortedCurrent = [...currentPermissions].sort()
-        const permissionsChanged = JSON.stringify(sortedOriginal) !== JSON.stringify(sortedCurrent)
-        if (permissionsChanged) {
-          payload.permissions = currentPermissions
-        }
+        role: form.role,
+        permissions: form.permissions
       }
       if (form.pin) payload.pin = form.pin
 
@@ -341,6 +338,16 @@ export default function UsersPage(): JSX.Element {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Módulos permitidos
+                    {isRoot && form.role === 'admin' && (
+                      <span className="text-xs text-gray-400 font-normal ml-2">
+                        (Gestionados por ti como Root)
+                      </span>
+                    )}
+                    {isAdmin && (form.role === 'gerente' || form.role === 'operador') && (
+                      <span className="text-xs text-gray-400 font-normal ml-2">
+                        (Gestionados por ti como Admin)
+                      </span>
+                    )}
                   </label>
                   <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                     {PERMISSION_MODULES.map((mod) => (
