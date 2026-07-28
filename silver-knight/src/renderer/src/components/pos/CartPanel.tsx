@@ -49,7 +49,7 @@ export default function CartPanel({
         {cart.map((item) => (
           <div key={item.productId} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 truncate">{item.productName}</p>
+              <p className="text-sm font-medium text-gray-800 line-clamp-2">{item.productName}</p>
               <p className="text-xs text-gray-400">
                 {currency === 'USD'
                   ? `$${item.unitPriceUsd.toFixed(2)}`

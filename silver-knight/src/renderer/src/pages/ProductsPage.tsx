@@ -86,6 +86,32 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
     }
   }
 
+  const handleDeactivate = async (p: Product): Promise<void> => {
+    const action = p.isActive ? 'desactivar' : 'activar'
+    if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} este producto?`)) return
+    try {
+      await api.products.deactivate(p.id)
+      await load()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : `Error al ${action}`)
+    }
+  }
+
+  const handleDelete = async (p: Product): Promise<void> => {
+    if (!confirm('¿Eliminar este producto permanentemente? Esta acción no se puede deshacer.')) return
+    try {
+      await api.products.delete(p.id)
+      await load()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al eliminar'
+      if (msg.includes('propietario')) {
+        alert('Solo el propietario del sistema puede eliminar productos con facturas o movimientos asociados.')
+      } else {
+        alert(msg)
+      }
+    }
+  }
+
   const lowStock = (p: Product): boolean => p.minStock > 0 && p.stock <= p.minStock
 
   if (loading) return <p className="text-gray-500 p-4">Cargando...</p>
@@ -197,6 +223,18 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
                     className="text-green-600 hover:text-green-800 text-sm"
                   >
                     Stock
+                  </button>
+                  <button
+                    onClick={() => handleDeactivate(p)}
+                    className={`text-sm ${p.isActive ? 'text-yellow-600 hover:text-yellow-800' : 'text-green-600 hover:text-green-800'}`}
+                  >
+                    {p.isActive ? 'Desactivar' : 'Activar'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p)}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Eliminar
                   </button>
                 </td>
               </tr>

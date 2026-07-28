@@ -3,9 +3,10 @@ import { useState, useEffect, useCallback } from 'react'
 type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'
 
 export default function UpdateNotification(): React.ReactElement | null {
-  const [state, setState] = useState<{ status: UpdateStatus; version: string }>({
+  const [state, setState] = useState<{ status: UpdateStatus; version: string; progress: number }>({
     status: 'idle',
-    version: ''
+    version: '',
+    progress: 0
   })
   const [dismissed, setDismissed] = useState(false)
   const [error, setError] = useState('')
@@ -15,24 +16,24 @@ export default function UpdateNotification(): React.ReactElement | null {
       .getUpdateStatusAsync()
       .then((s) => {
         if (s.status === 'available' || s.status === 'downloaded') {
-          setState({ status: s.status as UpdateStatus, version: s.version })
+          setState({ status: s.status as UpdateStatus, version: s.version, progress: 0 })
         }
       })
       .catch(() => {})
 
     const onChecking = (): void => {
-      setState({ status: 'checking', version: '' })
+      setState({ status: 'checking', version: '', progress: 0 })
       setError('')
     }
     const onAvailable = (v: string): void => {
-      setState({ status: 'available', version: v })
+      setState({ status: 'available', version: v, progress: 0 })
       setDismissed(false)
     }
     const onNotAvailable = (): void => {
-      setState({ status: 'idle', version: '' })
+      setState({ status: 'idle', version: '', progress: 0 })
     }
-    const onProgress = (): void => {
-      setState((prev) => ({ ...prev, status: 'downloading' }))
+    const onProgress = (percent: number): void => {
+      setState((prev) => ({ ...prev, status: 'downloading', progress: percent }))
     }
     const onDownloaded = (): void => {
       setState((prev) => ({ ...prev, status: 'downloaded' }))
@@ -42,12 +43,18 @@ export default function UpdateNotification(): React.ReactElement | null {
       setError(err)
     }
 
-    window.api.onUpdateChecking(onChecking)
-    window.api.onUpdateAvailable(onAvailable)
-    window.api.onUpdateNotAvailable(onNotAvailable)
-    window.api.onUpdateProgress(onProgress)
-    window.api.onUpdateDownloaded(onDownloaded)
-    window.api.onUpdateError(onError)
+    const cleanups = [
+      window.api.onUpdateChecking(onChecking),
+      window.api.onUpdateAvailable(onAvailable),
+      window.api.onUpdateNotAvailable(onNotAvailable),
+      window.api.onUpdateProgress(onProgress),
+      window.api.onUpdateDownloaded(onDownloaded),
+      window.api.onUpdateError(onError)
+    ]
+
+    return () => {
+      cleanups.forEach((fn) => fn())
+    }
   }, [])
 
   const handleCheck = useCallback((): void => {
@@ -103,8 +110,8 @@ export default function UpdateNotification(): React.ReactElement | null {
               <p className="text-sm font-medium text-gray-900">Descargando actualización...</p>
               <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
                 <div
-                  className="bg-blue-600 h-1.5 rounded-full animate-pulse"
-                  style={{ width: '60%' }}
+                  className="bg-blue-600 h-1.5 rounded-full transition-all"
+                  style={{ width: `${state.progress}%` }}
                 />
               </div>
             </>

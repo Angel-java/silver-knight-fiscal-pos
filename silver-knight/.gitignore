@@ -1,6 +1,10 @@
 node_modules
 dist
 out
+.env
+.env.*
+!.env.example
+!.env.docker.example
 .DS_Store
 .eslintcache
 *.log*

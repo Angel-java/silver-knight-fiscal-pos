@@ -175,3 +175,20 @@ updated: 2026-07-11
 - **Archivos modificados**: `silver-knight/README.md`
 - **Contenido README**: stack tecnológico, prerequisitos (Node 20+, build tools), pasos de replicación (clone → env → install → prisma → dev), tabla de variables de entorno, scripts npm, modo Docker, estructura del proyecto, endpoints API, CI/CD pipeline, requisitos de hardware
 - **Commit**: `e09cf3c`
+
+## [2026-07-27] fix | Auto-updates, seguridad y repo público
+- **Descripción**: Revisión completa del sistema de auto-updates, corrección de bugs, integración de docker-updater, eliminación de secretos del código y historial de git, y migración a repo público.
+- **Archivos modificados**: `updater.ts`, `docker-updater.ts`, `index.ts`, `preload/index.ts`, `preload/index.d.ts`, `UpdateNotification.tsx`, `SettingsPage.tsx`, `autoAdmin.ts`, `Dockerfile`, `docker-compose.yml`, `start-dev.ts`, `.env.example`, `.env.docker.example`, `package.json`, `.gitignore`
+- **Archivos creados**: `scripts/setup.ts`, `updater.spec.ts`, `docker-updater.spec.ts`
+- **Cambios clave**:
+  - Progress bar real en UpdateNotification (antes hardcodeado a 60%)
+  - Cleanup de listeners IPC en preload y componentes React
+  - `getVersionAsync` para eliminar `sendSync` del renderer
+  - `docker-updater.ts` integrado al startup con feedback al splash
+  - 29 tests nuevos (110 total)
+  - Script `npm run setup` genera `.env` con credenciales seguras
+  - Secretos eliminados de código: PIN root, DB password, Dockerfile DATABASE_URL
+  - Historial de git reescrito con `git-filter-repo` (sin secretos)
+  - Repo migrado a público en GitHub
+- **Pendiente**: Revisar script de configuración para instalación en producción
+- **Commits**: `de363b2` (post reescritura)

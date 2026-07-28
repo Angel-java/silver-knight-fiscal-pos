@@ -1,8 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useAuth } from './contexts/useAuth'
 import type { PermissionModule } from './lib/api'
 import LoginPage from './pages/LoginPage'
 import SetupWizardPage from './pages/SetupWizardPage'
+import EnvSetupPage from './pages/EnvSetupPage'
 import DashboardPage from './pages/DashboardPage'
 import InventoryPage from './pages/InventoryPage'
 import ProductsPage from './pages/ProductsPage'
@@ -38,8 +40,33 @@ function ProtectedRoute({
 
 function App(): React.JSX.Element {
   const { user, company, loading } = useAuth()
+  const [envReady, setEnvReady] = useState<boolean | null>(null)
 
-  rlog('app', `render: loading=${loading}, company=${!!company}, user=${!!user}`)
+  useEffect(() => {
+    window.api.config.exists().then((exists) => {
+      setEnvReady(exists)
+    }).catch(() => {
+      setEnvReady(true)
+    })
+  }, [])
+
+  rlog('app', `render: loading=${loading}, company=${!!company}, user=${!!user}, envReady=${envReady}`)
+
+  if (envReady === null) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <p className="text-gray-500">Verificando configuración...</p>
+      </div>
+    )
+  }
+
+  if (!envReady) {
+    return (
+      <Routes>
+        <Route path="*" element={<EnvSetupPage />} />
+      </Routes>
+    )
+  }
 
   if (loading) {
     return (

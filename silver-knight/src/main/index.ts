@@ -13,9 +13,21 @@ import {
   waitForBackend,
   buildCompose,
   restartCompose,
-  launchDockerDesktop
+  launchDockerDesktop,
+  getServerContainerLogs,
+  getDbContainerStatus
 } from './docker'
 import { appUpdater } from './updater'
+import { checkAndRebuildServer } from './docker-updater'
+import {
+  ensureConfig,
+  readConfig,
+  saveConfigFromWizard,
+  migrateFromLegacy,
+  migrateConfig,
+  loadEnvForChild,
+  detectExistingDockerVolume
+} from './config'
 
 function getLogPath(): string {
   try {
@@ -268,10 +280,97 @@ app.whenReady().then(async () => {
 
   ipcMain.on('ping', () => log('ipc', 'pong'))
 
+  ipcMain.handle('config:exists', () => {
+    return ensureConfig()
+  })
+
+  ipcMain.handle('config:read', () => {
+    return readConfig()
+  })
+
+  ipcMain.handle('config:save', (_event, data: { rootPin: string; postgresPassword?: string }) => {
+    return saveConfigFromWizard(data)
+  })
+
+  ipcMain.handle('config:migrate', () => {
+    const legacy = migrateFromLegacy()
+    if (legacy) return true
+    return migrateConfig()
+  })
+
+  ipcMain.handle('config:has-existing-db', () => {
+    return detectExistingDockerVolume()
+  })
+
+  ipcMain.handle('config:start-backend', async () => {
+    log('config', 'Starting backend after wizard config')
+
+    const dockerRunning = await checkDockerRunning()
+    if (!dockerRunning) {
+      log('config', 'Docker is not running')
+      return { success: false, error: 'docker-not-running', message: 'Docker no está corriendo. Abre Docker Desktop y vuelve a intentar.' }
+    }
+
+    const result = await startCompose((line) => {
+      log('config', line)
+    })
+    if (!result.success) {
+      return { success: false, error: 'compose-failed', message: result.error || 'Error al iniciar Docker Compose' }
+    }
+
+    const envVars = loadEnvForChild()
+    const port = envVars['PORT'] || '3001'
+    const healthUrl = `http://localhost:${port}/api/health`
+    log('config', `Waiting for backend at ${healthUrl}`)
+
+    const backendStatus = await waitForBackend(healthUrl, 60000)
+    if (backendStatus === 'error') {
+      log('config', 'Backend failed to respond, checking container status...')
+
+      const dbStatus = await getDbContainerStatus()
+      log('config', `DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
+
+      const serverLogs = await getServerContainerLogs(20)
+      log('config', `Server logs:\n${serverLogs}`)
+
+      if (dbStatus.restarting || (dbStatus.health !== 'healthy' && dbStatus.health !== 'unknown')) {
+        const isAuthFailure = serverLogs.includes('password authentication failed') ||
+          serverLogs.includes('FATAL: password authentication failed') ||
+          serverLogs.includes('role "silverknight" does not exist') ||
+          serverLogs.includes('SCRAM authentication')
+
+        if (isAuthFailure) {
+          return {
+            success: false,
+            error: 'auth-failure',
+            message: 'La contraseña de PostgreSQL no coincide con la base de datos existente. Verifica la contraseña e intenta de nuevo.'
+          }
+        }
+      }
+
+      return {
+        success: false,
+        error: 'timeout',
+        message: 'El servidor tardó demasiado en responder. Verifica que Docker esté funcionando correctamente.',
+        logs: serverLogs.substring(0, 500)
+      }
+    }
+
+    return { success: true }
+  })
+
   ipcMain.on('splash-retry', async () => {
     sendSplash('splash-status', 'Reintentando...')
     const ok = await startBackend()
     if (ok) {
+      if (app.isPackaged) {
+        const rebuildResult = await checkAndRebuildServer((line) => {
+          sendSplash('splash-status', line)
+        })
+        if (rebuildResult.error) {
+          log('docker-updater', `Server rebuild failed on retry: ${rebuildResult.error}`)
+        }
+      }
       if (splashWindow && !splashWindow.isDestroyed()) {
         splashWindow.close()
       }
@@ -325,35 +424,68 @@ app.whenReady().then(async () => {
       return result
     })
 
-    const backendReady = await startBackend()
+    let needsEnvWizard = false
 
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.close()
-      splashWindow = null
-    }
-
-    if (!backendReady) {
-      app.quit()
-      return
-    }
-
-    mainWindow = createMainWindow()
-
-    appUpdater.setMainWindow(mainWindow)
-    try {
-      appUpdater.startAutoCheck()
-    } catch (err) {
-      log('updater', `startAutoCheck failed: ${err}`)
-    }
-    setTimeout(() => {
-      try {
-        appUpdater.checkForUpdates().catch((err) => {
-          log('updater', `checkForUpdates rejected: ${err}`)
-        })
-      } catch (err) {
-        log('updater', `checkForUpdates threw: ${err}`)
+    if (!ensureConfig()) {
+      log('startup', 'No config found, trying legacy migration...')
+      if (!migrateFromLegacy()) {
+        log('startup', 'No legacy config found, will show env wizard')
+        needsEnvWizard = true
+      } else {
+        log('startup', 'Legacy config migrated successfully')
       }
-    }, 15000)
+    } else {
+      log('startup', 'Config found')
+      migrateConfig()
+    }
+
+    if (needsEnvWizard) {
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.close()
+        splashWindow = null
+      }
+
+      mainWindow = createMainWindow()
+    } else {
+      const backendReady = await startBackend()
+
+      if (backendReady && app.isPackaged) {
+        const rebuildResult = await checkAndRebuildServer((line) => {
+          sendSplash('splash-status', line)
+        })
+        if (rebuildResult.error) {
+          log('docker-updater', `Server rebuild failed: ${rebuildResult.error}`)
+        }
+      }
+
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.close()
+        splashWindow = null
+      }
+
+      if (!backendReady) {
+        app.quit()
+        return
+      }
+
+      mainWindow = createMainWindow()
+
+      appUpdater.setMainWindow(mainWindow)
+      try {
+        appUpdater.startAutoCheck()
+      } catch (err) {
+        log('updater', `startAutoCheck failed: ${err}`)
+      }
+      setTimeout(() => {
+        try {
+          appUpdater.checkForUpdates().catch((err) => {
+            log('updater', `checkForUpdates rejected: ${err}`)
+          })
+        } catch (err) {
+          log('updater', `checkForUpdates threw: ${err}`)
+        }
+      }, 15000)
+    }
   } else {
     ipcMain.handle('docker:status', async () => {
       return { installed: true, running: true, version: 'dev' }
@@ -389,6 +521,7 @@ app.on('before-quit', () => {
   try {
     execSync('docker compose down', {
       cwd: dir,
+      env: { ...process.env, ...loadEnvForChild() } as NodeJS.ProcessEnv,
       timeout: 15000,
       stdio: 'ignore'
     })

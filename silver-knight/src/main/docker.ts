@@ -2,6 +2,7 @@ import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
 import path from 'path'
 import { app } from 'electron'
+import { loadEnvForChild } from './config'
 
 const execAsync = promisify(exec)
 
@@ -33,6 +34,10 @@ function getComposeDir(): string {
 
 function getComposeCmd(): string {
   return 'docker compose'
+}
+
+function getChildEnv(): Record<string, string> {
+  return { ...process.env, ...loadEnvForChild() } as Record<string, string>
 }
 
 export async function checkDockerInstalled(): Promise<DockerInfo> {
@@ -129,6 +134,7 @@ export async function startCompose(
   return new Promise((resolve) => {
     const proc = spawn('docker', ['compose', 'up', '-d', '--build'], {
       cwd: dir,
+      env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: true
     })
@@ -174,7 +180,7 @@ export async function stopCompose(): Promise<void> {
   log('compose', 'Stopping docker compose')
 
   try {
-    await execAsync(`${getComposeCmd()} down`, { cwd: dir, timeout: 30000 })
+    await execAsync(`${getComposeCmd()} down`, { cwd: dir, env: getChildEnv(), timeout: 30000 })
     log('compose', 'Docker compose stopped')
   } catch (err) {
     log('compose', `Error stopping compose: ${err}`)
@@ -190,6 +196,7 @@ export async function restartCompose(
   return new Promise((resolve) => {
     const proc = spawn('docker', ['compose', 'down'], {
       cwd: dir,
+      env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: true
     })
@@ -217,6 +224,7 @@ export async function buildCompose(
   return new Promise((resolve) => {
     const proc = spawn('docker', ['compose', 'build', '--no-cache'], {
       cwd: dir,
+      env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: true
     })
@@ -266,6 +274,7 @@ export async function pullImages(
   return new Promise((resolve) => {
     const proc = spawn('docker', ['compose', 'pull'], {
       cwd: dir,
+      env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: true
     })
@@ -304,6 +313,39 @@ export async function pullImages(
       resolve({ success: false, error: err.message })
     })
   })
+}
+
+export async function getServerContainerLogs(lines = 30): Promise<string> {
+  try {
+    const { stdout } = await execAsync(
+      `docker logs --tail ${lines} silverknight-server`,
+      { timeout: 5000 }
+    )
+    return stdout
+  } catch {
+    return ''
+  }
+}
+
+export async function getDbContainerStatus(): Promise<{
+  running: boolean
+  restarting: boolean
+  health: string
+}> {
+  try {
+    const { stdout } = await execAsync(
+      'docker inspect --format "{{.State.Status}} {{.State.Health.Status}} {{.RestartCount}}" silverknight-db',
+      { timeout: 5000 }
+    )
+    const [status, health, restartCount] = stdout.trim().split(' ')
+    return {
+      running: status === 'running',
+      restarting: (parseInt(restartCount) || 0) > 0,
+      health: health || 'unknown'
+    }
+  } catch {
+    return { running: false, restarting: false, health: 'unknown' }
+  }
 }
 
 export async function waitForBackend(

@@ -1,13 +1,38 @@
 import EmbeddedPostgres from 'embedded-postgres'
 import { execSync } from 'child_process'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 
-const PG_PORT = 55432
-const PG_USER = 'silverknight'
-const PG_PASSWORD = 'REDACTED_DB_PASS'
-const PG_DB = 'silverknight'
+const PG_PORT = Number(process.env['POSTGRES_PORT']) || 55432
+const PG_USER = process.env['POSTGRES_USER'] || 'silverknight'
+const PG_PASSWORD = process.env['POSTGRES_PASSWORD'] || loadPasswordFromEnv()
+const PG_DB = process.env['POSTGRES_DB'] || 'silverknight'
 const PG_DATA = join(process.cwd(), '.pgdata')
+
+function loadPasswordFromEnv(): string {
+  try {
+    const envPath = join(process.cwd(), '.env')
+    if (!existsSync(envPath)) return 'CHANGEME'
+    const content = readFileSync(envPath, 'utf-8')
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eqIndex = trimmed.indexOf('=')
+      if (eqIndex === -1) continue
+      const key = trimmed.slice(0, eqIndex).trim()
+      if (key === 'POSTGRES_PASSWORD') {
+        let value = trimmed.slice(eqIndex + 1).trim()
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1)
+        }
+        return value
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return 'CHANGEME'
+}
 
 async function main(): Promise<void> {
   console.log('[1/4] Starting embedded PostgreSQL...')

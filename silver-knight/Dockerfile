@@ -13,7 +13,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3001
-ENV DATABASE_URL=postgresql://silverknight:REDACTED_DB_PASS@db:5432/silverknight?schema=public
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/prisma ./prisma

@@ -189,4 +189,59 @@ router.patch('/:id/stock', validate(stockAdjustSchema), asyncHandler(async (req:
   res.json({ product: result })
 }))
 
+router.patch('/:id/deactivate', asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string
+  const product = await prisma.product.findUnique({ where: { id } })
+  if (!product) {
+    res.status(404).json({ error: 'Producto no encontrado' })
+    return
+  }
+  const updated = await prisma.product.update({
+    where: { id },
+    data: { isActive: !product.isActive },
+    include: {
+      category: { select: { id: true, name: true } },
+      supplier: { select: { id: true, name: true } }
+    }
+  })
+  res.json({ product: updated })
+}))
+
+router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id as string
+  const product = await prisma.product.findUnique({ where: { id } })
+  if (!product) {
+    res.status(404).json({ error: 'Producto no encontrado' })
+    return
+  }
+
+  const [invoiceItemCount, movementCount] = await Promise.all([
+    prisma.invoiceItem.count({ where: { productId: id } }),
+    prisma.inventoryMovement.count({ where: { productId: id } })
+  ])
+
+  const hasHistory = invoiceItemCount > 0 || movementCount > 0
+
+  if (hasHistory && req.user?.role !== 'root') {
+    res.status(403).json({
+      error: 'Solo el propietario puede eliminar productos con facturas o movimientos asociados',
+      invoiceCount: invoiceItemCount,
+      movementCount
+    })
+    return
+  }
+
+  if (hasHistory) {
+    await prisma.$transaction(async (tx) => {
+      await tx.invoiceItem.updateMany({ where: { productId: id }, data: { productId: null } })
+      await tx.inventoryMovement.deleteMany({ where: { productId: id } })
+      await tx.product.delete({ where: { id } })
+    })
+  } else {
+    await prisma.product.delete({ where: { id } })
+  }
+
+  res.json({ ok: true })
+}))
+
 export default router

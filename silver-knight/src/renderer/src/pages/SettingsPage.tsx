@@ -77,13 +77,14 @@ export default function SettingsPage(): JSX.Element {
   } | null>(null)
   const [editCompany, setEditCompany] = useState(false)
 
-  const [appVersion] = useState(() => {
-    try {
-      return window.api.getVersion()
-    } catch {
-      return 'dev'
-    }
-  })
+  const [appVersion, setAppVersion] = useState('dev')
+
+  useEffect(() => {
+    window.api
+      .getVersionAsync()
+      .then((v) => setAppVersion(v))
+      .catch(() => {})
+  }, [])
   const [dockerStatus, setDockerStatus] = useState<{
     installed: boolean
     running: boolean
@@ -220,20 +221,25 @@ export default function SettingsPage(): JSX.Element {
   }, [])
 
   useEffect(() => {
-    window.api.onUpdateAvailable((version) => {
-      setUpdateStatus('available')
-      setUpdateVersion(version)
-    })
-    window.api.onUpdateNotAvailable(() => {
-      setUpdateStatus('idle')
-    })
-    window.api.onUpdateProgress((percent) => {
-      setUpdateStatus('downloading')
-      setUpdateProgress(percent)
-    })
-    window.api.onUpdateDownloaded(() => {
-      setUpdateStatus('downloaded')
-    })
+    const cleanups = [
+      window.api.onUpdateAvailable((version) => {
+        setUpdateStatus('available')
+        setUpdateVersion(version)
+      }),
+      window.api.onUpdateNotAvailable(() => {
+        setUpdateStatus('idle')
+      }),
+      window.api.onUpdateProgress((percent) => {
+        setUpdateStatus('downloading')
+        setUpdateProgress(percent)
+      }),
+      window.api.onUpdateDownloaded(() => {
+        setUpdateStatus('downloaded')
+      })
+    ]
+    return () => {
+      cleanups.forEach((fn) => fn())
+    }
   }, [])
 
   useEffect(() => {

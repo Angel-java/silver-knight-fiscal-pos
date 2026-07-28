@@ -10,6 +10,15 @@ interface DockerAPI {
   rebuild: () => Promise<{ success: boolean; error?: string }>
 }
 
+interface ConfigAPI {
+  exists: () => Promise<boolean>
+  read: () => Promise<Record<string, string>>
+  save: (data: { rootPin: string; postgresPassword?: string }) => Promise<Record<string, string>>
+  migrate: () => Promise<boolean>
+  hasExistingDb: () => Promise<boolean>
+  startBackend: () => Promise<{ success: boolean; error?: string; message?: string; logs?: string }>
+}
+
 interface SilverKnightAPI {
   checkForUpdates: () => void
   downloadUpdate: () => void
@@ -17,13 +26,15 @@ interface SilverKnightAPI {
   getUpdateStatus: () => { status: string; version: string; error: string }
   getUpdateStatusAsync: () => Promise<{ status: string; version: string; error: string }>
   getVersion: () => string
-  onUpdateAvailable: (callback: (version: string) => void) => void
-  onUpdateNotAvailable: (callback: () => void) => void
-  onUpdateProgress: (callback: (percent: number) => void) => void
-  onUpdateDownloaded: (callback: () => void) => void
-  onUpdateError: (callback: (error: string) => void) => void
-  onUpdateChecking: (callback: () => void) => void
+  getVersionAsync: () => Promise<string>
+  onUpdateAvailable: (callback: (version: string) => void) => (() => void)
+  onUpdateNotAvailable: (callback: () => void) => (() => void)
+  onUpdateProgress: (callback: (percent: number) => void) => (() => void)
+  onUpdateDownloaded: (callback: () => void) => (() => void)
+  onUpdateError: (callback: (error: string) => void) => (() => void)
+  onUpdateChecking: (callback: () => void) => (() => void)
   docker: DockerAPI
+  config: ConfigAPI
 }
 
 declare global {

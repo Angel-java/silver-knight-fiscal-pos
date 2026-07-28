@@ -289,7 +289,13 @@ export const api = {
       request<{ product: Product }>(`/products/${id}/stock`, {
         method: 'PATCH',
         body: JSON.stringify({ quantity, type })
-      })
+      }),
+
+    deactivate: (id: string) =>
+      request<{ product: Product }>(`/products/${id}/deactivate`, { method: 'PATCH' }),
+
+    delete: (id: string) =>
+      request<{ ok: boolean }>(`/products/${id}`, { method: 'DELETE' })
   },
 
   settings: {

@@ -39,7 +39,10 @@ export default function ProductGrid({
                 : 'border-transparent hover:border-primary/30'
             } p-2 sm:p-4`}
           >
-            <p className="font-medium text-gray-800 truncate text-sm sm:text-base">{p.name}</p>
+            <p className="font-medium text-gray-800 line-clamp-2 text-sm sm:text-base">{p.name}</p>
+            {p.category && (
+              <p className="text-xs text-gray-400 mt-0.5">{p.category.name}</p>
+            )}
             <p className="text-base sm:text-lg font-bold text-primary mt-0.5 sm:mt-1">
               ${p.priceUsd.toFixed(2)}
             </p>

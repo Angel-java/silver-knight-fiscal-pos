@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
 
+let mockUserRole = 'admin'
+
 vi.mock('../../database/prisma', () => ({
   prisma: {
     product: {
@@ -9,10 +11,17 @@ vi.mock('../../database/prisma', () => ({
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
       count: vi.fn()
     },
+    invoiceItem: {
+      count: vi.fn(),
+      updateMany: vi.fn()
+    },
     inventoryMovement: {
-      create: vi.fn()
+      create: vi.fn(),
+      count: vi.fn(),
+      deleteMany: vi.fn()
     },
     $transaction: vi.fn()
   }
@@ -20,7 +29,7 @@ vi.mock('../../database/prisma', () => ({
 
 vi.mock('../../middleware/auth', () => ({
   authMiddleware: (req: any, _res: any, next: any) => {
-    req.user = { userId: 'test-user', username: 'test', role: 'admin' }
+    req.user = { userId: 'test-user', username: 'test', role: mockUserRole }
     next()
   },
   requirePermission: () => (_req: any, _res: any, next: any) => {
@@ -42,6 +51,7 @@ function createApp() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockUserRole = 'admin'
 })
 
 describe('GET /api/products', () => {
@@ -231,5 +241,97 @@ describe('PATCH /api/products/:id/stock', () => {
       .send({ quantity: 1, type: 'in' })
 
     expect(res.status).toBe(404)
+  })
+})
+
+describe('PATCH /api/products/:id/deactivate', () => {
+  it('toggles isActive from true to false', async () => {
+    vi.mocked(prisma.product.findUnique).mockResolvedValue({ id: 'p-1', isActive: true } as any)
+    vi.mocked(prisma.product.update).mockResolvedValue({ id: 'p-1', isActive: false, category: null } as any)
+
+    const res = await request(createApp()).patch('/api/products/p-1/deactivate')
+
+    expect(res.status).toBe(200)
+    expect(res.body.product.isActive).toBe(false)
+    expect(prisma.product.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'p-1' }, data: { isActive: false } })
+    )
+  })
+
+  it('toggles isActive from false to true', async () => {
+    vi.mocked(prisma.product.findUnique).mockResolvedValue({ id: 'p-1', isActive: false } as any)
+    vi.mocked(prisma.product.update).mockResolvedValue({ id: 'p-1', isActive: true, category: null } as any)
+
+    const res = await request(createApp()).patch('/api/products/p-1/deactivate')
+
+    expect(res.status).toBe(200)
+    expect(res.body.product.isActive).toBe(true)
+  })
+
+  it('returns 404 when product not found', async () => {
+    vi.mocked(prisma.product.findUnique).mockResolvedValue(null)
+
+    const res = await request(createApp()).patch('/api/products/nope/deactivate')
+
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('DELETE /api/products/:id', () => {
+  it('deletes product without history', async () => {
+    vi.mocked(prisma.product.findUnique).mockResolvedValue({ id: 'p-1' } as any)
+    vi.mocked(prisma.invoiceItem.count).mockResolvedValue(0)
+    vi.mocked(prisma.inventoryMovement.count).mockResolvedValue(0)
+    vi.mocked(prisma.product.delete).mockResolvedValue({} as any)
+
+    const res = await request(createApp()).delete('/api/products/p-1')
+
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    expect(prisma.product.delete).toHaveBeenCalledWith({ where: { id: 'p-1' } })
+  })
+
+  it('returns 404 when product not found', async () => {
+    vi.mocked(prisma.product.findUnique).mockResolvedValue(null)
+
+    const res = await request(createApp()).delete('/api/products/nope')
+
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 403 when product has history and user is not root', async () => {
+    mockUserRole = 'admin'
+    vi.mocked(prisma.product.findUnique).mockResolvedValue({ id: 'p-1' } as any)
+    vi.mocked(prisma.invoiceItem.count).mockResolvedValue(3)
+    vi.mocked(prisma.inventoryMovement.count).mockResolvedValue(1)
+
+    const res = await request(createApp()).delete('/api/products/p-1')
+
+    expect(res.status).toBe(403)
+    expect(res.body.error).toContain('propietario')
+    expect(res.body.invoiceCount).toBe(3)
+    expect(res.body.movementCount).toBe(1)
+  })
+
+  it('root deletes product with history via transaction', async () => {
+    mockUserRole = 'root'
+    vi.mocked(prisma.product.findUnique).mockResolvedValue({ id: 'p-1' } as any)
+    vi.mocked(prisma.invoiceItem.count).mockResolvedValue(2)
+    vi.mocked(prisma.inventoryMovement.count).mockResolvedValue(1)
+
+    const tx = {
+      invoiceItem: { updateMany: vi.fn().mockResolvedValue({}) },
+      inventoryMovement: { deleteMany: vi.fn().mockResolvedValue({}) },
+      product: { delete: vi.fn().mockResolvedValue({}) }
+    }
+    vi.mocked(prisma.$transaction).mockImplementation((cb: any) => cb(tx))
+
+    const res = await request(createApp()).delete('/api/products/p-1')
+
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    expect(tx.invoiceItem.updateMany).toHaveBeenCalledWith({ where: { productId: 'p-1' }, data: { productId: null } })
+    expect(tx.inventoryMovement.deleteMany).toHaveBeenCalledWith({ where: { productId: 'p-1' } })
+    expect(tx.product.delete).toHaveBeenCalledWith({ where: { id: 'p-1' } })
   })
 })

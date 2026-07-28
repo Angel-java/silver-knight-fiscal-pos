@@ -13,8 +13,31 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
 
   useEffect(() => {
     rlog('auth', 'AuthProvider init: loading=' + loading)
+
+    const waitForServer = async (maxRetries = 10, delayMs = 2000): Promise<boolean> => {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          rlog('auth', `Health check attempt ${i + 1}/${maxRetries}`)
+          await api.health()
+          return true
+        } catch {
+          rlog('auth', `Server not ready, retrying in ${delayMs}ms...`)
+          await new Promise((r) => setTimeout(r, delayMs))
+        }
+      }
+      return false
+    }
+
     const init = async (): Promise<void> => {
       try {
+        const serverReady = await waitForServer()
+        if (!serverReady) {
+          rlog('auth', 'Server did not become ready after retries')
+          setLoading(false)
+          return
+        }
+
+        rlog('auth', 'Server is ready, fetching data...')
         const companyRes = await api.getCompany()
         rlog('auth', `getCompany: ${JSON.stringify(companyRes.company)}`)
         setCompany(companyRes.company)

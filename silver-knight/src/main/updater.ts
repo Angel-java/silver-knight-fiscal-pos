@@ -90,6 +90,10 @@ export class AppUpdater {
     ipcMain.on('get-app-version', (event) => {
       event.returnValue = app.getVersion()
     })
+
+    ipcMain.handle('get-app-version', () => {
+      return app.getVersion()
+    })
   }
 
   private send(channel: string, ...args: unknown[]): void {
