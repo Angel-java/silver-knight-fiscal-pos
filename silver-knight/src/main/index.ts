@@ -263,8 +263,21 @@ function createMainWindow(): BrowserWindow {
   return win
 }
 
-app.whenReady().then(async () => {
-  electronApp.setAppUserModelId('com.silverknight.pos')
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    log('startup', 'Second instance detected, focusing main window')
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+
+  app.whenReady().then(async () => {
+    electronApp.setAppUserModelId('com.silverknight.pos')
 
   if (!is.dev) {
     // CSP now handled via webSecurity: false in BrowserWindow
@@ -509,7 +522,8 @@ app.whenReady().then(async () => {
       appUpdater.setMainWindow(mainWindow)
     }
   })
-})
+  })
+}
 
 app.on('before-quit', () => {
   log('shutdown', 'App quitting, stopping Docker compose...')

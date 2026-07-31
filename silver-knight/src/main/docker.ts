@@ -125,54 +125,90 @@ export async function checkComposeStatus(): Promise<ComposeInfo> {
   }
 }
 
+export async function cleanupStaleContainers(): Promise<void> {
+  try {
+    const { stdout } = await execAsync('docker ps -aq --filter name=silverknight', {
+      timeout: 10000
+    })
+    const ids = stdout
+      .trim()
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (ids.length > 0) {
+      log('cleanup', `Removing stale containers: ${ids.join(', ')}`)
+      await execAsync(`docker rm -f ${ids.join(' ')}`, { timeout: 20000 })
+      log('cleanup', 'Stale containers removed')
+    }
+  } catch (err) {
+    log('cleanup', `Cleanup error: ${err}`)
+  }
+}
+
 export async function startCompose(
   onOutput?: (line: string) => void
 ): Promise<{ success: boolean; error?: string }> {
   const dir = getComposeDir()
   log('compose', `Starting docker compose in ${dir}`)
 
-  return new Promise((resolve) => {
-    const proc = spawn('docker', ['compose', 'up', '-d', '--build'], {
-      cwd: dir,
-      env: getChildEnv(),
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: true
+  const run = (): Promise<{ success: boolean; error?: string }> =>
+    new Promise((resolve) => {
+      const proc = spawn('docker', ['compose', 'up', '-d', '--build'], {
+        cwd: dir,
+        env: getChildEnv(),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: true
+      })
+
+      let stderr = ''
+
+      proc.stdout.on('data', (data: Buffer) => {
+        const line = data.toString().trim()
+        if (line) {
+          log('compose', line)
+          onOutput?.(line)
+        }
+      })
+
+      proc.stderr.on('data', (data: Buffer) => {
+        const line = data.toString().trim()
+        if (line) {
+          stderr += line + '\n'
+          log('compose', `[stderr] ${line}`)
+          onOutput?.(line)
+        }
+      })
+
+      proc.on('close', (code) => {
+        if (code === 0) {
+          log('compose', 'Docker compose started successfully')
+          resolve({ success: true })
+        } else {
+          log('compose', `Docker compose failed with code ${code}`)
+          resolve({ success: false, error: stderr || `Exit code ${code}` })
+        }
+      })
+
+      proc.on('error', (err) => {
+        log('compose', `Spawn error: ${err.message}`)
+        resolve({ success: false, error: err.message })
+      })
     })
 
-    let stderr = ''
+  const result = await run()
 
-    proc.stdout.on('data', (data: Buffer) => {
-      const line = data.toString().trim()
-      if (line) {
-        log('compose', line)
-        onOutput?.(line)
-      }
-    })
+  if (
+    !result.success &&
+    result.error &&
+    /conflict|already in use|already in progress/i.test(result.error)
+  ) {
+    log('compose', 'Container name conflict detected, cleaning stale containers and retrying...')
+    onOutput?.('Limpiando contenedores obsoletos...')
+    await cleanupStaleContainers()
+    return run()
+  }
 
-    proc.stderr.on('data', (data: Buffer) => {
-      const line = data.toString().trim()
-      if (line) {
-        stderr += line + '\n'
-        log('compose', `[stderr] ${line}`)
-        onOutput?.(line)
-      }
-    })
-
-    proc.on('close', (code) => {
-      if (code === 0) {
-        log('compose', 'Docker compose started successfully')
-        resolve({ success: true })
-      } else {
-        log('compose', `Docker compose failed with code ${code}`)
-        resolve({ success: false, error: stderr || `Exit code ${code}` })
-      }
-    })
-
-    proc.on('error', (err) => {
-      log('compose', `Spawn error: ${err.message}`)
-      resolve({ success: false, error: err.message })
-    })
-  })
+  return result
 }
 
 export async function stopCompose(): Promise<void> {
