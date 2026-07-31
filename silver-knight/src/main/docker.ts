@@ -151,6 +151,9 @@ export async function startCompose(
   const dir = getComposeDir()
   log('compose', `Starting docker compose in ${dir}`)
 
+  log('compose', 'Removing stale containers before start...')
+  await cleanupStaleContainers()
+
   const run = (): Promise<{ success: boolean; error?: string }> =>
     new Promise((resolve) => {
       const proc = spawn('docker', ['compose', 'up', '-d', '--build'], {
@@ -200,7 +203,9 @@ export async function startCompose(
   if (
     !result.success &&
     result.error &&
-    /conflict|already in use|already in progress/i.test(result.error)
+    /conflict|already in use|already in progress|port is already allocated|address already in use/i.test(
+      result.error
+    )
   ) {
     log('compose', 'Container name conflict detected, cleaning stale containers and retrying...')
     onOutput?.('Limpiando contenedores obsoletos...')

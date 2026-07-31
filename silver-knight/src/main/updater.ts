@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater, type UpdateInfo } from 'electron-updater'
+import { stopCompose } from './docker'
 
 function log(tag: string, msg: string): void {
   console.log(`[updater] [${tag}] ${msg}`)
@@ -131,9 +132,15 @@ export class AppUpdater {
     }
   }
 
-  installUpdate(): void {
+  async installUpdate(): Promise<void> {
     if (this.status !== 'downloaded') return
     log('install', 'Quitting and installing update...')
+    try {
+      log('install', 'Stopping docker compose before update...')
+      await stopCompose()
+    } catch (err) {
+      log('install', `Error stopping compose before update: ${err}`)
+    }
     autoUpdater.quitAndInstall(false, true)
   }
 

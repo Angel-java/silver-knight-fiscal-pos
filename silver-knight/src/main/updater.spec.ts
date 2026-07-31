@@ -25,7 +25,12 @@ vi.mock('electron-updater', () => ({
   autoUpdater: mockAutoUpdater
 }))
 
+vi.mock('./docker', () => ({
+  stopCompose: vi.fn().mockResolvedValue(undefined)
+}))
+
 import { AppUpdater } from './updater'
+import { stopCompose } from './docker'
 
 describe('AppUpdater', () => {
   let updater: AppUpdater
@@ -139,13 +144,19 @@ describe('AppUpdater', () => {
     expect(updater.getStatus().error).toBe('disk full')
   })
 
-  it('installUpdate proceeds only when status is downloaded', () => {
-    updater.installUpdate()
+  it('installUpdate proceeds only when status is downloaded', async () => {
+    await updater.installUpdate()
     expect(mockAutoUpdater.quitAndInstall).not.toHaveBeenCalled()
 
     eventHandlers['update-downloaded']()
-    updater.installUpdate()
+    await updater.installUpdate()
     expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true)
+  })
+
+  it('installUpdate stops docker compose before quitting', async () => {
+    eventHandlers['update-downloaded']()
+    await updater.installUpdate()
+    expect(stopCompose).toHaveBeenCalled()
   })
 
   it('send does not crash when mainWindow is null', () => {
