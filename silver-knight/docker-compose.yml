@@ -43,12 +43,16 @@ services:
     # Para impresora térmica CUPS:
     #   volumes:
     #     - /var/run/cups:/var/run/cups
+    volumes:
+      - schema-state:/schema-state
     networks:
       - silverknight
 
 volumes:
   pgdata:
     name: silverknight-pgdata
+  schema-state:
+    name: silverknight-schema-state
 
 networks:
   silverknight:

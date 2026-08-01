@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-07-06
+updated: 2026-07-31
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -29,6 +29,7 @@ updated: 2026-07-06
 - [[dual-currency|Dual Currency]] — Manejo nativo de USD/VES
 - [[fiscal-compliance|Fiscal Compliance (SENIAT)]] — Cumplimiento fiscal venezolano
 - [[offline-first|Offline-first]] — Arquitectura sin dependencia de internet
+- [[docker-deployment|Docker Deployment]] — Modelo de deployment offline-capable (v1.1.5)
 
 ## Fuentes ingeridas
 - [[plan-vision|Plan — Visión del Proyecto]]
@@ -43,3 +44,4 @@ updated: 2026-07-06
 
 ## Queries y análisis
 - [[auditoria-arquitectura|Auditoría de Arquitectura — Julio 2026]] — Revisión completa del código base, 17 dimensiones evaluadas
+- [[diagnostico-error-3001-post-update|Diagnóstico — Error 3001 post-update]] — Causas raíz del backend que no responde tras actualizar (v1.1.6)

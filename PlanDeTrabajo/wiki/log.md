@@ -2,7 +2,7 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-07-11
+updated: 2026-07-31
 ---
 
 # Log de operaciones — Silver Knight
@@ -192,3 +192,29 @@ updated: 2026-07-11
   - Repo migrado a público en GitHub
 - **Pendiente**: Revisar script de configuración para instalación en producción
 - **Commits**: `de363b2` (post reescritura)
+
+## [2026-07-31] build | v1.1.5 publicada — Docker offline + imagen de servidor cacheable
+- **Descripción**: Eliminación de la causa raíz del error de puerto 3001 en la máquina desplegada. Cada arranque corría `docker compose up -d --build`, y la capa de deps del Dockerfile (`COPY package.json → npm ci`) se invalidaba en cada bump de versión de la app (el `package.json` de `resources/` contiene la versión). En la máquina desplegada (acceso lento a registry) el build fallaba → backend nunca arrancaba.
+- **Cambios clave**:
+  - `startCompose` ahora corre `docker compose up -d` **sin `--build`** — arranques normales offline e instantáneos con la imagen cacheada
+  - Nuevo `server/package.json` + `server/package-lock.json` (solo deps del servidor, versión fija `1.0.0`): la capa `npm ci` ya no se invalida con releases de la app; rebuilds post-update son capas locales rápidas
+  - `Dockerfile`: stage `deps` usa `server/package.json`/`lock`; schema copiado después del `npm ci`
+  - `ensureServerImage` (`server-image.ts`): rebuild solo cuando cambia la versión de la app; sentinel `.server-version` movido a `userData` (`%APPDATA%`, escribible incluso bajo `Program Files`); fallo de rebuild NO fatal → la app cae a la imagen existente en vez de errorear
+  - Diálogos de fallo con botón **"Copiar diagnóstico"** (docker ps + logs del contenedor + tail de `main.log` → portapapeles) para que el operador de la máquina desplegada pueda enviar la causa real
+- **Verificación local E2E**: sentinel vacío → rebuild cacheado (4s) → `up -d` offline → backend listo en ~22s → app estable. `npx vitest run` 110/110, typecheck limpio, `docker compose build` segunda vez 100% CACHED en 0.2s
+- **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.5
+- **Commit**: `54d3626`
+- **Pendiente**: confirmar en la máquina desplegada; si falla, que el operador envíe el diagnóstico copiado o `%APPDATA%\silver-knight\logs\main.log`
+
+## [2026-07-31] fix | v1.1.6 — causas raíz del error 3001 post-update (confirmado en máquina desplegada)
+- **Fuente**: operador de máquina desplegada — splash pegado en "Esperando al servidor" → timeout → diálogo puerto 3001
+- **Páginas tocadas**: [[docker-deployment]], [[diagnostico-error-3001-post-update]], [[index]]
+- **Resumen**: el `up -d` ya devolvía OK pero el backend no respondía en 120s. Causas: (1) `before-quit` corría `docker compose down` sin `COMPOSE_PROJECT_NAME` → no-op → Postgres nunca se apagaba limpio; (2) `cleanupStaleContainers` hacía `rm -f` de la DB en cada arranque → crash recovery lento sobre volumen de producción; (3) `/api/health` dependía de la DB → health checks fallaban durante recuperación; (4) `up -d` no reportaba crash-loops del contenedor server; (5) `prisma db push` corría en cada arranque
+- **Cambios clave**:
+  - `index.ts`: `before-quit` con `COMPOSE_PROJECT_NAME=silverknight` (shutdown graceful real); arranque usa `waitForBackendWithContainerCheck` (180s) que detecta contenedor `exited/restarting` y muestra sus logs de inmediato; `gatherDiagnostics` con `docker compose ps` + estado del contenedor server
+  - `docker.ts`: `cleanupStaleContainers` excluye `silverknight-db`; `startCompose` limpia solo en conflicto; helpers `getServerContainerState`/`getComposePsText`; `waitForBackend` default 180s + log
+  - `server/index.ts`: `/api/health` liveness inmediato sin DB; `/api/health/db` nuevo (503 si DB caída)
+  - `updater.ts`: pre-warm del cache Docker (pull + build) antes de `quitAndInstall`
+  - `docker-entrypoint.sh` + `docker-compose.yml`: `prisma db push` solo cuando cambia el hash de `schema.prisma` (volumen `silverknight-schema-state`)
+- **Verificación**: `npx vitest run` 113/113 (3 tests nuevos de pre-warm), typecheck limpio, lint sin errores nuevos
+- **Pendiente**: publicar v1.1.6 y confirmar en la máquina desplegada; si vuelve a fallar, capturar "Copiar diagnóstico" (ahora incluye compose ps + estado del contenedor)

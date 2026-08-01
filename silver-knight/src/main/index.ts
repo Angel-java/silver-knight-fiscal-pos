@@ -11,10 +11,13 @@ import {
   startCompose,
   stopCompose,
   waitForBackend,
+  waitForBackendWithContainerCheck,
   buildCompose,
   restartCompose,
   launchDockerDesktop,
   getServerContainerLogs,
+  getServerContainerState,
+  getComposePsText,
   getDbContainerStatus,
   getComposeContainers
 } from './docker'
@@ -94,8 +97,13 @@ async function gatherDiagnostics(): Promise<string> {
     lines.push(`docker ps failed: ${err}`)
   }
   lines.push('')
+  lines.push('--- docker compose ps ---')
+  lines.push(await getComposePsText())
+  lines.push('')
   const dbStatus = await getDbContainerStatus()
   lines.push(`DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
+  const serverState = await getServerContainerState()
+  lines.push(`Server container: running=${serverState.running}, status=${serverState.status}, restarts=${serverState.restarts}`)
   lines.push('')
   lines.push('--- silverknight-server logs (last 50) ---')
   lines.push((await getServerContainerLogs(50)) || '(no logs available)')
@@ -247,20 +255,27 @@ async function startBackend(): Promise<boolean> {
   const port = process.env['PORT'] || '3001'
   const healthUrl = `http://localhost:${port}/api/health`
 
-  const backendStatus = await waitForBackend(healthUrl, 120000, (attempt) => {
+  const backendResult = await waitForBackendWithContainerCheck(healthUrl, 180000, (attempt) => {
     const pct = Math.min(80 + attempt * 2, 98)
     sendSplash('splash-progress', pct)
   })
 
-  if (backendStatus === 'error') {
-    log('startup', 'Backend failed to start')
+  if (backendResult.status !== 'ready') {
+    log('startup', `Backend failed to start: ${backendResult.status}`)
     await dumpBackendDiagnostics()
+
+    const serverLogs = (await getServerContainerLogs(50)) || '(sin logs disponibles)'
+
+    const detail =
+      backendResult.status === 'container-crashed'
+        ? `El contenedor del servidor no está corriendo (estado: ${backendResult.containerState}, reinicios: ${backendResult.restarts}).\n\nÚltimos logs del contenedor:\n${serverLogs.slice(0, 800)}`
+        : `El backend tardó demasiado en iniciar. Verifica que el puerto ${port} no esté en uso.\n\nÚltimos logs del contenedor:\n${serverLogs.slice(0, 500)}`
 
     const retry = await dialog.showMessageBox({
       type: 'error',
       title: 'Servidor no responde',
-      message: 'El backend tardó demasiado en iniciar.',
-      detail: 'Verifica que el puerto 3001 no esté en uso.',
+      message: 'El backend no está respondiendo.',
+      detail,
       buttons: ['Reintentar', 'Copiar diagnóstico', 'Salir'],
       defaultId: 0,
       cancelId: 2
@@ -403,7 +418,7 @@ if (!gotTheLock) {
     const healthUrl = `http://localhost:${port}/api/health`
     log('config', `Waiting for backend at ${healthUrl}`)
 
-    const backendStatus = await waitForBackend(healthUrl, 120000)
+    const backendStatus = await waitForBackend(healthUrl, 180000)
     if (backendStatus === 'error') {
       log('config', 'Backend failed to respond, checking container status...')
 
@@ -585,7 +600,11 @@ app.on('before-quit', () => {
   try {
     execSync('docker compose down', {
       cwd: dir,
-      env: { ...process.env, ...loadEnvForChild() } as NodeJS.ProcessEnv,
+      env: {
+        ...process.env,
+        ...loadEnvForChild(),
+        COMPOSE_PROJECT_NAME: 'silverknight'
+      } as NodeJS.ProcessEnv,
       timeout: 15000,
       stdio: 'ignore'
     })

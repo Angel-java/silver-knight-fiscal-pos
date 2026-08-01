@@ -128,17 +128,30 @@ export async function checkComposeStatus(): Promise<ComposeInfo> {
 
 export async function cleanupStaleContainers(): Promise<void> {
   try {
-    const { stdout } = await execAsync('docker ps -aq --filter name=silverknight', {
-      timeout: 10000
-    })
-    const ids = stdout
-      .trim()
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-    if (ids.length > 0) {
-      log('cleanup', `Removing stale containers: ${ids.join(', ')}`)
-      await execAsync(`docker rm -f ${ids.join(' ')}`, { timeout: 20000 })
+    const { stdout } = await execAsync(
+      'docker ps -a --filter name=silverknight --format "{{.ID}} {{.Names}}"',
+      { timeout: 10000 }
+    )
+
+    const toRemove: string[] = []
+    for (
+      const line of stdout
+        .trim()
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    ) {
+      const [id, name] = line.split(/\s+/, 2)
+      // Never force-kill the DB container: `docker rm -f` on Postgres leaves an
+      // unclean shutdown that forces crash recovery on the next start, which is
+      // slow with a production-sized pgdata volume. Compose up reconciles it.
+      if (name === 'silverknight-db') continue
+      if (id) toRemove.push(id)
+    }
+
+    if (toRemove.length > 0) {
+      log('cleanup', `Removing stale containers: ${toRemove.join(', ')}`)
+      await execAsync(`docker rm -f ${toRemove.join(' ')}`, { timeout: 20000 })
       log('cleanup', 'Stale containers removed')
     }
   } catch (err) {
@@ -151,9 +164,6 @@ export async function startCompose(
 ): Promise<{ success: boolean; error?: string }> {
   const dir = getComposeDir()
   log('compose', `Starting docker compose in ${dir}`)
-
-  log('compose', 'Removing stale containers before start...')
-  await cleanupStaleContainers()
 
   const run = (): Promise<{ success: boolean; error?: string }> =>
     new Promise((resolve) => {
@@ -402,9 +412,43 @@ export async function getDbContainerStatus(): Promise<{
   }
 }
 
+export async function getServerContainerState(): Promise<{
+  running: boolean
+  status: string
+  restarts: number
+}> {
+  try {
+    const { stdout } = await execAsync(
+      'docker inspect --format "{{.State.Status}} {{.RestartCount}}" silverknight-server',
+      { timeout: 5000 }
+    )
+    const [status, restartCount] = stdout.trim().split(/\s+/)
+    return {
+      running: status === 'running',
+      status: status || 'unknown',
+      restarts: parseInt(restartCount || '0', 10) || 0
+    }
+  } catch {
+    return { running: false, status: 'unknown', restarts: 0 }
+  }
+}
+
+export async function getComposePsText(): Promise<string> {
+  try {
+    const { stdout } = await execAsync(`${getComposeCmd()} ps --format json`, {
+      cwd: getComposeDir(),
+      env: getChildEnv(),
+      timeout: 8000
+    })
+    return stdout.trim()
+  } catch (err) {
+    return `docker compose ps failed: ${err}`
+  }
+}
+
 export async function waitForBackend(
   url: string,
-  timeoutMs = 60000,
+  timeoutMs = 180000,
   onProgress?: (attempt: number) => void
 ): Promise<BackendStatus> {
   log('backend', `Waiting for backend at ${url} (timeout: ${timeoutMs}ms)`)
@@ -423,9 +467,70 @@ export async function waitForBackend(
     } catch {
       // not ready yet
     }
+    if (attempt % 10 === 0) {
+      log(
+        'backend',
+        `Still waiting for backend (attempt ${attempt}, elapsed ${Date.now() - start}ms)`
+      )
+    }
     await new Promise((r) => setTimeout(r, 2000))
   }
 
   log('backend', 'Backend timeout')
   return 'error'
+}
+
+export type BackendStartResult =
+  | { status: 'ready' }
+  | { status: 'container-crashed'; containerState: string; restarts: number }
+  | { status: 'timeout' }
+
+export async function waitForBackendWithContainerCheck(
+  url: string,
+  timeoutMs = 180000,
+  onProgress?: (attempt: number) => void
+): Promise<BackendStartResult> {
+  log('backend', `Waiting for backend at ${url} (timeout: ${timeoutMs}ms)`)
+  const start = Date.now()
+  let attempt = 0
+
+  while (Date.now() - start < timeoutMs) {
+    attempt++
+    onProgress?.(attempt)
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
+      if (res.ok) {
+        log('backend', `Backend ready after ${attempt} attempts`)
+        return { status: 'ready' }
+      }
+    } catch {
+      // not ready yet
+    }
+
+    if (attempt >= 3 && attempt % 2 === 0) {
+      const state = await getServerContainerState()
+      if (!state.running) {
+        log(
+          'backend',
+          `Server container crashed: status=${state.status}, restarts=${state.restarts}`
+        )
+        return {
+          status: 'container-crashed',
+          containerState: state.status,
+          restarts: state.restarts
+        }
+      }
+    }
+
+    if (attempt % 10 === 0) {
+      log(
+        'backend',
+        `Still waiting for backend (attempt ${attempt}, elapsed ${Date.now() - start}ms)`
+      )
+    }
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+
+  log('backend', 'Backend timeout')
+  return { status: 'timeout' }
 }

@@ -209,7 +209,7 @@ export const api = {
 
   getCompany: () => request<{ company: Company | null }>('/auth/company'),
 
-  health: () => request<{ ok: boolean; service: string; companyCount: number }>('/health'),
+  health: () => request<{ ok: boolean; service: string; companyCount?: number }>('/health'),
 
   deploy: () =>
     request<{ success: boolean; output: string }>('/deploy', { method: 'POST' }),

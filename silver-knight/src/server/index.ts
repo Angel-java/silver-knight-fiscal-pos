@@ -54,9 +54,19 @@ export async function createServer(): Promise<ReturnType<typeof express>> {
 
   await autoCreateRoot()
 
-  app.get('/api/health', async (_req: Request, res: Response) => {
-    const companyCount = await prisma.company.count()
-    res.json({ ok: true, service: 'silver-knight-api', companyCount })
+  app.get('/api/health', (_req: Request, res: Response) => {
+    res.json({ ok: true, service: 'silver-knight-api' })
+  })
+
+  app.get('/api/health/db', async (_req: Request, res: Response) => {
+    try {
+      const companyCount = await prisma.company.count()
+      res.json({ ok: true, service: 'silver-knight-api', companyCount })
+    } catch {
+      res
+        .status(503)
+        .json({ ok: false, service: 'silver-knight-api', error: 'database unavailable' })
+    }
   })
 
   const execAsync = promisify(exec)
