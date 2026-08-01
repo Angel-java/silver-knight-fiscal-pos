@@ -2,7 +2,7 @@
 type: query
 tags: [diagnostico, error-3001, backend, docker, updater]
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-01
 sources: [docker-deployment]
 ---
 
@@ -99,3 +99,35 @@ El operador instala v1.1.7 y, si el fallo persiste, pulsar **"Reparar"**:
 - Si reporta **exit 137 / OOM** → subir RAM de Docker Desktop por GUI (Settings → Resources → Memory ≥ 4096 MB → Apply & Restart) y reabrir la app.
 - Si reporta **P1000 / authentication** → reintroducir la contraseña de la DB en Configuración.
 - Si el push one-shot tiene éxito → la app escribe el hash de schema, reinicia el servidor y arranca sin terminal.
+
+## Resultado del despliegue v1.1.7 (2026-08-01) — OOM crónico confirmado
+
+Diagnóstico post-instalación del operador:
+
+1. **El binario desplegado no era el release publicado**: la línea `Server container: ...restarts=7` **no incluía `oomKilled`**, aunque el tag `v1.1.7` (`git show v1.1.7:src/main/index.ts`) sí lo imprime. Probable instalación obsoleta → **reinstall limpio** en v1.1.8.
+2. **Build casi todo CACHED** (export 1.1s vs 16.5s) y el contenedor **igual crasheó en `prisma db push`** → **descarta la hipótesis de pico de RAM por el build**.
+3. La salida del contenedor vuelve a cortar en `Datasource "db": ... at db:5432` **sin ningún error** → compatible con OOM **crónico**: la máquina está siempre al límite de RAM de WSL2, no solo durante el build.
+
+### Conclusión
+
+La causa es **memoria insuficiente de Docker Desktop/WSL2**, no la app ni el schema (reproducido local: push OK en 508ms). Fix dual:
+- **(a) Subir RAM de Docker Desktop** ≥4096 MB (GUI) — arreglo definitivo en la máquina.
+- **(b) Auto-reparación en la app (v1.1.8)** — máxima probabilidad de éxito del push one-shot al detener primero el contenedor en crash-loop (libera node+prisma en colisión).
+
+## v1.1.8 (2026-08-01) — auto-reparación sin botón
+
+**Emitido**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.8
+
+| Área | Cambio |
+|---|---|
+| Auto-heal | Ante `container-crashed`, `runSelfHeal()` corre **automáticamente** (1 intento/sesión, `selfHealAttempted`); si falla, diálogo con la causa clasificada (sin botón "Reparar") |
+| Memoria | `stopServerContainer()` antes del push one-shot: detiene el contenedor en crash y libera RAM para el push |
+| Entrypoint | `prisma db push` fallido imprime el **exit code** y sale con ese código (fin del crash silencioso); el hash de schema solo se escribe si el push tuvo éxito |
+| Diagnóstico | `gatherDiagnostics` +`exitCode` del contenedor + `docker system df` |
+
+### Acción para el operador (reinstall limpio)
+
+1. Desinstalar: Settings → Apps → Silver Knight → Uninstall.
+2. Instalar `silver-knight-1.1.8-setup.exe` (sha512 `8F5D6335C6DB9ED12538F24F60E0EFE892919400489C04B76BAB1D69C9049F33895D823A0D7F5784FD391DC102955659FC638F60E6F32A1D1DB9FA8E441B5372`).
+3. Si el diálogo clasifica **exit 137 / OOM** → Docker Desktop → Settings → Resources → Memory ≥ 4096 MB → Apply & Restart, y reabrir.
+4. Si el push one-shot tiene éxito → hash escrito → servidor arranca sin terminal.
