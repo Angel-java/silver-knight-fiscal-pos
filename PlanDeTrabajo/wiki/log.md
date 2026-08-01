@@ -217,4 +217,6 @@ updated: 2026-07-31
   - `updater.ts`: pre-warm del cache Docker (pull + build) antes de `quitAndInstall`
   - `docker-entrypoint.sh` + `docker-compose.yml`: `prisma db push` solo cuando cambia el hash de `schema.prisma` (volumen `silverknight-schema-state`)
 - **Verificación**: `npx vitest run` 113/113 (3 tests nuevos de pre-warm), typecheck limpio, lint sin errores nuevos
-- **Pendiente**: publicar v1.1.6 y confirmar en la máquina desplegada; si vuelve a fallar, capturar "Copiar diagnóstico" (ahora incluye compose ps + estado del contenedor)
+- **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.6
+- **Commit**: `f8883c5`
+- **Pendiente**: confirmar en la máquina desplegada; si vuelve a fallar, capturar "Copiar diagnóstico" (ahora incluye compose ps + estado del contenedor)
