@@ -19,7 +19,11 @@ import {
   getServerContainerState,
   getComposePsText,
   getDbContainerStatus,
-  getComposeContainers
+  getComposeContainers,
+  runPrismaPushOnce,
+  computeSchemaHash,
+  writeSchemaStateHash,
+  restartServerContainer
 } from './docker'
 import { appUpdater } from './updater'
 import { ensureServerImage } from './server-image'
@@ -103,7 +107,7 @@ async function gatherDiagnostics(): Promise<string> {
   const dbStatus = await getDbContainerStatus()
   lines.push(`DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
   const serverState = await getServerContainerState()
-  lines.push(`Server container: running=${serverState.running}, status=${serverState.status}, restarts=${serverState.restarts}`)
+  lines.push(`Server container: running=${serverState.running}, status=${serverState.status}, restarts=${serverState.restarts}, oomKilled=${serverState.oomKilled}`)
   lines.push('')
   lines.push('--- silverknight-server logs (last 50) ---')
   lines.push((await getServerContainerLogs(50)) || '(no logs available)')
@@ -139,6 +143,61 @@ async function copyDiagnostics(): Promise<void> {
     })
   } catch (err) {
     log('startup', `Failed to copy diagnostics: ${err}`)
+  }
+}
+
+async function runSelfHeal(): Promise<{ ok: boolean; message: string }> {
+  log('startup', 'Self-heal: applying database schema via one-shot prisma db push...')
+  sendSplash('splash-status', 'Reparando: aplicando esquema de base de datos...')
+
+  const push = await runPrismaPushOnce()
+
+  if (!push.ok) {
+    const output = (push.output || '').slice(0, 2000)
+    const exit = push.exitCode
+    let reason: string
+    if (exit === 137) {
+      reason =
+        'El proceso fue terminado por falta de memoria (código 137 / OOM).\n\n' +
+        'Solución: abre Docker Desktop → Settings → Resources → aumenta la memoria ' +
+        '(mínimo 4096 MB) → Apply & Restart. Luego vuelve a abrir Silver Knight.'
+    } else if (
+      /authentication failed|password authentication failed|P1000|role "silverknight" does not exist|SCRAM/i.test(
+        output
+      )
+    ) {
+      reason =
+        'La contraseña de PostgreSQL no coincide con la base de datos existente.\n\n' +
+        'Solución: abre Silver Knight → Configuración y vuelve a ingresar la contraseña original de la base de datos.'
+    } else {
+      reason = `prisma db push falló (exit ${exit ?? 'timeout'}):\n\n${output}`
+    }
+    return { ok: false, message: reason }
+  }
+
+  const hash = computeSchemaHash()
+  if (hash) {
+    await writeSchemaStateHash(hash)
+  }
+
+  const restarted = await restartServerContainer()
+  if (!restarted) {
+    return {
+      ok: false,
+      message: 'El esquema se aplicó correctamente, pero no se pudo reiniciar el contenedor del servidor.'
+    }
+  }
+
+  const healthUrl = `http://localhost:${process.env['PORT'] || '3001'}/api/health`
+  const result = await waitForBackendWithContainerCheck(healthUrl, 120000)
+  if (result.status === 'ready') {
+    log('startup', 'Self-heal succeeded: backend ready')
+    return { ok: true, message: 'El servidor inició correctamente.' }
+  }
+
+  return {
+    ok: false,
+    message: `El esquema se aplicó correctamente, pero el servidor no respondió al reiniciar (${result.status}).`
   }
 }
 
@@ -264,27 +323,70 @@ async function startBackend(): Promise<boolean> {
     log('startup', `Backend failed to start: ${backendResult.status}`)
     await dumpBackendDiagnostics()
 
-    const serverLogs = (await getServerContainerLogs(50)) || '(sin logs disponibles)'
+    const serverLogs = (await getServerContainerLogs(100)) || '(sin logs disponibles)'
 
-    const detail =
-      backendResult.status === 'container-crashed'
-        ? `El contenedor del servidor no está corriendo (estado: ${backendResult.containerState}, reinicios: ${backendResult.restarts}).\n\nÚltimos logs del contenedor:\n${serverLogs.slice(0, 800)}`
-        : `El backend tardó demasiado en iniciar. Verifica que el puerto ${port} no esté en uso.\n\nÚltimos logs del contenedor:\n${serverLogs.slice(0, 500)}`
+    const isAuthFailure =
+      /password authentication failed|FATAL: password authentication failed|role "silverknight" does not exist|SCRAM authentication|Authentication failed against database server/i.test(
+        serverLogs
+      )
+
+    const isOom = backendResult.status === 'container-crashed' && backendResult.oomKilled
+
+    let detail: string
+    if (isOom) {
+      detail =
+        'El contenedor del servidor fue terminado por falta de memoria (OOM).\n\n' +
+        'La máquina no tiene suficiente RAM para PostgreSQL + el servidor.\n' +
+        'Solución: abre Docker Desktop → Settings → Resources → aumenta la memoria (mínimo 4096 MB) → Apply & Restart.\n\n' +
+        `Código de salida: ${backendResult.exitCode}, reinicios: ${backendResult.restarts}`
+    } else if (isAuthFailure) {
+      detail =
+        'El servidor no puede autenticarse contra la base de datos: la contraseña de PostgreSQL configurada no coincide con el volumen existente.\n\n' +
+        'Solución: abre Silver Knight > Configuración y vuelve a registrar la contraseña correcta de PostgreSQL (la de la base de datos existente).'
+    } else if (backendResult.status === 'container-crashed') {
+      detail =
+        `El contenedor del servidor no está corriendo (estado: ${backendResult.containerState}, reinicios: ${backendResult.restarts}, exit ${backendResult.exitCode}).\n\n` +
+        `Últimos logs del contenedor:\n${serverLogs.slice(0, 2000)}`
+    } else {
+      detail =
+        `El backend tardó demasiado en iniciar. Verifica que el puerto ${port} no esté en uso.\n\n` +
+        `Últimos logs del contenedor:\n${serverLogs.slice(0, 2000)}`
+    }
 
     const retry = await dialog.showMessageBox({
       type: 'error',
       title: 'Servidor no responde',
       message: 'El backend no está respondiendo.',
       detail,
-      buttons: ['Reintentar', 'Copiar diagnóstico', 'Salir'],
+      buttons: ['Reparar', 'Reintentar', 'Copiar diagnóstico', 'Salir'],
       defaultId: 0,
-      cancelId: 2
+      cancelId: 3
     })
 
     if (retry.response === 0) {
-      return startBackend()
+      const healed = await runSelfHeal()
+      if (healed.ok) {
+        return true
+      }
+      const retry2 = await dialog.showMessageBox({
+        type: 'error',
+        title: 'No se pudo reparar',
+        message: 'La reparación automática no funcionó.',
+        detail: healed.message,
+        buttons: ['Reintentar', 'Salir'],
+        defaultId: 0,
+        cancelId: 1
+      })
+      if (retry2.response === 0) {
+        return startBackend()
+      }
+      app.quit()
+      return false
     }
     if (retry.response === 1) {
+      return startBackend()
+    }
+    if (retry.response === 2) {
       await copyDiagnostics()
       return startBackend()
     }

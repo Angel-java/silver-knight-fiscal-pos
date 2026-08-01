@@ -1,6 +1,8 @@
 import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
 import path from 'path'
+import { readFileSync } from 'fs'
+import { createHash } from 'crypto'
 import { app } from 'electron'
 import { loadEnvForChild } from './config'
 import { log } from './logger'
@@ -416,20 +418,24 @@ export async function getServerContainerState(): Promise<{
   running: boolean
   status: string
   restarts: number
+  oomKilled: boolean
+  exitCode: number
 }> {
   try {
     const { stdout } = await execAsync(
-      'docker inspect --format "{{.State.Status}} {{.RestartCount}}" silverknight-server',
+      'docker inspect --format "{{.State.Status}} {{.RestartCount}} {{.State.OOMKilled}} {{.State.ExitCode}}" silverknight-server',
       { timeout: 5000 }
     )
-    const [status, restartCount] = stdout.trim().split(/\s+/)
+    const [status, restartCount, oomKilled, exitCode] = stdout.trim().split(/\s+/)
     return {
       running: status === 'running',
       status: status || 'unknown',
-      restarts: parseInt(restartCount || '0', 10) || 0
+      restarts: parseInt(restartCount || '0', 10) || 0,
+      oomKilled: oomKilled === 'true',
+      exitCode: parseInt(exitCode || '0', 10) || 0
     }
   } catch {
-    return { running: false, status: 'unknown', restarts: 0 }
+    return { running: false, status: 'unknown', restarts: 0, oomKilled: false, exitCode: 0 }
   }
 }
 
@@ -444,6 +450,138 @@ export async function getComposePsText(): Promise<string> {
   } catch (err) {
     return `docker compose ps failed: ${err}`
   }
+}
+
+export async function runPrismaPushOnce(): Promise<{
+  ok: boolean
+  exitCode: number | null
+  output: string
+}> {
+  const dir = getComposeDir()
+  log('push', 'Running one-shot prisma db push...')
+
+  return new Promise((resolve) => {
+    const proc = spawn(
+      'docker',
+      [
+        'compose',
+        'run',
+        '--rm',
+        '--no-deps',
+        '-T',
+        '--entrypoint',
+        'npx',
+        'server',
+        'prisma',
+        'db',
+        'push',
+        '--accept-data-loss',
+        '--skip-generate'
+      ],
+      {
+        cwd: dir,
+        env: getChildEnv(),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: true
+      }
+    )
+
+    let output = ''
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      proc.kill()
+    }, 150000)
+
+    const onData = (chunk: Buffer, isErr: boolean): void => {
+      const text = chunk.toString()
+      output += text
+      for (const line of text.split(/\r?\n/)) {
+        const t = line.trim()
+        if (t) log('push', isErr ? `[stderr] ${t}` : t)
+      }
+    }
+
+    proc.stdout.on('data', (d: Buffer) => onData(d, false))
+    proc.stderr.on('data', (d: Buffer) => onData(d, true))
+
+    proc.on('close', (code) => {
+      clearTimeout(timer)
+      if (timedOut) {
+        log('push', 'prisma db push timed out (150s)')
+        resolve({ ok: false, exitCode: null, output: `${output}\n[timeout tras 150s]` })
+      } else {
+        log('push', `prisma db push exited with code ${code}`)
+        resolve({ ok: code === 0, exitCode: code, output })
+      }
+    })
+
+    proc.on('error', (err) => {
+      clearTimeout(timer)
+      log('push', `Spawn error: ${err.message}`)
+      resolve({ ok: false, exitCode: null, output: `Error al ejecutar docker: ${err.message}` })
+    })
+  })
+}
+
+export function computeSchemaHash(): string | null {
+  try {
+    const schemaPath = path.join(getComposeDir(), 'prisma', 'schema.prisma')
+    const content = readFileSync(schemaPath)
+    return createHash('sha256').update(content).digest('hex')
+  } catch (err) {
+    log('push', `Could not read schema.prisma: ${err}`)
+    return null
+  }
+}
+
+export async function writeSchemaStateHash(hash: string): Promise<boolean> {
+  log('push', 'Writing schema hash to schema-state volume...')
+  return new Promise((resolve) => {
+    const proc = spawn(
+      'docker',
+      [
+        'run',
+        '--rm',
+        '--entrypoint',
+        '/bin/sh',
+        '-e',
+        `SK_SCHEMA_HASH=${hash}`,
+        '-v',
+        'silverknight-schema-state:/schema-state',
+        'silverknight-server:latest',
+        '-c',
+        'echo "$SK_SCHEMA_HASH" > /schema-state/schema-hash'
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'], shell: false }
+    )
+
+    let out = ''
+    proc.stdout.on('data', (d: Buffer) => (out += d.toString()))
+    proc.stderr.on('data', (d: Buffer) => (out += d.toString()))
+
+    proc.on('close', (code) => {
+      log('push', `Schema hash write ${code === 0 ? 'ok' : 'failed'}: ${out.trim()}`)
+      resolve(code === 0)
+    })
+    proc.on('error', () => resolve(false))
+  })
+}
+
+export async function restartServerContainer(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['compose', 'restart', 'server'], {
+      cwd: getComposeDir(),
+      env: getChildEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true
+    })
+    proc.on('close', (code) => {
+      log('push', `Server container restart ${code === 0 ? 'ok' : `failed (code ${code})`}`)
+      resolve(code === 0)
+    })
+    proc.on('error', () => resolve(false))
+  })
 }
 
 export async function waitForBackend(
@@ -482,7 +620,13 @@ export async function waitForBackend(
 
 export type BackendStartResult =
   | { status: 'ready' }
-  | { status: 'container-crashed'; containerState: string; restarts: number }
+  | {
+      status: 'container-crashed'
+      containerState: string
+      restarts: number
+      oomKilled: boolean
+      exitCode: number
+    }
   | { status: 'timeout' }
 
 export async function waitForBackendWithContainerCheck(
@@ -512,12 +656,14 @@ export async function waitForBackendWithContainerCheck(
       if (!state.running) {
         log(
           'backend',
-          `Server container crashed: status=${state.status}, restarts=${state.restarts}`
+          `Server container crashed: status=${state.status}, restarts=${state.restarts}, oomKilled=${state.oomKilled}`
         )
         return {
           status: 'container-crashed',
           containerState: state.status,
-          restarts: state.restarts
+          restarts: state.restarts,
+          oomKilled: state.oomKilled,
+          exitCode: state.exitCode
         }
       }
     }
