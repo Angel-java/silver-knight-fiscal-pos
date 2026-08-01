@@ -1,10 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater, type UpdateInfo } from 'electron-updater'
 import { stopCompose } from './docker'
-
-function log(tag: string, msg: string): void {
-  console.log(`[updater] [${tag}] ${msg}`)
-}
+import { log } from './logger'
 
 export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'
 

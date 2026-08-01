@@ -42,10 +42,8 @@ win:
     target: nsis
     arch: x64
 nsis:
-  oneClick: false
+  oneClick: true
   perMachine: false
-  allowToChangeInstallationDirectory: true
-  allowElevation: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: Silver Knight

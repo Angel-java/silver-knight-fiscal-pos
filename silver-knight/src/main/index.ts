@@ -1,6 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
-import { appendFileSync, mkdirSync, existsSync } from 'fs'
 import { execSync } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -15,10 +14,10 @@ import {
   restartCompose,
   launchDockerDesktop,
   getServerContainerLogs,
-  getDbContainerStatus
+  getDbContainerStatus,
+  getComposeContainers
 } from './docker'
 import { appUpdater } from './updater'
-import { checkAndRebuildServer } from './docker-updater'
 import {
   ensureConfig,
   readConfig,
@@ -28,28 +27,7 @@ import {
   loadEnvForChild,
   detectExistingDockerVolume
 } from './config'
-
-function getLogPath(): string {
-  try {
-    const dir = join(app.getPath('userData'), 'logs')
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-    return join(dir, 'main.log')
-  } catch {
-    return join(process.cwd(), 'main.log')
-  }
-}
-
-function writeLog(level: string, tag: string, message: string): void {
-  const line = `[${new Date().toISOString()}] [${level}] [${tag}] ${message}\n`
-  console.log(line.trimEnd())
-  try {
-    appendFileSync(getLogPath(), line)
-  } catch {}
-}
-
-function log(tag: string, message: string): void {
-  writeLog('INFO', tag, message)
-}
+import { writeLog, log } from './logger'
 
 process.on('uncaughtException', (err) => {
   writeLog('FATAL', 'crash', `Uncaught exception: ${err.message}\n${err.stack}`)
@@ -99,6 +77,21 @@ async function showDockerError(message: string): Promise<void> {
     buttons: ['Entendido']
   })
   app.quit()
+}
+
+async function dumpBackendDiagnostics(): Promise<void> {
+  log('startup', '--- Diagnostic dump ---')
+  try {
+    const containers = await getComposeContainers()
+    log('startup', `Docker containers:\n${containers}`)
+  } catch (err) {
+    log('startup', `Could not list containers: ${err}`)
+  }
+  const dbStatus = await getDbContainerStatus()
+  log('startup', `DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
+  const serverLogs = await getServerContainerLogs(50)
+  log('startup', `Server container logs (last 50):\n${serverLogs || '(no logs available)'}`)
+  log('startup', '--- End diagnostic dump ---')
 }
 
 async function startBackend(): Promise<boolean> {
@@ -186,13 +179,14 @@ async function startBackend(): Promise<boolean> {
   const port = process.env['PORT'] || '3001'
   const healthUrl = `http://localhost:${port}/api/health`
 
-  const backendStatus = await waitForBackend(healthUrl, 60000, (attempt) => {
+  const backendStatus = await waitForBackend(healthUrl, 120000, (attempt) => {
     const pct = Math.min(80 + attempt * 2, 98)
     sendSplash('splash-progress', pct)
   })
 
   if (backendStatus === 'error') {
     log('startup', 'Backend failed to start')
+    await dumpBackendDiagnostics()
 
     const retry = await dialog.showMessageBox({
       type: 'error',
@@ -336,7 +330,7 @@ if (!gotTheLock) {
     const healthUrl = `http://localhost:${port}/api/health`
     log('config', `Waiting for backend at ${healthUrl}`)
 
-    const backendStatus = await waitForBackend(healthUrl, 60000)
+    const backendStatus = await waitForBackend(healthUrl, 120000)
     if (backendStatus === 'error') {
       log('config', 'Backend failed to respond, checking container status...')
 
@@ -376,14 +370,6 @@ if (!gotTheLock) {
     sendSplash('splash-status', 'Reintentando...')
     const ok = await startBackend()
     if (ok) {
-      if (app.isPackaged) {
-        const rebuildResult = await checkAndRebuildServer((line) => {
-          sendSplash('splash-status', line)
-        })
-        if (rebuildResult.error) {
-          log('docker-updater', `Server rebuild failed on retry: ${rebuildResult.error}`)
-        }
-      }
       if (splashWindow && !splashWindow.isDestroyed()) {
         splashWindow.close()
       }
@@ -461,15 +447,6 @@ if (!gotTheLock) {
       mainWindow = createMainWindow()
     } else {
       const backendReady = await startBackend()
-
-      if (backendReady && app.isPackaged) {
-        const rebuildResult = await checkAndRebuildServer((line) => {
-          sendSplash('splash-status', line)
-        })
-        if (rebuildResult.error) {
-          log('docker-updater', `Server rebuild failed: ${rebuildResult.error}`)
-        }
-      }
 
       if (splashWindow && !splashWindow.isDestroyed()) {
         splashWindow.close()

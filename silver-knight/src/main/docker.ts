@@ -3,6 +3,7 @@ import { promisify } from 'util'
 import path from 'path'
 import { app } from 'electron'
 import { loadEnvForChild } from './config'
+import { log } from './logger'
 
 const execAsync = promisify(exec)
 
@@ -21,10 +22,6 @@ interface ComposeInfo {
   dbRunning: boolean
 }
 
-function log(tag: string, msg: string): void {
-  console.log(`[docker] [${tag}] ${msg}`)
-}
-
 function getComposeDir(): string {
   if (app.isPackaged) {
     return process.resourcesPath
@@ -37,7 +34,11 @@ function getComposeCmd(): string {
 }
 
 function getChildEnv(): Record<string, string> {
-  return { ...process.env, ...loadEnvForChild() } as Record<string, string>
+  return {
+    ...process.env,
+    ...loadEnvForChild(),
+    COMPOSE_PROJECT_NAME: 'silverknight'
+  } as Record<string, string>
 }
 
 export async function checkDockerInstalled(): Promise<DockerInfo> {
@@ -263,7 +264,7 @@ export async function buildCompose(
   log('compose', 'Building docker compose images')
 
   return new Promise((resolve) => {
-    const proc = spawn('docker', ['compose', 'build', '--no-cache'], {
+    const proc = spawn('docker', ['compose', 'build'], {
       cwd: dir,
       env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -354,6 +355,18 @@ export async function pullImages(
       resolve({ success: false, error: err.message })
     })
   })
+}
+
+export async function getComposeContainers(): Promise<string> {
+  try {
+    const { stdout } = await execAsync(
+      'docker ps -a --format "{{.Names}} | {{.Image}} | {{.Status}}"',
+      { timeout: 8000 }
+    )
+    return stdout.trim()
+  } catch (err) {
+    return `Could not list containers: ${err}`
+  }
 }
 
 export async function getServerContainerLogs(lines = 30): Promise<string> {

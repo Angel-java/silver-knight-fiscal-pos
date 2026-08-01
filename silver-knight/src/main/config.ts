@@ -3,12 +3,9 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, chmodSy
 import { join } from 'path'
 import { execSync } from 'child_process'
 import crypto from 'crypto'
+import { log } from './logger'
 
 const CONFIG_VERSION = '1.0.0'
-
-function log(tag: string, msg: string): void {
-  console.log(`[config] [${tag}] ${msg}`)
-}
 
 function getConfigDir(): string {
   return join(app.getPath('userData'), 'config')
