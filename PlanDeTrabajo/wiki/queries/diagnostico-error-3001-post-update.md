@@ -163,3 +163,13 @@ Error: P1000: Authentication failed against database server, the provided databa
 1. Instalar `silver-knight-1.1.9-setup.exe`.
 2. Si aparece el diálogo de P1000 → pulsar **"Restablecer contraseña"** (conserva todos los datos; la BD ya tiene la contraseña original quemada, se cambia dentro del volumen).
 3. La app relanza el backend con la nueva credencial → `prisma db push` aplica el schema → hash escrito → servidor listo sin terminal.
+
+## Corrección v1.1.10 (2026-08-01) — rol superusuario correcto
+
+El reset de v1.1.9 falló con `psql: FATAL: role "postgres" does not exist`. El superusuario de la BD es `silverknight` (el `POSTGRES_USER`), no `postgres`. El trust por unix-socket SÍ funcionaba (el error aparece después de la conexión); solo el rol estaba hardcodeado.
+
+**Emitido**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.10 (setup.exe sha512 `2ECB18C93EFC589F12CA332234971E718F08F9BE5741A703868F329FAA0C65D482BB74FC0D96D34108ED0AC1DDE20DBF748092DC84AC95F4D42BB05919593448`)
+
+Fix: `resetPostgresPassword` usa `loadEnvForChild()['POSTGRES_USER'] || 'silverknight'` → `psql -w -U <user> -c "ALTER USER <user> PASSWORD '...'"`. Un rol siempre puede cambiar su propia contraseña.
+
+**Acción del operador**: instalar v1.1.10; si el diálogo P1000 aparece → "Restablecer contraseña" → la app arranca con la BD intacta.

@@ -286,3 +286,16 @@ updated: 2026-08-01
 - **Verificación**: typecheck limpio, 113/113 tests, eslint 0 errores en archivos tocados
 - **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.9 (assets: `silver-knight-1.1.9-setup.exe` sha512 `94926E8D22C6807AA79B609EEA8102A0D0089BDA08BE229521C845B5B787436537C216542D6A46A544D4C383AD761881D0F19CDA57885B5A7FDCA8D2CE093B6F`, `.blockmap`, `latest.yml`)
 - **Acción del operador**: instalar v1.1.9; si aparece el diálogo de P1000 → pulsar **"Restablecer contraseña"** (conserva datos) → la app cambia la contraseña de la BD y arranca.
+
+## [2026-08-01] diagnose | Reset v1.1.9 falló: rol superusuario no es `postgres`
+- **Fuente**: operador — diagnóstico v1.1.9 tras pulsar "Restablecer contraseña"
+- **Páginas tocadas**: [[diagnostico-error-3001-post-update]]
+- **Hallazgos**: (1) el flujo del botón funcionó: self-heal auto → P1000 → diálogo → operador pulsó "Restablecer contraseña"; (2) el ALTER falló con `psql: FATAL: role "postgres" does not exist` → el superusuario de la BD es `silverknight` (el `POSTGRES_USER`), no `postgres`; (3) el trust por unix-socket SÍ funciona (el error aparece tras la conexión/auth) → el mecanismo es correcto, solo el nombre del rol estaba hardcodeado; (4) el operador quedó en loop reset→reintentar→reset.
+- **Fix v1.1.10**: `resetPostgresPassword` usa `loadEnvForChild()['POSTGRES_USER'] || 'silverknight'` para `psql -w -U <user> -c "ALTER USER <user> PASSWORD ..."`. Un rol siempre puede cambiar su propia contraseña → funciona aunque `silverknight` no fuera superusuario.
+
+## [2026-08-01] release | v1.1.10 publicada — reset con el rol correcto
+- **Descripción**: corrige el reset de contraseña para usar el usuario de la BD configurado (`POSTGRES_USER`, p. ej. `silverknight`) en vez del hardcodeado `postgres`. El resto del flujo (self-heal auto, botón en diálogo P1000, `savePostgresPassword`, recreate del server con la nueva DATABASE_URL) ya funcionaba.
+- **Cambios clave**: `docker.ts` `resetPostgresPassword` → `pgUser = loadEnvForChild()['POSTGRES_USER'] || 'silverknight'`; psql con `-w` (no preguntar contraseña, fallar rápido) y `-U <pgUser>`; SQL `ALTER USER <pgUser> PASSWORD '...'`.
+- **Verificación**: typecheck limpio, 113/113 tests, eslint 0 errores en archivos tocados
+- **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.10 (assets: `silver-knight-1.1.10-setup.exe` sha512 `2ECB18C93EFC589F12CA332234971E718F08F9BE5741A703868F329FAA0C65D482BB74FC0D96D34108ED0AC1DDE20DBF748092DC84AC95F4D42BB05919593448`, `.blockmap`, `latest.yml`)
+- **Acción del operador**: instalar v1.1.10; si el diálogo P1000 aparece → "Restablecer contraseña" (ahora usa el rol correcto) → la app arranca.

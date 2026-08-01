@@ -615,7 +615,8 @@ export async function resetPostgresPassword(newPassword: string): Promise<{
   output: string
 }> {
   const dir = getComposeDir()
-  log('push', 'Resetting postgres password via local trust auth...')
+  const pgUser = loadEnvForChild()['POSTGRES_USER'] || 'silverknight'
+  log('push', `Resetting postgres password via local trust auth (user ${pgUser})...`)
 
   try {
     await execAsync(`${getComposeCmd()} up -d db`, {
@@ -628,12 +629,12 @@ export async function resetPostgresPassword(newPassword: string): Promise<{
     log('push', `Failed to ensure db container running: ${err}`)
   }
 
-  const sql = `"ALTER USER silverknight PASSWORD '${newPassword}';"`
+  const sql = `"ALTER USER ${pgUser} PASSWORD '${newPassword}';"`
 
   return new Promise((resolve) => {
     const proc = spawn(
       'docker',
-      ['compose', 'exec', '-T', 'db', 'psql', '-U', 'postgres', '-c', sql],
+      ['compose', 'exec', '-T', 'db', 'psql', '-w', '-U', pgUser, '-c', sql],
       {
         cwd: dir,
         env: getChildEnv(),
