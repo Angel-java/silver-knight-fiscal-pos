@@ -44,3 +44,53 @@ Ese punto de la UI es `waitForBackend` en `src/main/index.ts` (`waitForBackendWi
 - `npx vitest run`: 113/113
 - `npm run typecheck`: limpio
 - Pendiente: confirmar en máquina desplegada; si vuelve a fallar, capturar **"Copiar diagnóstico"** (ahora incluye `docker compose ps` y estado del contenedor) o `%APPDATA%\silver-knight\logs\main.log`
+
+## Hallazgo post-v1.1.6 en máquina desplegada (2026-07-31)
+
+El diálogo ya detecta el crash del contenedor, pero la causa exacta sigue oculta:
+
+- **Diálogo**: *"El contenedor del servidor no está corriendo (estado: restarting, reinicios: 6)"*.
+- **Logs del contenedor (truncados)**: loop `PostgreSQL is ready` → `Schema changed (or first run). Pushing schema...` → `Prisma schema loaded... at db:5432` y corta ahí → crash-loop dentro de `prisma db push` del entrypoint.
+- El operador **no puede ejecutar comandos**; depende del botón "Copiar diagnóstico" del diálogo.
+
+### Hipótesis (ordenadas por probabilidad)
+
+1. **Fallo de autenticación Postgres** — el volumen `silverknight-pgdata` se inicializó con la contraseña antigua (pre-secretos) y no coincide con `POSTGRES_PASSWORD` de `.env`. El error real de Prisma (P1000) quedaba cortado en el truncado de 800 chars.
+2. **OOM kill** — la salida se corta sin mensaje de error, compatible con el proceso muriendo por RAM insuficiente (WSL2/Docker Desktop).
+3. **Volumen de datos corrupto/incompatible** — el `db push` no puede reconciliar el schema contra un `pgdata` dañado.
+
+### Mejoras de diagnóstico implementadas (v1.1.7, en curso)
+
+- `getServerContainerState` ahora expone **`oomKilled`** (`docker inspect ... {{.State.OOMKilled}}`) y **`exitCode`** (`{{.State.ExitCode}}`).
+- Diálogo de fallo: si `oomKilled` → mensaje específico de memoria (RAM/WSL2). Si los logs contienen patrón de auth (`password authentication failed`, `Authentication failed against database server`, `role "silverknight" does not exist`, `SCRAM authentication`) → mensaje accionable de contraseña/volumen.
+- Logs mostrados en el diálogo: 800 → **2000** chars; `getServerContainerLogs(50)` → **100** líneas en el diagnóstico.
+
+## Confirmación con diagnóstico real del operador (2026-08-01)
+
+El operador pegó el "Copiar diagnóstico" completo. Hechos:
+
+1. **La imagen se construyó bien y rápido** (02:22:23→02:22:58, `npm ci` 13s, build ~23s, la mayoría CACHED) → el problema de registry lento de v1.1.5 está resuelto en esa máquina.
+2. **La DB está sana**: `silverknight-db` `Up 41 minutes (healthy)`.
+3. **`silverknight-server` crash-lopea**: `Restarting (1)`, restarts=15. El diálogo de v1.1.6 lo detectó 19s después del start.
+4. **Logs del contenedor (completos, 50 líneas)**: loop idéntico en cada iteración →
+   `PostgreSQL is ready` → `Schema changed (or first run). Pushing schema...` → `Prisma schema loaded` → `Datasource "db": ... at db:5432` → **se corta sin ningún error**.
+5. **NO aparece P1000** (fallo de auth) → la hipótesis de contraseña queda descartada a menos que el error se pierda por buffering.
+6. El hash de schema nunca se escribe (`Schema changed` en cada reinicio) porque el push nunca termina → loop infinito.
+7. Warning de compose: `volume "silverknight-pgdata" already exists but was created for project "resources"` — volumen heredado de la config pre-v1.1.6 (inofensivo, compose lo reutiliza; datos preservados).
+
+### Causa más probable: OOM kill
+
+La salida se corta **sin mensaje de error** justo cuando `prisma db push` arranca el schema-engine nativo. Timing: el build terminó a las 02:22:58 (export + unpack de imagen son las fases más pesadas en RAM) y 2s después el contenedor del server arrancó → pico de memoria en WSL2 (Docker Desktop limita la RAM) → el kernel OOM-killea el proceso silenciosamente. El diagnóstico v1.1.6 no capturaba `ExitCode`/`OOMKilled` → no se podía confirmar.
+
+### Plan v1.1.7 (implementado, verificado)
+
+| Área | Cambio |
+|---|---|
+| Estado | `getServerContainerState` expone `oomKilled` + `exitCode` (137 = OOM) |
+| Diálogo | Incluye `exit`, `oomKilled` y mensajes específicos; logs hasta 2000 chars |
+| **Botón "Reparar"** | `runSelfHeal()`: (1) one-shot `prisma db push` capturando salida+exit code directamente; (2) si exit=137 → mensaje de RAM (Docker Desktop → Settings → Resources); si P1000 → mensaje de contraseña; (3) en éxito → escribe el hash de schema en el volumen + `docker compose restart server` + re-wait → app arranca sin terminal |
+| Self-heal | `runPrismaPushOnce` (compose run --entrypoint npx), `writeSchemaStateHash` (docker run + sha256 exacto del archivo), `computeSchemaHash`, `restartServerContainer` |
+
+### Próximo paso
+
+Emitir v1.1.7. El operador instala → si OOM, el diálogo lo confirma (exit 137) y/o el botón Reparar aplica el schema en un one-shot con menos presión de memoria (el build ya terminó) → app arranca. Alternativa inmediata sin release: el operador sube la RAM de Docker Desktop por GUI (Settings → Resources → Memory ≥ 4096 MB → Apply & Restart) y reintenta v1.1.6.

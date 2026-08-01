@@ -220,3 +220,25 @@ updated: 2026-07-31
 - **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.6
 - **Commit**: `f8883c5`
 - **Pendiente**: confirmar en la máquina desplegada; si vuelve a fallar, capturar "Copiar diagnóstico" (ahora incluye compose ps + estado del contenedor)
+
+## [2026-07-31] diagnose | Crash-loop confirmado en `prisma db push` + diagnóstico ampliado
+- **Fuente**: operador de máquina desplegada — diálogo v1.1.6 reporta "El contenedor del servidor no está corriendo (estado: restarting, reinicios: 6)"
+- **Páginas tocadas**: [[diagnostico-error-3001-post-update]]
+- **Resumen**: los logs del contenedor muestran un loop en `prisma db push` dentro del entrypoint (sale "Prisma schema loaded... at db:5432" y se corta antes de mostrar el error real). Reproducción local con DB limpia Postgres 16: `db push` OK en 508ms → el schema no es el problema. Hipótesis: (1) fallo de autenticación (volumen `pgdata` inicializado con contraseña pre-secretos, no coincide con `.env`), (2) OOM kill (la salida se corta sin mensaje de error), (3) volumen corrupto.
+- **Cambios (en curso, v1.1.7)**:
+  - `getServerContainerState` expone `oomKilled` (`docker inspect ... {{.State.OOMKilled}}`)
+  - Diálogo de fallo: mensajes específicos si `oomKilled` (RAM/WSL2) o si los logs matchean patrones de auth (`password authentication failed`, `Authentication failed against database server`, `role "silverknight" does not exist`, `SCRAM authentication`)
+  - Logs del diálogo 800 → 2000 chars; `getServerContainerLogs(50)` → 100 líneas
+- **Próximo paso**: operador debe enviar el "Copiar diagnóstico" (v1.1.6 ya lo incluye completo, ~50 líneas de logs del contenedor) para confirmar la causa antes de emitir v1.1.7
+
+## [2026-08-01] diagnose | Diagnóstico completo recibido → OOM como causa más probable → self-heal v1.1.7
+- **Fuente**: operador pegó el "Copiar diagnóstico" completo de v1.1.6
+- **Páginas tocadas**: [[diagnostico-error-3001-post-update]]
+- **Hallazgos**: (1) imagen construida bien y rápido (registry OK, v1.1.5 resuelto); (2) DB `Up (healthy)`; (3) server `Restarting`, restarts=15; (4) logs del contenedor muestran loop en `prisma db push`: `Datasource "db"...` y se corta **sin error**; (5) **no hay P1000** → descartado fallo de auth; (6) hash de schema nunca se escribe → re-push infinito; (7) warning `pgdata` creado por project "resources" (inofensivo, datos preservados). **Causa más probable: OOM kill** — build terminó a las 02:22:58 (export/unpack pesados en RAM) y el contenedor arrancó 2s después → pico de memoria WSL2 → kill silencioso.
+- **Cambios v1.1.7 implementados**:
+  - `getServerContainerState`: +`oomKilled` +`exitCode` (137 = OOM)
+  - Diálogo: exit/oomKilled en el mensaje; logs hasta 2000 chars
+  - **Botón "Reparar"** (`runSelfHeal`): one-shot `prisma db push` con salida+exit capturados directo → clasifica (137→RAM, P1000→contraseña) → en éxito escribe hash de schema + `compose restart server` + re-wait → arranque sin terminal
+  - Helpers nuevos en docker.ts: `runPrismaPushOnce`, `computeSchemaHash` (sha256 exacto de bytes, compatible con `sha256sum` del entrypoint), `writeSchemaStateHash`, `restartServerContainer`
+- **Verificación**: typecheck limpio, 113/113 tests, eslint 0 errores en archivos tocados
+- **Pendiente**: emitir release v1.1.7 (o, alternativa sin release, operador sube RAM de Docker Desktop por GUI ≥4096 MB)
