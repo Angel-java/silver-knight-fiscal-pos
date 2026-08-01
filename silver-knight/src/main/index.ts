@@ -23,7 +23,9 @@ import {
   runPrismaPushOnce,
   computeSchemaHash,
   writeSchemaStateHash,
-  restartServerContainer
+  restartServerContainer,
+  stopServerContainer,
+  getDockerSystemDf
 } from './docker'
 import { appUpdater } from './updater'
 import { ensureServerImage } from './server-image'
@@ -51,6 +53,7 @@ const MAIN_WINDOW_HEIGHT = 720
 
 let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
+let selfHealAttempted = false
 
 function createSplashWindow(): BrowserWindow {
   const splash = new BrowserWindow({
@@ -107,7 +110,10 @@ async function gatherDiagnostics(): Promise<string> {
   const dbStatus = await getDbContainerStatus()
   lines.push(`DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
   const serverState = await getServerContainerState()
-  lines.push(`Server container: running=${serverState.running}, status=${serverState.status}, restarts=${serverState.restarts}, oomKilled=${serverState.oomKilled}`)
+  lines.push(`Server container: running=${serverState.running}, status=${serverState.status}, restarts=${serverState.restarts}, oomKilled=${serverState.oomKilled}, exitCode=${serverState.exitCode}`)
+  lines.push('')
+  lines.push('--- docker system df ---')
+  lines.push(await getDockerSystemDf())
   lines.push('')
   lines.push('--- silverknight-server logs (last 50) ---')
   lines.push((await getServerContainerLogs(50)) || '(no logs available)')
@@ -149,6 +155,11 @@ async function copyDiagnostics(): Promise<void> {
 async function runSelfHeal(): Promise<{ ok: boolean; message: string }> {
   log('startup', 'Self-heal: applying database schema via one-shot prisma db push...')
   sendSplash('splash-status', 'Reparando: aplicando esquema de base de datos...')
+
+  const stopped = await stopServerContainer()
+  if (!stopped) {
+    log('startup', 'Self-heal: could not stop server container, continuing anyway')
+  }
 
   const push = await runPrismaPushOnce()
 
@@ -353,40 +364,34 @@ async function startBackend(): Promise<boolean> {
         `Últimos logs del contenedor:\n${serverLogs.slice(0, 2000)}`
     }
 
+    if (backendResult.status === 'container-crashed' && !selfHealAttempted) {
+      selfHealAttempted = true
+      sendSplash('splash-status', 'Detecté un fallo del servidor. Reparando automáticamente...')
+      log('startup', 'Self-healing automatically (container crashed)')
+      const healed = await runSelfHeal()
+      if (healed.ok) {
+        sendSplash('splash-progress', 100)
+        sendSplash('splash-success', 'Servidor listo')
+        log('startup', 'Auto self-heal succeeded')
+        return true
+      }
+      detail = healed.message + '\n\n---\n\n' + detail
+    }
+
     const retry = await dialog.showMessageBox({
       type: 'error',
       title: 'Servidor no responde',
       message: 'El backend no está respondiendo.',
       detail,
-      buttons: ['Reparar', 'Reintentar', 'Copiar diagnóstico', 'Salir'],
+      buttons: ['Reintentar', 'Copiar diagnóstico', 'Salir'],
       defaultId: 0,
-      cancelId: 3
+      cancelId: 2
     })
 
     if (retry.response === 0) {
-      const healed = await runSelfHeal()
-      if (healed.ok) {
-        return true
-      }
-      const retry2 = await dialog.showMessageBox({
-        type: 'error',
-        title: 'No se pudo reparar',
-        message: 'La reparación automática no funcionó.',
-        detail: healed.message,
-        buttons: ['Reintentar', 'Salir'],
-        defaultId: 0,
-        cancelId: 1
-      })
-      if (retry2.response === 0) {
-        return startBackend()
-      }
-      app.quit()
-      return false
-    }
-    if (retry.response === 1) {
       return startBackend()
     }
-    if (retry.response === 2) {
+    if (retry.response === 1) {
       await copyDiagnostics()
       return startBackend()
     }

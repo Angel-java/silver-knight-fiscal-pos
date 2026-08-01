@@ -22,8 +22,15 @@ if [ "$SCHEMA_HASH" = "$LAST_HASH" ]; then
   echo "[silver-knight] Schema unchanged, skipping prisma db push."
 else
   echo "[silver-knight] Schema changed (or first run). Pushing schema..."
-  npx prisma db push --accept-data-loss
-  echo "$SCHEMA_HASH" > "$SCHEMA_HASH_FILE"
+  if ! npx prisma db push --accept-data-loss 2>&1; then
+    rc=$?
+    echo "[silver-knight] ERROR: prisma db push fallo con exit code $rc"
+    exit $rc
+  fi
+  if ! echo "$SCHEMA_HASH" > "$SCHEMA_HASH_FILE"; then
+    echo "[silver-knight] ERROR: no se pudo escribir el hash de schema (volumen /schema-state no escribible)"
+    exit 1
+  fi
   echo "[silver-knight] Schema applied."
 fi
 

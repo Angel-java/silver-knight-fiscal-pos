@@ -584,6 +584,31 @@ export async function restartServerContainer(): Promise<boolean> {
   })
 }
 
+export async function stopServerContainer(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['compose', 'stop', 'server'], {
+      cwd: getComposeDir(),
+      env: getChildEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true
+    })
+    proc.on('close', (code) => {
+      log('push', `Server container stop ${code === 0 ? 'ok' : `failed (code ${code})`}`)
+      resolve(code === 0)
+    })
+    proc.on('error', () => resolve(false))
+  })
+}
+
+export async function getDockerSystemDf(): Promise<string> {
+  try {
+    const { stdout } = await execAsync('docker system df', { timeout: 8000 })
+    return stdout.trim()
+  } catch (err) {
+    return `docker system df failed: ${err}`
+  }
+}
+
 export async function waitForBackend(
   url: string,
   timeoutMs = 180000,
