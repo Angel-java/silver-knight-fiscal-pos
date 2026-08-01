@@ -93,4 +93,9 @@ La salida se corta **sin mensaje de error** justo cuando `prisma db push` arranc
 
 ### Próximo paso
 
-Emitir v1.1.7. El operador instala → si OOM, el diálogo lo confirma (exit 137) y/o el botón Reparar aplica el schema en un one-shot con menos presión de memoria (el build ya terminó) → app arranca. Alternativa inmediata sin release: el operador sube la RAM de Docker Desktop por GUI (Settings → Resources → Memory ≥ 4096 MB → Apply & Restart) y reintenta v1.1.6.
+**Emitido v1.1.7** (2026-08-01): https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.7
+
+El operador instala v1.1.7 y, si el fallo persiste, pulsar **"Reparar"**:
+- Si reporta **exit 137 / OOM** → subir RAM de Docker Desktop por GUI (Settings → Resources → Memory ≥ 4096 MB → Apply & Restart) y reabrir la app.
+- Si reporta **P1000 / authentication** → reintroducir la contraseña de la DB en Configuración.
+- Si el push one-shot tiene éxito → la app escribe el hash de schema, reinicia el servidor y arranca sin terminal.

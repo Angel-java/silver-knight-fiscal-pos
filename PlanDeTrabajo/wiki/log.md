@@ -242,3 +242,12 @@ updated: 2026-07-31
   - Helpers nuevos en docker.ts: `runPrismaPushOnce`, `computeSchemaHash` (sha256 exacto de bytes, compatible con `sha256sum` del entrypoint), `writeSchemaStateHash`, `restartServerContainer`
 - **Verificación**: typecheck limpio, 113/113 tests, eslint 0 errores en archivos tocados
 - **Pendiente**: emitir release v1.1.7 (o, alternativa sin release, operador sube RAM de Docker Desktop por GUI ≥4096 MB)
+
+## [2026-08-01] release | v1.1.7 publicada — self-heal para crash-loop de `prisma db push`
+- **Descripción**: release con el botón "Reparar" y diagnóstico OOM/exitus. El operador instala; si el push one-shot reporta exit 137 → subir RAM de Docker Desktop por GUI (Settings → Resources → Memory ≥ 4096 MB → Apply & Restart); si reporta P1000 → reintroducir contraseña en Configuración. En éxito, la app escribe el hash de schema y arranca sin terminal.
+- **Cambios clave**: botón "Reparar" (`runSelfHeal`) en el diálogo de fallo; `getServerContainerState` con `oomKilled` + `exitCode`; helpers `runPrismaPushOnce` (compose run one-shot con salida/exit capturados), `computeSchemaHash` (sha256 de bytes exacto, compatible con `sha256sum` del entrypoint), `writeSchemaStateHash` (docker run al volumen schema-state), `restartServerContainer`; logs 100 líneas / 2000 chars
+- **Verificación**: typecheck limpio, 113/113 tests, eslint 0 errores en archivos tocados
+- **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.7 (assets: `silver-knight-1.1.7-setup.exe` sha512 `70CD23919827C49CCD08E139432D537CD2DC94890CE60E875E09A95D9B7E5FDA6B6EFE7D6784B77D8D96F0EDDE1B5A3AF66D85AF4D9B627353F18EF7D3CAB73F`, `.blockmap`, `latest.yml`)
+- **Commit**: `cd561a4` (fix) + `9e80402` (docs wiki)
+- **Nota**: electron-builder publicó 2 drafts con assets partidos (bug conocido) — se limpiaron y la release se creó manualmente con `gh release create`; el draft residual de v1.1.6 también se eliminó
+- **Pendiente**: confirmar en la máquina desplegada; pedir al operador el resultado del botón "Reparar" (exit code) o "Copiar diagnóstico" si falla
