@@ -267,3 +267,22 @@ updated: 2026-08-01
 - **Verificación**: typecheck limpio, 113/113 tests, eslint 0 errores en archivos tocados
 - **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.8 (assets: `silver-knight-1.1.8-setup.exe` sha512 `8F5D6335C6DB9ED12538F24F60E0EFE892919400489C04B76BAB1D69C9049F33895D823A0D7F5784FD391DC102955659FC638F60E6F32A1D1DB9FA8E441B5372`, `.blockmap`, `latest.yml`)
 - **Pendiente**: operador desinstala Silver Knight (Settings → Apps → Silver Knight → Uninstall) e instala v1.1.8 limpio; si el diálogo clasifica exit 137 → subir RAM de Docker Desktop ≥4096 MB; si el push one-shot tiene éxito → hash escrito → servidor arranca sin terminal
+
+## [2026-08-01] diagnose | CAUSA CONFIRMADA: P1000 (autenticación), NO OOM — el error siempre estuvo en stderr
+- **Fuente**: operador — diagnóstico v1.1.8 completo (logs del contenedor ahora con `2>&1`)
+- **Páginas tocadas**: [[diagnostico-error-3001-post-update]]
+- **Hallazgos**: (1) los logs del contenedor muestran por fin el error real: `Error: P1000: Authentication failed against database server, the provided database credentials for silverknight are not valid`; (2) la contraseña del `.env` (`%APPDATA%\silver-knight\config\.env`) NO coincide con la que usó el volumen `silverknight-pgdata` al inicializarse; (3) la contraseña original fue **generada aleatoriamente** en la instalación inicial y nunca se mostró → el operador no la sabe; (4) la contraseña original quedó "quemada" en el volumen cuando el wizard no detectó el volumen existente (`detectExistingDockerVolume` requiere Docker corriendo) y generó una nueva.
+- **Bug propio descubierto (v1.1.8)**: el entrypoint imprimía `exit code 0` en fallos — `if ! npx prisma db push ...; then rc=$?` captura el `$?` de la negación (0), no del comando. Se corrige en v1.1.9 (`npx ... 2>&1; rc=$?; if [ $rc -ne 0 ]`).
+- **Bloqueo de UX**: el wizard `EnvSetupPage` solo aparece si `config.exists()` es falso; como la config existe (con contraseña mala), el operador no tenía ningún botón para corregir la contraseña.
+- **Descartado definitivamente**: OOM / subir RAM de Docker Desktop (la salida cortada era solo stderr no capturado).
+
+## [2026-08-01] release | v1.1.9 publicada — restablecer contraseña de Postgres conservando datos
+- **Descripción**: ante P1000 el diálogo ofrece **"Restablecer contraseña"**: la app genera una contraseña nueva, la aplica al volumen existente vía `docker compose exec -T db psql -U postgres -c "ALTER USER ..."` (la imagen postgres permite conexión local por unix socket con `trust`, sin tocar `pg_hba.conf` → NO se pierde ningún dato), guarda la nueva contraseña en `.env` preservando el resto (`savePostgresPassword`), y relanza `startBackend()` (compose `up -d` recrea el contenedor server con la nueva DATABASE_URL).
+- **Cambios clave**:
+  - `docker.ts`: `resetPostgresPassword(newPassword)` (exec spawn con shell:true y SQL entrecomillada para el shell)
+  - `config.ts`: `generatePassword` exportada; `savePostgresPassword(password)` (solo actualiza POSTGRES_PASSWORD + DATABASE_URL)
+  - `index.ts`: `runResetPassword()`; flujo de fallo reestructurado — `isAuthProblem` (P1000/auth desde logs o mensaje del self-heal) → diálogo con botón "Restablecer contraseña"; fix del diagnóstico `authPattern` con P1000
+  - `docker-entrypoint.sh`: fix del exit code (bug `if !` de v1.1.8)
+- **Verificación**: typecheck limpio, 113/113 tests, eslint 0 errores en archivos tocados
+- **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.9 (assets: `silver-knight-1.1.9-setup.exe` sha512 `94926E8D22C6807AA79B609EEA8102A0D0089BDA08BE229521C845B5B787436537C216542D6A46A544D4C383AD761881D0F19CDA57885B5A7FDCA8D2CE093B6F`, `.blockmap`, `latest.yml`)
+- **Acción del operador**: instalar v1.1.9; si aparece el diálogo de P1000 → pulsar **"Restablecer contraseña"** (conserva datos) → la app cambia la contraseña de la BD y arranca.

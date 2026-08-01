@@ -131,3 +131,35 @@ La causa es **memoria insuficiente de Docker Desktop/WSL2**, no la app ni el sch
 2. Instalar `silver-knight-1.1.8-setup.exe` (sha512 `8F5D6335C6DB9ED12538F24F60E0EFE892919400489C04B76BAB1D69C9049F33895D823A0D7F5784FD391DC102955659FC638F60E6F32A1D1DB9FA8E441B5372`).
 3. Si el diálogo clasifica **exit 137 / OOM** → Docker Desktop → Settings → Resources → Memory ≥ 4096 MB → Apply & Restart, y reabrir.
 4. Si el push one-shot tiene éxito → hash escrito → servidor arranca sin terminal.
+
+## CAUSA CONFIRMADA (2026-08-01): P1000, NO OOM
+
+Con v1.1.8 (entrypoint con `2>&1`) los logs del contenedor revelaron el error que siempre estuvo cortado:
+
+```
+Error: P1000: Authentication failed against database server, the provided database credentials for silverknight are not valid.
+```
+
+**Diagnóstico definitivo:**
+- La contraseña del `.env` de la app NO coincide con la del volumen `silverknight-pgdata`.
+- La contraseña original fue generada aleatoriamente en la instalación inicial y nunca se mostró al usuario.
+- Origen del desajuste: en algún momento el wizard regeneró la contraseña (porque `detectExistingDockerVolume` requiere Docker corriendo para detectar el volumen) mientras el volumen conservaba la original → P1000 perpetuo.
+- Las hipótesis anteriores (OOM, pico por build) quedan **descartadas**: la salida "cortada" era solo stderr sin capturar.
+- Bug propio de v1.1.8: entrypoint imprimía `exit code 0` en fallos (`if ! cmd` captura el `$?` de la negación) → corregido en v1.1.9.
+
+## v1.1.9 (2026-08-01) — Restablecer contraseña conservando datos
+
+**Emitido**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.9 (setup.exe sha512 `94926E8D22C6807AA79B609EEA8102A0D0089BDA08BE229521C845B5B787436537C216542D6A46A544D4C383AD761881D0F19CDA57885B5A7FDCA8D2CE093B6F`)
+
+| Área | Cambio |
+|---|---|
+| Diálogo P1000 | `isAuthProblem` (logs o mensaje del self-heal) → botón **"Restablecer contraseña"** |
+| Reset | `runResetPassword()`: nueva contraseña → `docker compose exec -T db psql -U postgres -c "ALTER USER silverknight PASSWORD '...'"` (trust por unix socket en imagen postgres oficial, **sin tocar pg_hba.conf ni los datos**) → `savePostgresPassword` (solo actualiza POSTGRES_PASSWORD + DATABASE_URL) → `startBackend()` recrea el server con la nueva DATABASE_URL |
+| Entrypoint | Fix exit code (bug `if !` de v1.1.8) |
+| Config | `generatePassword` exportada; `savePostgresPassword` preserva ROOT_PIN/JWT_SECRET |
+
+### Acción del operador
+
+1. Instalar `silver-knight-1.1.9-setup.exe`.
+2. Si aparece el diálogo de P1000 → pulsar **"Restablecer contraseña"** (conserva todos los datos; la BD ya tiene la contraseña original quemada, se cambia dentro del volumen).
+3. La app relanza el backend con la nueva credencial → `prisma db push` aplica el schema → hash escrito → servidor listo sin terminal.

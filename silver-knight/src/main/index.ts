@@ -25,7 +25,8 @@ import {
   writeSchemaStateHash,
   restartServerContainer,
   stopServerContainer,
-  getDockerSystemDf
+  getDockerSystemDf,
+  resetPostgresPassword
 } from './docker'
 import { appUpdater } from './updater'
 import { ensureServerImage } from './server-image'
@@ -33,6 +34,8 @@ import {
   ensureConfig,
   readConfig,
   saveConfigFromWizard,
+  savePostgresPassword,
+  generatePassword,
   migrateFromLegacy,
   migrateConfig,
   loadEnvForChild,
@@ -212,6 +215,23 @@ async function runSelfHeal(): Promise<{ ok: boolean; message: string }> {
   }
 }
 
+async function runResetPassword(): Promise<boolean> {
+  sendSplash('splash-status', 'Restableciendo contraseña de la base de datos (conserva tus datos)...')
+  log('startup', 'Resetting postgres password...')
+
+  const newPassword = generatePassword()
+  const res = await resetPostgresPassword(newPassword)
+
+  if (!res.ok) {
+    log('startup', `Password reset failed: ${res.output}`)
+    return false
+  }
+
+  savePostgresPassword(newPassword)
+  log('startup', 'Password reset ok, restarting backend with new credentials')
+  return startBackend()
+}
+
 async function dumpBackendDiagnostics(): Promise<void> {
   log('startup', '--- Diagnostic dump ---')
   const text = await gatherDiagnostics()
@@ -336,34 +356,13 @@ async function startBackend(): Promise<boolean> {
 
     const serverLogs = (await getServerContainerLogs(100)) || '(sin logs disponibles)'
 
-    const isAuthFailure =
-      /password authentication failed|FATAL: password authentication failed|role "silverknight" does not exist|SCRAM authentication|Authentication failed against database server/i.test(
-        serverLogs
-      )
+    const authPattern =
+      /P1000|password authentication failed|FATAL: password authentication failed|role "silverknight" does not exist|SCRAM authentication|Authentication failed against database server/i
+    const isAuthFailure = authPattern.test(serverLogs)
 
     const isOom = backendResult.status === 'container-crashed' && backendResult.oomKilled
 
-    let detail: string
-    if (isOom) {
-      detail =
-        'El contenedor del servidor fue terminado por falta de memoria (OOM).\n\n' +
-        'La máquina no tiene suficiente RAM para PostgreSQL + el servidor.\n' +
-        'Solución: abre Docker Desktop → Settings → Resources → aumenta la memoria (mínimo 4096 MB) → Apply & Restart.\n\n' +
-        `Código de salida: ${backendResult.exitCode}, reinicios: ${backendResult.restarts}`
-    } else if (isAuthFailure) {
-      detail =
-        'El servidor no puede autenticarse contra la base de datos: la contraseña de PostgreSQL configurada no coincide con el volumen existente.\n\n' +
-        'Solución: abre Silver Knight > Configuración y vuelve a registrar la contraseña correcta de PostgreSQL (la de la base de datos existente).'
-    } else if (backendResult.status === 'container-crashed') {
-      detail =
-        `El contenedor del servidor no está corriendo (estado: ${backendResult.containerState}, reinicios: ${backendResult.restarts}, exit ${backendResult.exitCode}).\n\n` +
-        `Últimos logs del contenedor:\n${serverLogs.slice(0, 2000)}`
-    } else {
-      detail =
-        `El backend tardó demasiado en iniciar. Verifica que el puerto ${port} no esté en uso.\n\n` +
-        `Últimos logs del contenedor:\n${serverLogs.slice(0, 2000)}`
-    }
-
+    let healMessage = ''
     if (backendResult.status === 'container-crashed' && !selfHealAttempted) {
       selfHealAttempted = true
       sendSplash('splash-status', 'Detecté un fallo del servidor. Reparando automáticamente...')
@@ -375,23 +374,80 @@ async function startBackend(): Promise<boolean> {
         log('startup', 'Auto self-heal succeeded')
         return true
       }
-      detail = healed.message + '\n\n---\n\n' + detail
+      healMessage = healed.message
     }
+
+    const isAuthProblem = isAuthFailure || (!!healMessage && authPattern.test(healMessage))
+
+    let detail: string
+    if (isAuthProblem) {
+      detail =
+        'La contraseña de PostgreSQL guardada no coincide con la base de datos existente (error P1000).\n\n' +
+        'La base de datos (volumen silverknight-pgdata) conserva sus datos y su contraseña original.\n' +
+        'Pulsa "Restablecer contraseña" para cambiarla dentro de la base de datos SIN borrar tus datos.\n\n' +
+        `Últimos logs del contenedor:\n${serverLogs.slice(0, 1500)}`
+    } else if (isOom) {
+      detail =
+        'El contenedor del servidor fue terminado por falta de memoria (OOM).\n\n' +
+        'La máquina no tiene suficiente RAM para PostgreSQL + el servidor.\n' +
+        'Solución: abre Docker Desktop → Settings → Resources → aumenta la memoria (mínimo 4096 MB) → Apply & Restart.\n\n' +
+        `Código de salida: ${backendResult.exitCode}, reinicios: ${backendResult.restarts}`
+    } else if (backendResult.status === 'container-crashed') {
+      detail =
+        `El contenedor del servidor no está corriendo (estado: ${backendResult.containerState}, reinicios: ${backendResult.restarts}, exit ${backendResult.exitCode}).\n\n` +
+        `Últimos logs del contenedor:\n${serverLogs.slice(0, 2000)}`
+    } else {
+      detail =
+        `El backend tardó demasiado en iniciar. Verifica que el puerto ${port} no esté en uso.\n\n` +
+        `Últimos logs del contenedor:\n${serverLogs.slice(0, 2000)}`
+    }
+
+    if (healMessage && !isAuthProblem) {
+      detail = healMessage + '\n\n---\n\n' + detail
+    }
+
+    const buttons = isAuthProblem
+      ? ['Restablecer contraseña', 'Reintentar', 'Copiar diagnóstico', 'Salir']
+      : ['Reintentar', 'Copiar diagnóstico', 'Salir']
+    const resetIdx = 0
+    const retryIdx = isAuthProblem ? 1 : 0
+    const copyIdx = isAuthProblem ? 2 : 1
 
     const retry = await dialog.showMessageBox({
       type: 'error',
       title: 'Servidor no responde',
       message: 'El backend no está respondiendo.',
       detail,
-      buttons: ['Reintentar', 'Copiar diagnóstico', 'Salir'],
+      buttons,
       defaultId: 0,
-      cancelId: 2
+      cancelId: buttons.length - 1
     })
 
-    if (retry.response === 0) {
+    if (isAuthProblem && retry.response === resetIdx) {
+      const resetOk = await runResetPassword()
+      if (resetOk) {
+        return true
+      }
+      const retry2 = await dialog.showMessageBox({
+        type: 'error',
+        title: 'No se pudo restablecer',
+        message: 'El restablecimiento de contraseña no funcionó.',
+        detail: 'Usa "Copiar diagnóstico" para reportar el problema con los logs.',
+        buttons: ['Reintentar', 'Salir'],
+        defaultId: 0,
+        cancelId: 1
+      })
+      if (retry2.response === 0) {
+        return startBackend()
+      }
+      app.quit()
+      return false
+    }
+
+    if (retry.response === retryIdx) {
       return startBackend()
     }
-    if (retry.response === 1) {
+    if (retry.response === copyIdx) {
       await copyDiagnostics()
       return startBackend()
     }

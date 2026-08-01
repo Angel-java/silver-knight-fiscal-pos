@@ -52,7 +52,7 @@ function buildEnvContent(vars: Record<string, string>): string {
   return lines.join('\n') + '\n'
 }
 
-function generatePassword(length = 20): string {
+export function generatePassword(length = 20): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   const bytes = crypto.randomBytes(length)
   return Array.from(bytes)
@@ -222,6 +222,18 @@ export function migrateConfig(): boolean {
   writeVersion(CONFIG_VERSION)
   log('migrate', `Config migrated to version ${CONFIG_VERSION}`)
   return true
+}
+
+export function savePostgresPassword(password: string): void {
+  const vars = readConfig()
+  if (!vars['POSTGRES_PASSWORD']) {
+    log('wizard', 'Cannot update password: no existing config')
+    return
+  }
+  vars['POSTGRES_PASSWORD'] = password
+  vars['DATABASE_URL'] = rebuildDatabaseUrl(vars)
+  writeEnvSecure(vars)
+  log('wizard', 'Postgres password updated, other settings preserved')
 }
 
 export function saveConfigFromWizard(data: {

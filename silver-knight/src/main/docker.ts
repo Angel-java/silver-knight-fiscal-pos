@@ -609,6 +609,77 @@ export async function getDockerSystemDf(): Promise<string> {
   }
 }
 
+export async function resetPostgresPassword(newPassword: string): Promise<{
+  ok: boolean
+  exitCode: number | null
+  output: string
+}> {
+  const dir = getComposeDir()
+  log('push', 'Resetting postgres password via local trust auth...')
+
+  try {
+    await execAsync(`${getComposeCmd()} up -d db`, {
+      cwd: dir,
+      env: getChildEnv(),
+      timeout: 60000
+    })
+    log('push', 'db container ensured running')
+  } catch (err) {
+    log('push', `Failed to ensure db container running: ${err}`)
+  }
+
+  const sql = `"ALTER USER silverknight PASSWORD '${newPassword}';"`
+
+  return new Promise((resolve) => {
+    const proc = spawn(
+      'docker',
+      ['compose', 'exec', '-T', 'db', 'psql', '-U', 'postgres', '-c', sql],
+      {
+        cwd: dir,
+        env: getChildEnv(),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: true
+      }
+    )
+
+    let output = ''
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      proc.kill()
+    }, 60000)
+
+    const onData = (chunk: Buffer, isErr: boolean): void => {
+      const text = chunk.toString()
+      output += text
+      for (const line of text.split(/\r?\n/)) {
+        const t = line.trim()
+        if (t) log('push', isErr ? `[stderr] ${t}` : t)
+      }
+    }
+
+    proc.stdout.on('data', (d: Buffer) => onData(d, false))
+    proc.stderr.on('data', (d: Buffer) => onData(d, true))
+
+    proc.on('close', (code) => {
+      clearTimeout(timer)
+      if (timedOut) {
+        log('push', 'psql ALTER USER timed out (60s)')
+        resolve({ ok: false, exitCode: null, output: `${output}\n[timeout tras 60s]` })
+      } else {
+        log('push', `psql ALTER USER exited with code ${code}`)
+        resolve({ ok: code === 0, exitCode: code, output })
+      }
+    })
+
+    proc.on('error', (err) => {
+      clearTimeout(timer)
+      log('push', `Spawn error: ${err.message}`)
+      resolve({ ok: false, exitCode: null, output: `Error al ejecutar docker: ${err.message}` })
+    })
+  })
+}
+
 export async function waitForBackend(
   url: string,
   timeoutMs = 180000,
