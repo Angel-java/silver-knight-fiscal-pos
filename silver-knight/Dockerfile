@@ -3,9 +3,9 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 FROM base AS deps
-COPY package.json package-lock.json ./
-COPY prisma ./prisma
+COPY server/package.json server/package-lock.json ./
 RUN npm ci --ignore-scripts
+COPY prisma ./prisma
 RUN npx prisma generate
 
 FROM node:20-alpine AS runner

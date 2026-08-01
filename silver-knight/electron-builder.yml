@@ -24,6 +24,10 @@ extraResources:
     to: docker-entrypoint.sh
   - from: src/server
     to: src/server
+  - from: server/package.json
+    to: server/package.json
+  - from: server/package-lock.json
+    to: server/package-lock.json
   - from: prisma
     to: prisma
   - from: prisma/schema.prisma

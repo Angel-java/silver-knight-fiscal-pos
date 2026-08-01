@@ -157,7 +157,7 @@ export async function startCompose(
 
   const run = (): Promise<{ success: boolean; error?: string }> =>
     new Promise((resolve) => {
-      const proc = spawn('docker', ['compose', 'up', '-d', '--build'], {
+      const proc = spawn('docker', ['compose', 'up', '-d'], {
         cwd: dir,
         env: getChildEnv(),
         stdio: ['ignore', 'pipe', 'pipe'],

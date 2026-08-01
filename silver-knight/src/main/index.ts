@@ -1,6 +1,7 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, clipboard } from 'electron'
 import { join } from 'path'
 import { execSync } from 'child_process'
+import { readFileSync, existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import {
@@ -18,6 +19,7 @@ import {
   getComposeContainers
 } from './docker'
 import { appUpdater } from './updater'
+import { ensureServerImage } from './server-image'
 import {
   ensureConfig,
   readConfig,
@@ -79,18 +81,65 @@ async function showDockerError(message: string): Promise<void> {
   app.quit()
 }
 
+async function gatherDiagnostics(): Promise<string> {
+  const lines: string[] = []
+  lines.push(`Silver Knight diagnostics — app v${app.getVersion()}`)
+  lines.push(`Time: ${new Date().toISOString()}`)
+  lines.push(`Port: ${process.env['PORT'] || '3001'}`)
+  lines.push('')
+  try {
+    lines.push('--- docker ps -a ---')
+    lines.push(await getComposeContainers())
+  } catch (err) {
+    lines.push(`docker ps failed: ${err}`)
+  }
+  lines.push('')
+  const dbStatus = await getDbContainerStatus()
+  lines.push(`DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
+  lines.push('')
+  lines.push('--- silverknight-server logs (last 50) ---')
+  lines.push((await getServerContainerLogs(50)) || '(no logs available)')
+  lines.push('')
+  try {
+    const logPath = join(app.getPath('userData'), 'logs', 'main.log')
+    if (existsSync(logPath)) {
+      const tail = readFileSync(logPath, 'utf-8')
+        .split(/\r?\n/)
+        .slice(-100)
+        .join('\n')
+      lines.push('--- main.log tail (last 100) ---')
+      lines.push(tail)
+    }
+  } catch (err) {
+    lines.push(`Could not read main.log: ${err}`)
+  }
+  return lines.join('\n')
+}
+
+async function copyDiagnostics(): Promise<void> {
+  try {
+    const text = await gatherDiagnostics()
+    clipboard.writeText(text)
+    log('startup', 'Diagnostics copied to clipboard')
+    await dialog.showMessageBox({
+      type: 'info',
+      title: 'Diagnóstico copiado',
+      message: 'El diagnóstico fue copiado al portapapeles.',
+      detail:
+        'Pégalo en el chat/WhatsApp al soporte técnico para poder ver la causa del error.',
+      buttons: ['OK']
+    })
+  } catch (err) {
+    log('startup', `Failed to copy diagnostics: ${err}`)
+  }
+}
+
 async function dumpBackendDiagnostics(): Promise<void> {
   log('startup', '--- Diagnostic dump ---')
-  try {
-    const containers = await getComposeContainers()
-    log('startup', `Docker containers:\n${containers}`)
-  } catch (err) {
-    log('startup', `Could not list containers: ${err}`)
+  const text = await gatherDiagnostics()
+  for (const line of text.split('\n')) {
+    log('startup', line)
   }
-  const dbStatus = await getDbContainerStatus()
-  log('startup', `DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
-  const serverLogs = await getServerContainerLogs(50)
-  log('startup', `Server container logs (last 50):\n${serverLogs || '(no logs available)'}`)
   log('startup', '--- End diagnostic dump ---')
 }
 
@@ -144,6 +193,20 @@ async function startBackend(): Promise<boolean> {
   sendSplash('splash-status', 'Iniciando servidor backend...')
   sendSplash('splash-progress', 20)
 
+  if (app.isPackaged) {
+    const imageResult = await ensureServerImage((line) => {
+      if (line.includes('Building')) {
+        sendSplash('splash-status', 'Construyendo imagen Docker...')
+        sendSplash('splash-progress', 40)
+      } else {
+        sendSplash('splash-status', line)
+      }
+    })
+    if (imageResult.error) {
+      log('server-image', `Rebuild failed, continuing with existing image: ${imageResult.error}`)
+    }
+  }
+
   const result = await startCompose((line) => {
     if (line.includes('Building')) {
       sendSplash('splash-status', 'Construyendo imagen Docker...')
@@ -162,11 +225,16 @@ async function startBackend(): Promise<boolean> {
       title: 'Error al iniciar servidor',
       message: 'No se pudo iniciar el backend.',
       detail: result.error?.substring(0, 500) || 'Error desconocido',
-      buttons: ['Reintentar', 'Salir'],
-      defaultId: 0
+      buttons: ['Reintentar', 'Copiar diagnóstico', 'Salir'],
+      defaultId: 0,
+      cancelId: 2
     })
 
     if (retry.response === 0) {
+      return startBackend()
+    }
+    if (retry.response === 1) {
+      await copyDiagnostics()
       return startBackend()
     }
     app.quit()
@@ -193,11 +261,16 @@ async function startBackend(): Promise<boolean> {
       title: 'Servidor no responde',
       message: 'El backend tardó demasiado en iniciar.',
       detail: 'Verifica que el puerto 3001 no esté en uso.',
-      buttons: ['Reintentar', 'Salir'],
-      defaultId: 0
+      buttons: ['Reintentar', 'Copiar diagnóstico', 'Salir'],
+      defaultId: 0,
+      cancelId: 2
     })
 
     if (retry.response === 0) {
+      return startBackend()
+    }
+    if (retry.response === 1) {
+      await copyDiagnostics()
       return startBackend()
     }
     app.quit()
