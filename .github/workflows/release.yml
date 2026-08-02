@@ -44,6 +44,7 @@ jobs:
       # This step publishes the release, marks it as latest and re-uploads
       # the blockmap so differential updates keep working.
       - name: Finalize release (publish + latest + blockmap)
+        shell: bash
         working-directory: silver-knight
         run: |
           REF=${{ github.ref_name }}
