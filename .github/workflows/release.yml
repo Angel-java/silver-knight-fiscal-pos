@@ -28,6 +28,10 @@ jobs:
         working-directory: silver-knight
         run: npx prisma generate
 
+      - name: Build app
+        working-directory: silver-knight
+        run: npm run build
+
       - name: Build and Publish
         working-directory: silver-knight
         run: npx electron-builder --win --publish always
