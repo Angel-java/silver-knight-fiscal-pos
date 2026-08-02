@@ -322,3 +322,17 @@ pm run build antes de electron-builder — los CI de v1.1.9/v1.1.10 fallaban por
 - **Fix aplicado**: .gitattributes en la raiz (text eol=lf para *.sh, Dockerfile, *.yml, *.yaml, *.prisma) + RUN sed -i 's/\r$//' /docker-entrypoint.sh en Dockerfile (defensa definitiva aunque el source llegue CRLF).
 - **Verificacion**: extraido silver-knight-1.1.11-setup.exe y 1.1.10-setup.exe con 7-Zip -> CRLF 39 vs 0 en docker-entrypoint.sh; blob en git es LF puro.
 - **Paginas tocadas**: [[docker-deployment]]
+## [2026-08-02] release | v1.1.12 publicada - fix CRLF docker-entrypoint.sh
+- **Descripcion**: corrige el crash loop del server (exit 255) introducido por v1.1.11. El instalador v1.1.11 empaqueto docker-entrypoint.sh con CRLF (checkout CI en Windows sin .gitattributes); el shebang #!/bin/sh no era valido y el contenedor server moria sin logs. Fix: .gitattributes (text eol=lf para *.sh, Dockerfile, *.yml, *.yaml, *.prisma) + RUN sed -i 's/\r$//' en Dockerfile.
+- **Paginas tocadas**: [[diagnostico-server-exit-255-crlf]], [[docker-deployment]], [[index]]
+- **Verificacion**: extraido setup v1.1.12 con 7-Zip -> docker-entrypoint.sh CRLF=0 (antes v1.1.11: 39, v1.1.10: 0). CI release success 2m48s (run 30729006469). /releases/latest -> v1.1.12. latest.yml correcto.
+- **Nota operacional**: electron-builder crea la release como draft y no la publica ni marca Latest ni sube .blockmap; hay que ejecutar manualmente: gh release edit v1.1.12 --draft=false --latest. Sin blockmap la actualizacion usa descarga completa (funciona, no diferencial).
+- **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.12
+- **Accion del operador**: instalar v1.1.12 (auto-update o setup manual). La imagen server se reconstruye con el entrypoint LF.
+
+## [2026-08-02] fix | Auto-publicacion de releases en CI (fin del draft manual)
+- **Descripcion**: eliminado el trabajo manual de publicar cada release. electron-builder (--publish always) crea la release como **draft**, no marca Latest y pierde el blockmap (sube assets antes de crear la release). Nuevo paso "Finalize release (publish + latest + blockmap)" en `.github/workflows/release.yml` con `shell: bash` (los runners Windows usan pwsh por defecto): `gh release edit <ref> --draft=false --latest` + `gh release upload <ref> dist/*.blockmap --clobber`.
+- **Paginas tocadas**: [[diagnostico-server-exit-255-crlf]], [[index]]
+- **Verificacion**: CI success (run 30729322485). v1.1.12 ahora con isDraft=false, blockmap subido (02:46:13), /releases/latest -> v1.1.12. Primer intento fallo por sintaxis bash en shell pwsh (ParserError Missing '(') -> corregido con shell:bash.
+- **Commits**: `d527b01` (finalize step), `157545e` (shell: bash). Tag v1.1.12 re-apuntado a 157545e.
+- **Nota**: futuras releases quedan publicadas y Latest automaticamente; ya no se necesita `gh release edit` manual.

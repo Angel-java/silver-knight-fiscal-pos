@@ -2,7 +2,7 @@
 type: query
 tags: [diagnostic, docker, crash, crlf, release]
 created: 2026-08-01
-updated: 2026-08-01
+updated: 2026-08-02
 sources: [v1.1.11, v1.1.10]
 ---
 
@@ -26,6 +26,16 @@ Como el Dockerfile usa `ENTRYPOINT ["/docker-entrypoint.sh"]` (exec form, sin wr
 ## Fix aplicado (v1.1.12)
 1. `.gitattributes` en raíz: `*.sh text eol=lf` (más `Dockerfile`, `*.yml`, `*.yaml`, `*.prisma`) → el checkout de CI ya no produce CRLF.
 2. `Dockerfile`: `RUN sed -i 's/\r$//' /docker-entrypoint.sh` tras el COPY → defensa definitiva aunque el source llegue con CRLF.
+
+## Verificación v1.1.12 publicada
+- Setup v1.1.12 extraído con 7-Zip → `docker-entrypoint.sh` CRLF=0, `Dockerfile` CRLF=0, `docker-compose.yml` CRLF=0.
+- CI release success (run 30729006469, 2m48s); `/releases/latest` → v1.1.12; `latest.yml` correcto.
+
+## Auto-publicación de releases (fix CI post-v1.1.12)
+- Hallazgo: electron-builder (`--publish always`) crea la release como **draft**, no la marca Latest y pierde el `.blockmap` (sube los assets antes de crear la release). Con el blockmap ausente electron-updater cae a descarga completa (funciona, no diferencial).
+- Fix: paso "Finalize release (publish + latest + blockmap)" en `.github/workflows/release.yml` — `gh release edit <ref> --draft=false --latest` + `gh release upload <ref> dist/*.blockmap --clobber`, con `shell: bash` (los runners Windows usan pwsh por defecto; el primer intento falló con `ParserError: Missing '(' after 'if'`).
+- Verificado: run 30729322485 success; v1.1.12 isDraft=false, blockmap subido, Latest resuelto.
+- Implicación: futuras releases quedan publicadas y Latest automáticamente; ya no es necesario `gh release edit` manual.
 
 ## Relación
 - [[docker-deployment]] — modelo de deployment Docker
