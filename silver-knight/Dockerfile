@@ -21,7 +21,9 @@ COPY tsconfig.json tsconfig.node.json ./
 COPY src/server ./src/server
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Strip possible CRLF (Windows checkout/packaging) so the shebang #!/bin/sh
+# stays valid. A CRLF shebang crashes the container with exit 255 and no logs.
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 
 EXPOSE 3001
 

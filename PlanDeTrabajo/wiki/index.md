@@ -46,3 +46,4 @@ updated: 2026-08-01
 - [[auditoria-arquitectura|Auditoría de Arquitectura — Julio 2026]] — Revisión completa del código base, 17 dimensiones evaluadas
 - [[diagnostico-error-3001-post-update|Diagnóstico — Error 3001 post-update]] — Causas raíz del backend que no responde tras actualizar; OOM en `prisma db push` confirmado como causa más probable + self-heal (v1.1.6 → v1.1.7)
 - [[auditoria-optimizacion-cuelgues|Auditoría de Optimización — Cuelgues aleatorios]] — Causas de cuelgues al azar durante el uso + fixes anti-hang aplicados (timeouts, logger async, sendSync, ReportsPage)
+- [[diagnostico-server-exit-255-crlf|Diagn�stico - Server exit 255 por CRLF (v1.1.11)]] - El instalador v1.1.11 empaqueta docker-entrypoint.sh con CRLF (checkout CI en Windows sin .gitattributes); el shebang #!/bin/sh\r no existe y el contenedor muere con exit 255 sin logs; fix en v1.1.12 (.gitattributes + sed en Dockerfile)

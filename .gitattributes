@@ -1,0 +1,10 @@
+# Forzar LF en archivos que se empaquetan en la imagen Docker.
+# Sin esto, el checkout de CI en Windows (core.autocrlf=true) convierte
+# docker-entrypoint.sh a CRLF, rompe el shebang #!/bin/sh y el contenedor
+# server muere con exit 255 sin logs (bug v1.1.11).
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.prisma text eol=lf

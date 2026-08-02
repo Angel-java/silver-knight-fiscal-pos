@@ -316,3 +316,9 @@ pm run build antes de electron-builder — los CI de v1.1.9/v1.1.10 fallaban por
 - **Verificacion**: typecheck limpio, 113/113 tests, build OK; CI release en GitHub Actions: success.
 - **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.11 (assets: silver-knight-1.1.11-setup.exe sha512 qIb27fFzVICBhFbofpuQnkpLP3wzCZmIyXb1pz/98r51EPsDTGmjfytxGuliIyzytNN2DGCAMpREPYCF4N9ZdA==, .blockmap, latest.yml)
 - **Accion del operador**: instalar silver-knight-1.1.11-setup.exe (o esperar el aviso de actualizacion en la app). Si persiste algun cuelgue, revisar %APPDATA%\silver-knight\logs\main.log por Window became unresponsive / RENDER PROCESS GONE.
+
+## [2026-08-01] fix | CRLF rompia docker-entrypoint.sh (server exit 255, bug v1.1.11)
+- **Descripcion**: tras actualizar a v1.1.11 el contenedor silverknight-server entraba en crash loop (exit 255, oomKilled=false) sin ningun log. Diagnostico: el instalador v1.1.11 empaqueta docker-entrypoint.sh con CRLF (el checkout de CI en Windows convierte LF->CRLF porque no habia .gitattributes). Al construir la imagen en la maquina del usuario desde resources/, el shebang #!/bin/sh\r no existe -> el contenedor muere al instante sin output. El one-shot prisma db push funcionaba porque usa --entrypoint npx (binario, evita el script). v1.1.10 (verificado extrayendo ambos setups con 7-Zip): docker-entrypoint.sh LF correcto; v1.1.11: 39 pares CRLF.
+- **Fix aplicado**: .gitattributes en la raiz (text eol=lf para *.sh, Dockerfile, *.yml, *.yaml, *.prisma) + RUN sed -i 's/\r$//' /docker-entrypoint.sh en Dockerfile (defensa definitiva aunque el source llegue CRLF).
+- **Verificacion**: extraido silver-knight-1.1.11-setup.exe y 1.1.10-setup.exe con 7-Zip -> CRLF 39 vs 0 en docker-entrypoint.sh; blob en git es LF puro.
+- **Paginas tocadas**: [[docker-deployment]]
