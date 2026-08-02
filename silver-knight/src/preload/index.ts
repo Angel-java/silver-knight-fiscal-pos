@@ -13,11 +13,11 @@ const api = {
   checkForUpdates: (): void => ipcRenderer.send('check-for-updates'),
   downloadUpdate: (): void => ipcRenderer.send('download-update'),
   installUpdate: (): void => ipcRenderer.send('install-update'),
-  getUpdateStatus: (): { status: string; version: string; error: string } =>
-    ipcRenderer.sendSync('get-update-status'),
+  getUpdateStatus: (): Promise<{ status: string; version: string; error: string }> =>
+    ipcRenderer.invoke('get-update-status') as Promise<{ status: string; version: string; error: string }>,
   getUpdateStatusAsync: (): Promise<{ status: string; version: string; error: string }> =>
-    ipcRenderer.invoke('get-update-status'),
-  getVersion: (): string => ipcRenderer.sendSync('get-app-version'),
+    ipcRenderer.invoke('get-update-status') as Promise<{ status: string; version: string; error: string }>,
+  getVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version') as Promise<string>,
   getVersionAsync: (): Promise<string> => ipcRenderer.invoke('get-app-version') as Promise<string>,
   onUpdateAvailable: (callback: (version: string) => void): (() => void) => {
     const handler = (_event: unknown, version: string): void => callback(version)

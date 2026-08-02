@@ -69,24 +69,12 @@ export class AppUpdater {
       this.installUpdate()
     })
 
-    ipcMain.on('get-update-status', (event) => {
-      event.returnValue = {
-        status: this.status,
-        version: this.availableVersion,
-        error: this.lastError
-      }
-    })
-
     ipcMain.handle('get-update-status', () => {
       return {
         status: this.status,
         version: this.availableVersion,
         error: this.lastError
       }
-    })
-
-    ipcMain.on('get-app-version', (event) => {
-      event.returnValue = app.getVersion()
     })
 
     ipcMain.handle('get-app-version', () => {

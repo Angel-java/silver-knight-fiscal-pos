@@ -13,12 +13,14 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
 
   useEffect(() => {
     rlog('auth', 'AuthProvider init: loading=' + loading)
+    let cancelled = false
 
     const waitForServer = async (maxRetries = 10, delayMs = 2000): Promise<boolean> => {
       for (let i = 0; i < maxRetries; i++) {
+        if (cancelled) return false
         try {
           rlog('auth', `Health check attempt ${i + 1}/${maxRetries}`)
-          await api.health()
+          await api.health(5000)
           return true
         } catch {
           rlog('auth', `Server not ready, retrying in ${delayMs}ms...`)
@@ -33,18 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
         const serverReady = await waitForServer()
         if (!serverReady) {
           rlog('auth', 'Server did not become ready after retries')
-          setLoading(false)
+          if (!cancelled) setLoading(false)
           return
         }
 
         rlog('auth', 'Server is ready, fetching data...')
         const companyRes = await api.getCompany()
+        if (cancelled) return
         rlog('auth', `getCompany: ${JSON.stringify(companyRes.company)}`)
         setCompany(companyRes.company)
 
         const token = localStorage.getItem('token')
         if (token) {
           const meRes = await api.me()
+          if (cancelled) return
           rlog('auth', `me: user=${JSON.stringify(meRes.user)}`)
           setUser(meRes.user)
         } else {
@@ -54,11 +58,17 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
         rlog('auth', `init error: ${err}`)
         localStorage.removeItem('token')
       } finally {
-        rlog('auth', 'init done, setting loading=false')
-        setLoading(false)
+        if (!cancelled) {
+          rlog('auth', 'init done, setting loading=false')
+          setLoading(false)
+        }
       }
     }
     init()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const login = useCallback(async (username: string, pin: string): Promise<void> => {

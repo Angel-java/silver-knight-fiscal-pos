@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-07-31
+updated: 2026-08-01
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -45,3 +45,4 @@ updated: 2026-07-31
 ## Queries y análisis
 - [[auditoria-arquitectura|Auditoría de Arquitectura — Julio 2026]] — Revisión completa del código base, 17 dimensiones evaluadas
 - [[diagnostico-error-3001-post-update|Diagnóstico — Error 3001 post-update]] — Causas raíz del backend que no responde tras actualizar; OOM en `prisma db push` confirmado como causa más probable + self-heal (v1.1.6 → v1.1.7)
+- [[auditoria-optimizacion-cuelgues|Auditoría de Optimización — Cuelgues aleatorios]] — Causas de cuelgues al azar durante el uso + fixes anti-hang aplicados (timeouts, logger async, sendSync, ReportsPage)

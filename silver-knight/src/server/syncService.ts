@@ -202,7 +202,8 @@ class SyncService {
               entity: entity.name,
               records: entity.data,
               timestamp: now.toISOString()
-            })
+            }),
+            signal: AbortSignal.timeout(30000)
           })
           if (!cloudRes.ok) {
             const errText = await cloudRes.text().catch(() => '')

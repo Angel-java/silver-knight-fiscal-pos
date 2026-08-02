@@ -1,4 +1,4 @@
-import { useState, useEffect, type JSX } from 'react'
+import { useState, useEffect, useCallback, useRef, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type Invoice, type Product } from '../lib/api'
 
@@ -81,84 +81,61 @@ export default function ReportsPage(): JSX.Element {
     }
   } | null>(null)
 
-  const loadData = async (): Promise<void> => {
+  const loadSeq = useRef(0)
+
+  const loadData = useCallback(async (): Promise<void> => {
+    const seq = ++loadSeq.current
     setLoading(true)
     setError('')
     try {
       switch (tab) {
         case 'daily': {
           const res = await api.reports.salesDaily()
+          if (seq !== loadSeq.current) return
           setDailyData(res)
           break
         }
         case 'range': {
           const res = await api.reports.salesRange(rangeFrom, rangeTo)
+          if (seq !== loadSeq.current) return
           setRangeData(res)
           break
         }
         case 'inventory': {
           const res = await api.reports.inventory()
+          if (seq !== loadSeq.current) return
           setInventoryData(res)
           break
         }
         case 'top': {
           const res = await api.reports.topProducts()
+          if (seq !== loadSeq.current) return
           setTopData(res)
           break
         }
         case 'cashclose': {
           const res = await api.reports.cashClose(cashDate)
+          if (seq !== loadSeq.current) return
           setCashData(res)
           break
         }
       }
     } catch (err) {
+      if (seq !== loadSeq.current) return
       setError(err instanceof Error ? err.message : 'Error al cargar reporte')
     } finally {
-      setLoading(false)
+      if (seq === loadSeq.current) setLoading(false)
     }
-  }
+  }, [tab, rangeFrom, rangeTo, cashDate])
+
+  const loadDataRef = useRef(loadData)
+  useEffect(() => {
+    loadDataRef.current = loadData
+  }, [loadData])
 
   useEffect(() => {
-    const load = async (): Promise<void> => {
-      setLoading(true)
-      setError('')
-      try {
-        switch (tab) {
-          case 'daily': {
-            const res = await api.reports.salesDaily()
-            setDailyData(res)
-            break
-          }
-          case 'range': {
-            const res = await api.reports.salesRange(rangeFrom, rangeTo)
-            setRangeData(res)
-            break
-          }
-          case 'inventory': {
-            const res = await api.reports.inventory()
-            setInventoryData(res)
-            break
-          }
-          case 'top': {
-            const res = await api.reports.topProducts()
-            setTopData(res)
-            break
-          }
-          case 'cashclose': {
-            const res = await api.reports.cashClose(cashDate)
-            setCashData(res)
-            break
-          }
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al cargar reporte')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [tab, rangeFrom, rangeTo, cashDate])
+    loadDataRef.current()
+  }, [tab])
 
   return (
     <div className="p-6">

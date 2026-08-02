@@ -23,9 +23,9 @@ interface SilverKnightAPI {
   checkForUpdates: () => void
   downloadUpdate: () => void
   installUpdate: () => void
-  getUpdateStatus: () => { status: string; version: string; error: string }
+  getUpdateStatus: () => Promise<{ status: string; version: string; error: string }>
   getUpdateStatusAsync: () => Promise<{ status: string; version: string; error: string }>
-  getVersion: () => string
+  getVersion: () => Promise<string>
   getVersionAsync: () => Promise<string>
   onUpdateAvailable: (callback: (version: string) => void) => (() => void)
   onUpdateNotAvailable: (callback: () => void) => (() => void)

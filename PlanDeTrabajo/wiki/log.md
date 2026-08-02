@@ -299,3 +299,12 @@ updated: 2026-08-01
 - **Verificación**: typecheck limpio, 113/113 tests, eslint 0 errores en archivos tocados
 - **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.10 (assets: `silver-knight-1.1.10-setup.exe` sha512 `2ECB18C93EFC589F12CA332234971E718F08F9BE5741A703868F329FAA0C65D482BB74FC0D96D34108ED0AC1DDE20DBF748092DC84AC95F4D42BB05919593448`, `.blockmap`, `latest.yml`)
 - **Acción del operador**: instalar v1.1.10; si el diálogo P1000 aparece → "Restablecer contraseña" (ahora usa el rol correcto) → la app arranca.
+
+## [2026-08-01] fix | Auditoria de optimizacion — cuelgues aleatorios durante el uso
+- **Descripcion**: auditoria read-only del stack (renderer/server/main) por cuelgues al azar con perfil pequeno. Diagnostico + fixes anti-hang aplicados (sin tocar fuentes inmutables ni planning/).
+- **Paginas creadas**: [[auditoria-optimizacion-cuelgues]]
+- **Paginas actualizadas**: [[index]]
+- **Hallazgos**: (1) ppendFileSync en cada log del hilo main (causa mas probable de congelamientos al azar; log sin rotacion + Defender); (2) ipcRenderer.sendSync en preload (getUpdateStatus/getVersion); (3) sin timeout/AbortSignal en ningun fetch del renderer (pi.ts) → UI en "Cargando..." infinito; (4) waitForServer sin timeout por intento; (5) fetch de sync remoto sin timeout; (6) ReportsPage re-descargaba en cada cambio de fecha; (7) queries sin 	ake/select en reports/iva/dashboard/customers (baja urgencia con datos pequenos).
+- **Fixes aplicados**: logger.ts async (buffer + ppendFile en cola, flush 50 lineas/1s, rotacion 5MB x3, lushLogsSync en efore-quit); pi.ts timeout global 15s via AbortController + 	imeoutMs por llamada; AuthProvider pi.health(5000) + flag cancelled; ReportsPage effect solo en cambio de tab + race guard por secuencia; preload sin sendSync (invoke async) + handlers sync removidos en updater; syncService AbortSignal.timeout(30000) en push remoto.
+- **Verificacion**: typecheck limpio, 113/113 tests, electron-vite build OK, 0 errores eslint en archivos tocados.
+- **Pendiente recomendado**: paginacion/select en reports/iva/dashboard/customers, indices ExchangeRate.date y SyncLog.createdAt, debounce en busquedas, regex de parseBcvRate, execSync async en before-quit.

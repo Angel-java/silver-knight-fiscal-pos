@@ -6,17 +6,42 @@ export function setApiBase(url: string): void {
   localStorage.setItem('apiBase', url.replace(/\/+$/, ''))
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+const DEFAULT_TIMEOUT_MS = 15000
+
+export interface RequestOptions extends RequestInit {
+  timeoutMs?: number
+}
+
+async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${getApiBase()}${path}`, { ...options, headers })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Error de conexión' }))
-    throw new Error(err.error || `HTTP ${res.status}`)
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, signal: externalSignal, ...rest } = options ?? {}
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const onAbort = (): void => controller.abort()
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort()
+    else externalSignal.addEventListener('abort', onAbort)
   }
-  return res.json()
+
+  try {
+    const res = await fetch(`${getApiBase()}${path}`, { ...rest, headers, signal: controller.signal })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Error de conexión' }))
+      throw new Error(err.error || `HTTP ${res.status}`)
+    }
+    return res.json()
+  } catch (err) {
+    if (controller.signal.aborted && !externalSignal?.aborted) {
+      throw new Error('La solicitud tardó demasiado. Reintente.')
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+    externalSignal?.removeEventListener('abort', onAbort)
+  }
 }
 
 export interface User {
@@ -209,7 +234,8 @@ export const api = {
 
   getCompany: () => request<{ company: Company | null }>('/auth/company'),
 
-  health: () => request<{ ok: boolean; service: string; companyCount?: number }>('/health'),
+  health: (timeoutMs?: number) =>
+    request<{ ok: boolean; service: string; companyCount?: number }>('/health', { timeoutMs }),
 
   deploy: () =>
     request<{ success: boolean; output: string }>('/deploy', { method: 'POST' }),

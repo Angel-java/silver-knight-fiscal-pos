@@ -41,7 +41,7 @@ import {
   loadEnvForChild,
   detectExistingDockerVolume
 } from './config'
-import { writeLog, log } from './logger'
+import { writeLog, log, flushLogsSync } from './logger'
 
 process.on('uncaughtException', (err) => {
   writeLog('FATAL', 'crash', `Uncaught exception: ${err.message}\n${err.stack}`)
@@ -756,6 +756,7 @@ if (!gotTheLock) {
 app.on('before-quit', () => {
   log('shutdown', 'App quitting, stopping Docker compose...')
   appUpdater.stopAutoCheck()
+  flushLogsSync()
 
   if (!app.isPackaged) return
 
