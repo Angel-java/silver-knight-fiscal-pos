@@ -32,6 +32,7 @@ updated: 2026-08-04
 - [[docker-deployment|Docker Deployment]] — Modelo de deployment offline-capable (v1.1.13, arranque sin internet)
 
 ## Hitos recientes
+- [[log#2026-08-04-release--v1114-offline-first--catálogo-dolarizado|2026-08-04 — Release v1.1.14]] — Primera release desde v1.1.12; incluye offline-first y catálogo dolarizado (no hubo tag v1.1.13)
 - [[log#2026-08-04-usd-only-catálogo-dolarizado-v1114|2026-08-04 — Catálogo dolarizado (solo precios USD)]] — Eliminados campos VES de Producto/Cliente/Movimiento; VES en vivo y congelado en facturas
 
 ## Fuentes ingeridas

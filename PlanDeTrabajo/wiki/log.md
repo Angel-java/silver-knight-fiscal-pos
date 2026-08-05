@@ -362,3 +362,11 @@ pm run build antes de electron-builder — los CI de v1.1.9/v1.1.10 fallaban por
   - Renderer: `ProductFormPage` (inputs VES → referencia read-only `≈ Bs.` con tasa cargada), `ProductsPage` (columna Precio VES = `priceUsd × tasa` en vivo), POS (`POSPage`/`CartPanel`/`PaymentModal` calculan VES con `exchangeRate`), `InventoryEntriesPage`, `CustomersPage`, `ReportsPage`.
 - **Verificación**: `prisma generate` OK, typecheck limpio (node+web), 122/122 tests (10 archivos), 0 errores eslint en archivos tocados (11 errores preexistentes en `scripts/afterPack.js`/`UsersPage.tsx`/etc. no relacionados).
 - **Nota**: `prisma db push` al desplegar pierde los valores VES del catálogo (deseado); las facturas históricas conservan sus totales VES congelados.
+
+## [2026-08-04] release | v1.1.14 (offline-first + catálogo dolarizado)
+- **Descripción**: primera release desde v1.1.12. **No hubo tag v1.1.13**: la versión `1.1.13` quedó como bump de `package.json` dentro del commit `d4e244a` y nunca se etiquetó; `v1.1.14` incluye tanto el offline-first startup hardening como el catálogo dolarizado. `package.json` bump → `1.1.14`.
+- **Páginas tocadas**: [[log#2026-08-04-build--catálogo-dolarizado--solo-precios-usd-productoclienteinventario]], [[log#2026-08-02-build--offline-first-startup-hardening-v1113]], [[offline-first]], [[docker-deployment]], [[dual-currency]], [[index]]
+- **Verificación local previa**: typecheck (node+web) limpio, `prisma generate` OK, 122/122 tests, `npm run build` (electron-vite) OK, 0 errores eslint nuevos (11 preexistentes documentados).
+- **Flujo de release**: push a `main` → CI quality; tag `v1.1.14` → `release.yml` → electron-builder `--win --publish always` → finalize (draft=false, latest, blockmap re-upload).
+- **Comportamiento esperado en la máquina desplegada**: auto-update a v1.1.14; al primer arranque `ensureServerImage` reconstruye la imagen server (deps estables en `server/package.json` → build rápido en caché) y `docker-entrypoint.sh` aplica `prisma db push` por cambio de hash de schema (pierde columnas VES del catálogo, deseado; facturas históricas conservan totales VES congelados).
+- **Pendiente de E2E**: arranque offline con imagen cacheada en máquina desplegada (4 checks en [[diagnostico-offline-startup]]).
