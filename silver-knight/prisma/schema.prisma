@@ -68,9 +68,7 @@ model Product {
   barcode       String?             @unique
   description   String?
   priceUsd      Float
-  priceVes      Float
   costUsd       Float?
-  costVes       Float?
   ivaRate       Float               @default(16)
   stock         Float               @default(0)
   minStock      Float               @default(0)
@@ -93,7 +91,6 @@ model Customer {
   phone         String?
   email         String?
   creditLimitUsd Float?
-  creditLimitVes Float?
   invoices      Invoice[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -196,7 +193,6 @@ model InventoryMovement {
   type        String   // entry | exit | sale | cancellation
   quantity    Float
   unitCostUsd Float?
-  unitCostVes Float?
   reference   String?
   notes       String?
   userId      String?

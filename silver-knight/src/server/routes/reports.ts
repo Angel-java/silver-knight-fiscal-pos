@@ -22,7 +22,7 @@ router.get('/sales-daily', asyncHandler(async (_req: Request, res: Response) => 
       items: {
         include: {
           product: {
-            select: { id: true, name: true, costUsd: true, costVes: true }
+            select: { id: true, name: true, costUsd: true }
           }
         }
       }
@@ -81,7 +81,7 @@ router.get('/sales-range', asyncHandler(async (req: Request, res: Response) => {
       items: {
         include: {
           product: {
-            select: { id: true, name: true, costUsd: true, costVes: true }
+            select: { id: true, name: true, costUsd: true }
           }
         }
       }
@@ -127,9 +127,7 @@ router.get('/inventory', asyncHandler(async (_req: Request, res: Response) => {
   })
 
   const totalValueUsd = products.reduce((s, p) => s + (p.costUsd || 0) * p.stock, 0)
-  const totalValueVes = products.reduce((s, p) => s + (p.costVes || 0) * p.stock, 0)
   const totalPriceUsd = products.reduce((s, p) => s + p.priceUsd * p.stock, 0)
-  const totalPriceVes = products.reduce((s, p) => s + p.priceVes * p.stock, 0)
   const lowStockCount = products.filter((p) => p.minStock > 0 && p.stock <= p.minStock).length
   const outOfStockCount = products.filter((p) => p.stock <= 0).length
 
@@ -138,9 +136,7 @@ router.get('/inventory', asyncHandler(async (_req: Request, res: Response) => {
     summary: {
       totalProducts: products.length,
       totalValueUsd,
-      totalValueVes,
       totalPriceUsd,
-      totalPriceVes,
       lowStockCount,
       outOfStockCount
     }
@@ -169,7 +165,7 @@ router.get('/top-products', asyncHandler(async (req: Request, res: Response) => 
     where,
     include: {
       product: {
-        select: { id: true, name: true, costUsd: true, costVes: true }
+        select: { id: true, name: true, costUsd: true }
       }
     }
   })

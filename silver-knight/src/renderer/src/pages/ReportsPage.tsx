@@ -58,7 +58,6 @@ export default function ReportsPage(): JSX.Element {
     summary: {
       totalProducts: number
       totalValueUsd: number
-      totalValueVes: number
       lowStockCount: number
       outOfStockCount: number
     }

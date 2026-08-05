@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const { mockAutoUpdater } = vi.hoisted(() => ({
+const { mockAutoUpdater, mockNet } = vi.hoisted(() => ({
   mockAutoUpdater: {
     autoDownload: true,
     autoInstallOnAppQuit: false,
@@ -9,6 +9,9 @@ const { mockAutoUpdater } = vi.hoisted(() => ({
     downloadUpdate: vi.fn(),
     quitAndInstall: vi.fn(),
     on: vi.fn()
+  },
+  mockNet: {
+    isOnline: vi.fn(() => true)
   }
 }))
 
@@ -18,7 +21,8 @@ vi.mock('electron', () => ({
   ipcMain: {
     on: vi.fn(),
     handle: vi.fn()
-  }
+  },
+  net: mockNet
 }))
 
 vi.mock('electron-updater', () => ({
@@ -42,6 +46,7 @@ describe('AppUpdater', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     eventHandlers = {}
+    mockNet.isOnline.mockReturnValue(true)
     mockAutoUpdater.on.mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
       eventHandlers[event] = handler
     })
@@ -221,6 +226,27 @@ describe('AppUpdater', () => {
     expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1000)
     expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('skips checkForUpdates when offline (no error status)', async () => {
+    mockNet.isOnline.mockReturnValue(false)
+    await updater.checkForUpdates()
+    expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
+    expect(updater.getStatus().status).toBe('idle')
+  })
+
+  it('runs pending update check when connection is restored', async () => {
+    vi.useFakeTimers()
+    mockNet.isOnline.mockReturnValue(false)
+    await updater.checkForUpdates()
+    expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
+
+    mockNet.isOnline.mockReturnValue(true)
+    mockAutoUpdater.checkForUpdates.mockResolvedValue(undefined)
+    vi.advanceTimersByTime(30_000)
+    expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled()
+    expect(updater.getStatus().status).toBe('checking')
     vi.useRealTimers()
   })
 

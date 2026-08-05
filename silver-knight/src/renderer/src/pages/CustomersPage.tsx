@@ -20,7 +20,6 @@ export default function CustomersPage(): JSX.Element {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [creditLimitUsd, setCreditLimitUsd] = useState('')
-  const [creditLimitVes, setCreditLimitVes] = useState('')
   const [error, setError] = useState('')
 
   const load = async (): Promise<void> => {
@@ -62,7 +61,6 @@ export default function CustomersPage(): JSX.Element {
     setPhone('')
     setEmail('')
     setCreditLimitUsd('')
-    setCreditLimitVes('')
     setError('')
     setShowModal(true)
   }
@@ -75,7 +73,6 @@ export default function CustomersPage(): JSX.Element {
     setPhone(c.phone || '')
     setEmail(c.email || '')
     setCreditLimitUsd(c.creditLimitUsd != null ? String(c.creditLimitUsd) : '')
-    setCreditLimitVes(c.creditLimitVes != null ? String(c.creditLimitVes) : '')
     setError('')
     setShowModal(true)
   }
@@ -91,8 +88,7 @@ export default function CustomersPage(): JSX.Element {
           address: address || null,
           phone: phone || null,
           email: email || null,
-          creditLimitUsd: creditLimitUsd ? Number(creditLimitUsd) : null,
-          creditLimitVes: creditLimitVes ? Number(creditLimitVes) : null
+          creditLimitUsd: creditLimitUsd ? Number(creditLimitUsd) : null
         })
       } else {
         await api.customers.create({
@@ -101,8 +97,7 @@ export default function CustomersPage(): JSX.Element {
           address: address || undefined,
           phone: phone || undefined,
           email: email || undefined,
-          creditLimitUsd: creditLimitUsd ? Number(creditLimitUsd) : undefined,
-          creditLimitVes: creditLimitVes ? Number(creditLimitVes) : undefined
+          creditLimitUsd: creditLimitUsd ? Number(creditLimitUsd) : undefined
         })
       }
       setShowModal(false)
@@ -301,33 +296,18 @@ export default function CustomersPage(): JSX.Element {
                   rows={2}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Límite de Crédito USD
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={creditLimitUsd}
-                    onChange={(e) => setCreditLimitUsd(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Límite de Crédito VES
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={creditLimitVes}
-                    onChange={(e) => setCreditLimitVes(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Límite de Crédito USD
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={creditLimitUsd}
+                  onChange={(e) => setCreditLimitUsd(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="flex gap-3 justify-end">
@@ -380,10 +360,6 @@ export default function CustomersPage(): JSX.Element {
               <div>
                 <span className="font-medium text-gray-500">Límite USD:</span>{' '}
                 {detail.creditLimitUsd != null ? `$${detail.creditLimitUsd.toFixed(2)}` : '—'}
-              </div>
-              <div>
-                <span className="font-medium text-gray-500">Límite VES:</span>{' '}
-                {detail.creditLimitVes != null ? `Bs.${detail.creditLimitVes.toFixed(2)}` : '—'}
               </div>
             </div>
 

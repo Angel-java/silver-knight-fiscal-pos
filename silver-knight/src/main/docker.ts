@@ -381,6 +381,76 @@ export async function getComposeContainers(): Promise<string> {
   }
 }
 
+export const DB_IMAGE = 'postgres:16-alpine'
+export const SERVER_IMAGE = 'silverknight-server:latest'
+
+export interface ImageAvailability {
+  db: boolean
+  server: boolean
+}
+
+export async function imageExists(name: string): Promise<boolean> {
+  try {
+    await execAsync(`docker image inspect "${name}"`, { timeout: 5000 })
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function getImageAvailability(): Promise<ImageAvailability> {
+  const [db, server] = await Promise.all([imageExists(DB_IMAGE), imageExists(SERVER_IMAGE)])
+  log('image', `Image availability — db: ${db}, server: ${server}`)
+  return { db, server }
+}
+
+export async function pullDbImage(
+  onOutput?: (line: string) => void
+): Promise<{ success: boolean; error?: string }> {
+  log('image', `Ensuring ${DB_IMAGE} is present locally...`)
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['pull', DB_IMAGE], {
+      env: getChildEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true
+    })
+
+    let stderr = ''
+
+    proc.stdout.on('data', (data: Buffer) => {
+      const line = data.toString().trim()
+      if (line) {
+        log('image', line)
+        onOutput?.(line)
+      }
+    })
+
+    proc.stderr.on('data', (data: Buffer) => {
+      const line = data.toString().trim()
+      if (line) {
+        stderr += line + '\n'
+        log('image', `[stderr] ${line}`)
+        onOutput?.(line)
+      }
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        log('image', `${DB_IMAGE} pull completed`)
+        resolve({ success: true })
+      } else {
+        log('image', `Pull failed with code ${code}`)
+        resolve({ success: false, error: stderr || `Exit code ${code}` })
+      }
+    })
+
+    proc.on('error', (err) => {
+      log('image', `Pull spawn error: ${err.message}`)
+      resolve({ success: false, error: err.message })
+    })
+  })
+}
+
 export async function getServerContainerLogs(lines = 30): Promise<string> {
   try {
     const { stdout } = await execAsync(

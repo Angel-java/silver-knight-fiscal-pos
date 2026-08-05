@@ -4,6 +4,7 @@ import type { CartItem } from './types'
 interface CartPanelProps {
   cart: CartItem[]
   currency: 'USD' | 'VES'
+  exchangeRate: number
   subtotalUsd: number
   subtotalVes: number
   ivaUsd: number
@@ -18,6 +19,7 @@ interface CartPanelProps {
 export default function CartPanel({
   cart,
   currency,
+  exchangeRate,
   subtotalUsd,
   subtotalVes,
   ivaUsd,
@@ -28,6 +30,7 @@ export default function CartPanel({
   onOpenCustomerModal,
   onOpenPayment
 }: CartPanelProps): JSX.Element {
+  const unitPriceVes = (item: CartItem): number => item.unitPriceUsd * exchangeRate
   return (
     <div className="w-full lg:w-80 xl:w-96 bg-white shadow-lg flex flex-col lg:border-l max-h-[45vh] lg:max-h-none border-t lg:border-t-0">
       <div className="p-3 sm:p-4 border-b shrink-0">
@@ -53,7 +56,7 @@ export default function CartPanel({
               <p className="text-xs text-gray-400">
                 {currency === 'USD'
                   ? `$${item.unitPriceUsd.toFixed(2)}`
-                  : `Bs.${item.unitPriceVes.toFixed(2)}`}{' '}
+                  : `Bs.${unitPriceVes(item).toFixed(2)}`}{' '}
                 c/u
               </p>
             </div>
@@ -75,7 +78,7 @@ export default function CartPanel({
             <p className="w-16 text-right text-sm font-bold text-gray-800">
               {currency === 'USD'
                 ? `$${(item.unitPriceUsd * item.quantity).toFixed(2)}`
-                : `Bs.${(item.unitPriceVes * item.quantity).toFixed(2)}`}
+                : `Bs.${(unitPriceVes(item) * item.quantity).toFixed(2)}`}
             </p>
           </div>
         ))}

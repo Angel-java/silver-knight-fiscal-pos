@@ -58,7 +58,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 router.post('/', validate(createCustomerSchema), asyncHandler(async (req: Request, res: Response) => {
-  const { name, rif, address, phone, email, creditLimitUsd, creditLimitVes } = req.body
+  const { name, rif, address, phone, email, creditLimitUsd } = req.body
 
   const customer = await prisma.customer.create({
     data: {
@@ -67,8 +67,7 @@ router.post('/', validate(createCustomerSchema), asyncHandler(async (req: Reques
       address: address || null,
       phone: phone || null,
       email: email || null,
-      creditLimitUsd: creditLimitUsd != null ? parseFloat(creditLimitUsd) : null,
-      creditLimitVes: creditLimitVes != null ? parseFloat(creditLimitVes) : null
+      creditLimitUsd: creditLimitUsd != null ? parseFloat(creditLimitUsd) : null
     }
   })
   res.status(201).json({ customer })
@@ -76,7 +75,7 @@ router.post('/', validate(createCustomerSchema), asyncHandler(async (req: Reques
 
 router.put('/:id', validate(updateCustomerSchema), asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string
-  const { name, rif, address, phone, email, creditLimitUsd, creditLimitVes } = req.body
+  const { name, rif, address, phone, email, creditLimitUsd } = req.body
 
   const customer = await prisma.customer.update({
     where: { id },
@@ -86,8 +85,7 @@ router.put('/:id', validate(updateCustomerSchema), asyncHandler(async (req: Requ
       address: address ?? null,
       phone: phone ?? null,
       email: email ?? null,
-      creditLimitUsd: creditLimitUsd != null ? parseFloat(creditLimitUsd) : null,
-      creditLimitVes: creditLimitVes != null ? parseFloat(creditLimitVes) : null
+      creditLimitUsd: creditLimitUsd != null ? parseFloat(creditLimitUsd) : null
     }
   })
   res.json({ customer })

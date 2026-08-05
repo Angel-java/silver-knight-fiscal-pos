@@ -16,6 +16,7 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
   const [pages, setPages] = useState(1)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [exchangeRate, setExchangeRate] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [stockModal, setStockModal] = useState<{ product: Product; open: boolean }>({
@@ -42,6 +43,15 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    api.exchangeRates
+      .getLatest()
+      .then((r) => {
+        if (r.rate) setExchangeRate(r.rate.rate)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const init = async (): Promise<void> => {
@@ -113,6 +123,8 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
   }
 
   const lowStock = (p: Product): boolean => p.minStock > 0 && p.stock <= p.minStock
+  const vesEquivalent = (p: Product): string =>
+    exchangeRate > 0 ? `Bs.${(p.priceUsd * exchangeRate).toFixed(2)}` : '—'
 
   if (loading) return <p className="text-gray-500 p-4">Cargando...</p>
 
@@ -168,8 +180,7 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Código</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Proveedor</th>
               <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Precio USD</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Precio VES</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Stock</th>
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Precio VES</th>              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Stock</th>
               <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Acciones</th>
             </tr>
           </thead>
@@ -186,7 +197,7 @@ export default function ProductsPage({ embedded }: Props = {}): JSX.Element {
                 <td className="px-4 py-3 text-sm text-gray-500">{p.code || p.barcode || '—'}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">{p.supplier?.name || '—'}</td>
                 <td className="px-4 py-3 text-right">${p.priceUsd.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right">Bs.{p.priceVes.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right">{vesEquivalent(p)}</td>
                 <td
                   className={`px-4 py-3 text-right font-medium ${lowStock(p) ? 'text-red-600' : ''}`}
                 >

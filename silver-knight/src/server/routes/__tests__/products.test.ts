@@ -105,12 +105,12 @@ describe('GET /api/products/:id', () => {
 
 describe('POST /api/products', () => {
   it('creates a product', async () => {
-    const created = { id: 'p-1', name: 'New Product', priceUsd: 10, priceVes: 350, category: null }
+    const created = { id: 'p-1', name: 'New Product', priceUsd: 10, category: null }
     vi.mocked(prisma.product.create).mockResolvedValue(created as any)
 
     const res = await request(createApp())
       .post('/api/products')
-      .send({ name: 'New Product', priceUsd: 10, priceVes: 350 })
+      .send({ name: 'New Product', priceUsd: 10 })
 
     expect(res.status).toBe(201)
     expect(res.body.product.name).toBe('New Product')
@@ -119,7 +119,7 @@ describe('POST /api/products', () => {
   it('returns 400 without name', async () => {
     const res = await request(createApp())
       .post('/api/products')
-      .send({ priceUsd: 10, priceVes: 350 })
+      .send({ priceUsd: 10 })
 
     expect(res.status).toBe(400)
     expect(res.body.error).toBeDefined()
@@ -138,7 +138,7 @@ describe('POST /api/products', () => {
 
     const res = await request(createApp())
       .post('/api/products')
-      .send({ name: 'Test', code: 'DUP', priceUsd: 1, priceVes: 1 })
+      .send({ name: 'Test', code: 'DUP', priceUsd: 1 })
 
     expect(res.status).toBe(409)
     expect(res.body.error).toContain('Ya existe')
@@ -147,12 +147,12 @@ describe('POST /api/products', () => {
 
 describe('PUT /api/products/:id', () => {
   it('updates a product', async () => {
-    const updated = { id: 'p-1', name: 'Updated', priceUsd: 15, priceVes: 500, category: null }
+    const updated = { id: 'p-1', name: 'Updated', priceUsd: 15, category: null }
     vi.mocked(prisma.product.update).mockResolvedValue(updated as any)
 
     const res = await request(createApp())
       .put('/api/products/p-1')
-      .send({ name: 'Updated', priceUsd: 15, priceVes: 500 })
+      .send({ name: 'Updated', priceUsd: 15 })
 
     expect(res.status).toBe(200)
     expect(res.body.product.name).toBe('Updated')
@@ -164,7 +164,7 @@ describe('PUT /api/products/:id', () => {
 
     const res = await request(createApp())
       .put('/api/products/nope')
-      .send({ name: 'Test', priceUsd: 1, priceVes: 1 })
+      .send({ name: 'Test', priceUsd: 1 })
 
     expect(res.status).toBe(404)
   })

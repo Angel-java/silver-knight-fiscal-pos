@@ -35,7 +35,6 @@ export default function InventoryEntriesPage({ embedded }: Props = {}): JSX.Elem
     type: 'entry' as 'entry' | 'exit',
     quantity: '',
     unitCostUsd: '',
-    unitCostVes: '',
     reference: '',
     notes: ''
   })
@@ -65,7 +64,7 @@ export default function InventoryEntriesPage({ embedded }: Props = {}): JSX.Elem
     } catch {
       console.error('Error al cargar productos')
     }
-    setForm({ productId: '', type: 'entry', quantity: '', unitCostUsd: '', unitCostVes: '', reference: '', notes: '' })
+    setForm({ productId: '', type: 'entry', quantity: '', unitCostUsd: '', reference: '', notes: '' })
     setShowModal(true)
   }
 
@@ -78,7 +77,6 @@ export default function InventoryEntriesPage({ embedded }: Props = {}): JSX.Elem
         type: form.type,
         quantity: qty,
         unitCostUsd: form.unitCostUsd ? Number(form.unitCostUsd) : null,
-        unitCostVes: form.unitCostVes ? Number(form.unitCostVes) : null,
         reference: form.reference || null,
         notes: form.notes || null
       })
@@ -224,20 +222,12 @@ export default function InventoryEntriesPage({ embedded }: Props = {}): JSX.Elem
                 />
                 <input
                   type="text" inputMode="decimal"
-                  value={form.unitCostVes}
-                  onChange={(e) => setForm({ ...form, unitCostVes: e.target.value })}
+                  value={form.reference}
+                  onChange={(e) => setForm({ ...form, reference: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Costo VES (opcional)"
+                  placeholder="Referencia / documento (opcional)"
                 />
               </div>
-
-              <input
-                type="text"
-                value={form.reference}
-                onChange={(e) => setForm({ ...form, reference: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="Referencia / documento (opcional)"
-              />
 
               <textarea
                 value={form.notes}

@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-08-01
+updated: 2026-08-04
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -26,10 +26,13 @@ updated: 2026-08-01
 
 ## Conceptos
 - [[architectural-decision-003|ADR-003: Native Dual Currency]] — Decisión formal (stub, ver [[dual-currency]])
-- [[dual-currency|Dual Currency]] — Manejo nativo de USD/VES
+- [[dual-currency|Dual Currency]] — Manejo de USD/VES: catálogo solo USD, factura dual con tasa congelada
 - [[fiscal-compliance|Fiscal Compliance (SENIAT)]] — Cumplimiento fiscal venezolano
 - [[offline-first|Offline-first]] — Arquitectura sin dependencia de internet
-- [[docker-deployment|Docker Deployment]] — Modelo de deployment offline-capable (v1.1.5)
+- [[docker-deployment|Docker Deployment]] — Modelo de deployment offline-capable (v1.1.13, arranque sin internet)
+
+## Hitos recientes
+- [[log#2026-08-04-usd-only-catálogo-dolarizado-v1114|2026-08-04 — Catálogo dolarizado (solo precios USD)]] — Eliminados campos VES de Producto/Cliente/Movimiento; VES en vivo y congelado en facturas
 
 ## Fuentes ingeridas
 - [[plan-vision|Plan — Visión del Proyecto]]
@@ -47,3 +50,4 @@ updated: 2026-08-01
 - [[diagnostico-error-3001-post-update|Diagnóstico — Error 3001 post-update]] — Causas raíz del backend que no responde tras actualizar; OOM en `prisma db push` confirmado como causa más probable + self-heal (v1.1.6 → v1.1.7)
 - [[auditoria-optimizacion-cuelgues|Auditoría de Optimización — Cuelgues aleatorios]] — Causas de cuelgues al azar durante el uso + fixes anti-hang aplicados (timeouts, logger async, sendSync, ReportsPage)
 - [[diagnostico-server-exit-255-crlf|Diagn�stico - Server exit 255 por CRLF (v1.1.11)]] - El instalador v1.1.11 empaqueta docker-entrypoint.sh con CRLF (checkout CI en Windows sin .gitattributes); el shebang #!/bin/sh\r no existe y el contenedor muere con exit 255 sin logs; fix en v1.1.12 (.gitattributes + sed en Dockerfile)
+- [[diagnostico-offline-startup|Diagnóstico - Arranque offline-first (v1.1.13)]] — La app inicia y es usable sin internet usando la imagen Docker cacheada; solo fallan las funciones de red (auto-update, BCV, sync). Cambios en docker.ts/server-image.ts/index.ts/updater.ts + pull_policy: missing

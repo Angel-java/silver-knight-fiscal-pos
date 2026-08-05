@@ -2,7 +2,7 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-08-01
+updated: 2026-08-04
 ---
 
 # Log de operaciones — Silver Knight
@@ -336,3 +336,29 @@ pm run build antes de electron-builder — los CI de v1.1.9/v1.1.10 fallaban por
 - **Verificacion**: CI success (run 30729322485). v1.1.12 ahora con isDraft=false, blockmap subido (02:46:13), /releases/latest -> v1.1.12. Primer intento fallo por sintaxis bash en shell pwsh (ParserError Missing '(') -> corregido con shell:bash.
 - **Commits**: `d527b01` (finalize step), `157545e` (shell: bash). Tag v1.1.12 re-apuntado a 157545e.
 - **Nota**: futuras releases quedan publicadas y Latest automaticamente; ya no se necesita `gh release edit` manual.
+## [2026-08-02] build | Offline-first startup hardening (v1.1.13)
+- **Descripcion**: endurecimiento del arranque para que la app inicie y sea usable sin internet. Solo fallan las funciones estrictamente de red (auto-update, tasa BCV, sync cloud). No se elimina Docker: se usa la imagen cacheada si existe.
+- **Paginas creadas**: [[diagnostico-offline-startup]]
+- **Paginas actualizadas**: [[offline-first]], [[docker-deployment]], [[index]]
+- **Cambios**:
+  - `src/main/docker.ts`: `DB_IMAGE = postgres:16-alpine`, `SERVER_IMAGE = silverknight-server:latest`, `imageExists(name)`, `getImageAvailability()` (db + server), `pullDbImage(onOutput)`.
+  - `src/main/server-image.ts`: `ensureServerImage` offline-aware -> retorna `{ rebuilt, error?, skippedOffline? }`; offline con imagen en cache -> skip rebuild (sentinel no se actualiza -> rebuild al volver online); build fallido con imagen -> continua con ella.
+  - `src/main/index.ts`: `startBackend` reescrito (solo app.isPackaged): imagenes presentes + ensureServerImage -> offline OK; faltan imagenes + offline -> dialogo "Primera configuracion requiere internet" con Reintentar / Copiar diagnostico / Salir; faltan imagenes + online -> pre-warm (ensureServerImage + pullDbImage).
+  - `src/main/updater.ts`: `checkForUpdates` offline -> skip silencioso (sin estado error) + `pendingCheck=true`; reintento por polling de `net.isOnline()` cada 30s (`retryTimer`) en vez de eventos `online` (removidos de Electron); auto-check cada 4h intacto.
+  - `docker-compose.yml`: `pull_policy: missing` en servicio `db` -> compose no intenta pull si la imagen ya existe en cache local.
+- **Notas tecnicas**: `net.isOnline()` no es 100% confiable (true es inconcluso) -> la garantia es usar imagen cacheada si existe; el check solo evita intentos de red inutiles. Electron 43 removio los eventos `online`/`offline` de `net` y `app` (no tipados) -> se uso polling con `setInterval`.
+- **Verificacion**: typecheck limpio, 122/122 tests (10 archivos, +9 tests nuevos), 0 errores eslint en archivos tocados (solo warnings CRLF preexistentes del repo).
+- **Pendiente**: probar E2E offline en maquina desplegada (desconectar red, arrancar, verificar que abre con imagen cacheada y muestra el dialogo solo si no hay imagenes).
+
+## [2026-08-04] build | Catálogo dolarizado — solo precios USD (Producto/Cliente/Inventario)
+- **Descripción**: eliminados los campos VES persistentes del catálogo. Producto, Inventario y Cliente guardan solo USD; el equivalente VES se muestra en vivo con la tasa vigente al registrar/editar y en la lista de productos; la facturación congela los montos VES con la tasa al facturar.
+- **Páginas actualizadas**: [[product]], [[customer]], [[inventory-movement]], [[dual-currency]], [[index]]
+- **Cambios**:
+  - `prisma/schema.prisma`: eliminados `Product.priceVes`, `Product.costVes`, `Customer.creditLimitVes`, `InventoryMovement.unitCostVes`.
+  - `src/server/validation/schemas.ts`: eliminados de todos los schemas (`createProductSchema`/`updateProductSchema` → `.required({name, priceUsd})`, `invoiceItemSchema` sin `unitPriceVes`, customer schemas, `createInventoryEntrySchema`); `createInvoiceSchema.exchangeRate` → `optional().default(0)`.
+  - `src/server/routes/invoices.ts` (POST): calcula `unitPriceVes = round2(unitPriceUsd × tasa)`; tasa = body `exchangeRate`, fallback última de BD, si no hay → 400 "No hay una tasa de cambio configurada. Regístrala en Ajustes > Tasa BCV."; factura conserva congelados `totalVes`/`ivaVes`/`unitPriceVes`/`exchangeRate` (documento fiscal dual; no se tocó TicketPreview/InvoiceViewPage/printer).
+  - `src/server/routes/`: products.ts (POST/PUT sin priceVes/costVes), inventoryEntries.ts (sin unitCostVes), reports.ts (summary sin totalValueVes/totalPriceVes), customers.ts (sin creditLimitVes).
+  - `src/renderer/src/lib/api.ts`: tipos `Product`/`ProductInput`/`InventoryMovement`/`Customer`/`InvoiceInput` sin campos VES; `CartItem` sin `unitPriceVes`; `reports.inventory` summary sin totalValueVes/totalPriceVes.
+  - Renderer: `ProductFormPage` (inputs VES → referencia read-only `≈ Bs.` con tasa cargada), `ProductsPage` (columna Precio VES = `priceUsd × tasa` en vivo), POS (`POSPage`/`CartPanel`/`PaymentModal` calculan VES con `exchangeRate`), `InventoryEntriesPage`, `CustomersPage`, `ReportsPage`.
+- **Verificación**: `prisma generate` OK, typecheck limpio (node+web), 122/122 tests (10 archivos), 0 errores eslint en archivos tocados (11 errores preexistentes en `scripts/afterPack.js`/`UsersPage.tsx`/etc. no relacionados).
+- **Nota**: `prisma db push` al desplegar pierde los valores VES del catálogo (deseado); las facturas históricas conservan sus totales VES congelados.

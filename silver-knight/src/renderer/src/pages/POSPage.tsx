@@ -80,7 +80,6 @@ export default function POSPage(): JSX.Element {
           productName: product.name,
           quantity: 1,
           unitPriceUsd: product.priceUsd,
-          unitPriceVes: product.priceVes,
           ivaRate: product.ivaRate
         }
       ]
@@ -96,9 +95,12 @@ export default function POSPage(): JSX.Element {
   }
 
   const subtotalUsd = cart.reduce((s, i) => s + i.unitPriceUsd * i.quantity, 0)
-  const subtotalVes = cart.reduce((s, i) => s + i.unitPriceVes * i.quantity, 0)
+  const subtotalVes = cart.reduce((s, i) => s + i.unitPriceUsd * exchangeRate * i.quantity, 0)
   const ivaUsd = cart.reduce((s, i) => s + i.unitPriceUsd * i.quantity * (i.ivaRate / 100), 0)
-  const ivaVes = cart.reduce((s, i) => s + i.unitPriceVes * i.quantity * (i.ivaRate / 100), 0)
+  const ivaVes = cart.reduce(
+    (s, i) => s + i.unitPriceUsd * exchangeRate * i.quantity * (i.ivaRate / 100),
+    0
+  )
   const totalDisplay = currency === 'USD' ? subtotalUsd + ivaUsd : subtotalVes + ivaVes
 
   const handleInvoiceCreated = (invoice: Invoice): void => {
@@ -175,6 +177,7 @@ export default function POSPage(): JSX.Element {
         <CartPanel
           cart={cart}
           currency={currency}
+          exchangeRate={exchangeRate}
           subtotalUsd={subtotalUsd}
           subtotalVes={subtotalVes}
           ivaUsd={ivaUsd}

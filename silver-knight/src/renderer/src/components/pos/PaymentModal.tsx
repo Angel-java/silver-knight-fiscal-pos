@@ -11,7 +11,6 @@ interface PaymentModalProps {
     productName: string
     quantity: number
     unitPriceUsd: number
-    unitPriceVes: number
     ivaRate: number
   }>
   exchangeRate: number
@@ -125,7 +124,6 @@ export default function PaymentModal({
           productName: i.productName,
           quantity: i.quantity,
           unitPriceUsd: i.unitPriceUsd,
-          unitPriceVes: i.unitPriceVes,
           ivaRate: i.ivaRate
         })),
         payments: payments.map((p) => ({

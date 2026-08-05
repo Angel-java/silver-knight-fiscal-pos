@@ -24,9 +24,7 @@ export default function ProductFormPage({
     barcode: product?.barcode || '',
     description: product?.description || '',
     priceUsd: product?.priceUsd != null ? String(product.priceUsd) : '',
-    priceVes: product?.priceVes != null ? String(product.priceVes) : '',
     costUsd: product?.costUsd != null ? String(product.costUsd) : '',
-    costVes: product?.costVes != null ? String(product.costVes) : '',
     ivaRate: product?.ivaRate ?? 16,
     stock: product?.stock ?? 0,
     minStock: product?.minStock ?? 0,
@@ -50,28 +48,10 @@ export default function ProductFormPage({
   const set = (field: string, value: string | number): void => {
     setForm((prev) => {
       const next = { ...prev, [field]: value }
-      if (!product) {
-        if (field === 'costUsd') {
-          const cost = Number(value)
-          if (cost > 0) {
-            if (profitMargin > 0) {
-              next.priceUsd = String(Math.round(cost * (1 + profitMargin / 100) * 100) / 100)
-            }
-            if (exchangeRate > 0) {
-              next.costVes = String(Math.round(cost * exchangeRate * 100) / 100)
-              const usdPrice = Number(next.priceUsd || prev.priceUsd)
-              if (usdPrice > 0) {
-                next.priceVes = String(Math.round(usdPrice * exchangeRate * 100) / 100)
-              }
-            }
-          }
-        } else if (field === 'costVes') {
-          const cost = Number(value)
-          if (cost > 0 && profitMargin > 0) {
-            next.priceVes = String(Math.round(cost * (1 + profitMargin / 100) * 100) / 100)
-          }
-        } else if (field === 'priceUsd' && exchangeRate > 0) {
-          next.priceVes = String(Math.round(Number(value) * exchangeRate * 100) / 100)
+      if (!product && field === 'costUsd') {
+        const cost = Number(value)
+        if (cost > 0 && profitMargin > 0) {
+          next.priceUsd = String(Math.round(cost * (1 + profitMargin / 100) * 100) / 100)
         }
       }
       return next
@@ -89,9 +69,7 @@ export default function ProductFormPage({
         barcode: form.barcode || null,
         description: form.description || null,
         priceUsd: Number(form.priceUsd),
-        priceVes: Number(form.priceVes),
         costUsd: form.costUsd !== '' ? Number(form.costUsd) : null,
-        costVes: form.costVes !== '' ? Number(form.costVes) : null,
         ivaRate: Number(form.ivaRate),
         stock: Number(form.stock),
         minStock: Number(form.minStock),
@@ -168,16 +146,11 @@ export default function ProductFormPage({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               required
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Costo VES</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={form.costVes}
-              onChange={(e) => set('costVes', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            {exchangeRate > 0 && form.costUsd && Number(form.costUsd) > 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                ≈ Bs. {(Number(form.costUsd) * exchangeRate).toFixed(2)}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Precio USD *</label>
@@ -189,19 +162,17 @@ export default function ProductFormPage({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               required
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Precio VES *</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={form.priceVes}
-              onChange={(e) => set('priceVes', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              required
-            />
+            {exchangeRate > 0 && form.priceUsd && Number(form.priceUsd) > 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                ≈ Bs. {(Number(form.priceUsd) * exchangeRate).toFixed(2)}
+              </p>
+            )}
           </div>
         </div>
+        <p className="text-xs text-gray-400 mt-2">
+          Tasa de referencia: Bs. {exchangeRate > 0 ? exchangeRate.toFixed(2) : '—'} / USD. El
+          equivalente en Bs. se calcula al facturar con la tasa vigente.
+        </p>
       </div>
 
       <div className="border-t pt-4">

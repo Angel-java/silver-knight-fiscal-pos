@@ -53,7 +53,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
       items: {
         include: {
           product: {
-            select: { id: true, name: true, costUsd: true, costVes: true }
+            select: { id: true, name: true, costUsd: true }
           }
         }
       },
@@ -98,6 +98,15 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request, res: Response) => {
   const { customerId, items, currency, exchangeRate, payments, documentType } = req.body
 
+  let rate = Number(exchangeRate) || 0
+  if (rate <= 0) {
+    const latest = await prisma.exchangeRate.findFirst({ orderBy: { date: 'desc' } })
+    if (latest) rate = latest.rate
+  }
+  if (rate <= 0) {
+    throw new AppError(400, 'No hay una tasa de cambio configurada. Regístrala en Ajustes > Tasa BCV.')
+  }
+
   const docType = documentType || 'FACT'
   const { number: controlNumber, fiscalControlId } = await nextControlNumber(docType)
 
@@ -111,18 +120,21 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
   let ivaUsd = 0
   let ivaVes = 0
 
+  const round2 = (n: number): number => Math.round(n * 100) / 100
+
   const invoiceItems = items.map(
     (item: {
       productId?: string
       productName: string
       quantity: number
       unitPriceUsd: number
-      unitPriceVes: number
       ivaRate: number
     }) => {
       const qty = Number(item.quantity) || 1
-      const lineUsd = Number(item.unitPriceUsd) * qty
-      const lineVes = Number(item.unitPriceVes) * qty
+      const unitPriceUsd = Number(item.unitPriceUsd) || 0
+      const unitPriceVes = round2(unitPriceUsd * rate)
+      const lineUsd = unitPriceUsd * qty
+      const lineVes = unitPriceVes * qty
       const ivaRate = Number(item.ivaRate) || 0
       const lineIvaUsd = lineUsd * (ivaRate / 100)
       const lineIvaVes = lineVes * (ivaRate / 100)
@@ -134,8 +146,8 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
         productId: item.productId || null,
         productName: item.productName,
         quantity: qty,
-        unitPriceUsd: Number(item.unitPriceUsd),
-        unitPriceVes: Number(item.unitPriceVes),
+        unitPriceUsd,
+        unitPriceVes,
         ivaRate,
         totalUsd: lineUsd,
         totalVes: lineVes
@@ -165,7 +177,7 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
         customerId: customerId || null,
         userId: req.user?.userId || null,
         currency: currency || 'USD',
-        exchangeRate: Number(exchangeRate) || 0,
+        exchangeRate: rate,
         totalUsd: Math.round(totalUsd * 100) / 100,
         totalVes: Math.round(totalVes * 100) / 100,
         ivaUsd: Math.round(ivaUsd * 100) / 100,

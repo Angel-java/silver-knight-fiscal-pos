@@ -25,6 +25,9 @@ vi.mock('../../database/prisma', () => ({
     setting: {
       findMany: vi.fn()
     },
+    exchangeRate: {
+      findFirst: vi.fn()
+    },
     $transaction: vi.fn()
   }
 }))
@@ -134,12 +137,11 @@ describe('POST /api/invoices', () => {
             productName: 'Product A',
             quantity: 1,
             unitPriceUsd: 100,
-            unitPriceVes: 0,
             ivaRate: 15
           }
         ],
         currency: 'USD',
-        exchangeRate: 0
+        exchangeRate: 100
       })
 
     expect(res.status).toBe(201)
@@ -192,12 +194,11 @@ describe('POST /api/invoices', () => {
             productName: 'Product A',
             quantity: 5,
             unitPriceUsd: 100,
-            unitPriceVes: 0,
             ivaRate: 16
           }
         ],
         currency: 'USD',
-        exchangeRate: 0
+        exchangeRate: 100
       })
 
     expect(res.status).toBe(400)
@@ -221,9 +222,10 @@ describe('POST /api/invoices', () => {
       .post('/api/invoices')
       .send({
         items: [
-          { productName: 'Test', quantity: 1, unitPriceUsd: 10, unitPriceVes: 0, ivaRate: 16 }
+          { productName: 'Test', quantity: 1, unitPriceUsd: 10, ivaRate: 16 }
         ],
-        currency: 'USD'
+        currency: 'USD',
+        exchangeRate: 100
       })
 
     expect(res.status).toBe(400)

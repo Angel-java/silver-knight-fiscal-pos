@@ -36,7 +36,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const [movements, total] = await Promise.all([
     prisma.inventoryMovement.findMany({
       where,
-      include: { product: { select: { id: true, name: true, code: true, costUsd: true, costVes: true, priceUsd: true, priceVes: true } } },
+      include: { product: { select: { id: true, name: true, code: true, costUsd: true, priceUsd: true } } },
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit
@@ -48,7 +48,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 router.post('/', validate(createInventoryEntrySchema), asyncHandler(async (req: Request, res: Response) => {
-  const { productId, type, quantity, unitCostUsd, unitCostVes, reference, notes } = req.body
+  const { productId, type, quantity, unitCostUsd, reference, notes } = req.body
   const userId = req.user?.userId || null
 
   const product = await prisma.product.findUnique({ where: { id: productId } })
@@ -77,7 +77,6 @@ router.post('/', validate(createInventoryEntrySchema), asyncHandler(async (req: 
         type,
         quantity: parseFloat(quantity),
         unitCostUsd: unitCostUsd != null ? parseFloat(unitCostUsd) : null,
-        unitCostVes: unitCostVes != null ? parseFloat(unitCostVes) : null,
         reference: reference || null,
         notes: notes || null,
         userId

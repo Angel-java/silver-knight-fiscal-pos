@@ -93,9 +93,7 @@ export interface Product {
   barcode: string | null
   description: string | null
   priceUsd: number
-  priceVes: number
   costUsd: number | null
-  costVes: number | null
   ivaRate: number
   stock: number
   minStock: number
@@ -109,11 +107,10 @@ export interface Product {
 export interface InventoryMovement {
   id: string
   productId: string
-  product: { id: string; name: string; code: string | null; costUsd: number | null; costVes: number | null; priceUsd: number; priceVes: number } | null
+  product: { id: string; name: string; code: string | null; costUsd: number | null; priceUsd: number } | null
   type: string
   quantity: number
   unitCostUsd: number | null
-  unitCostVes: number | null
   reference: string | null
   notes: string | null
   userId: string | null
@@ -126,9 +123,7 @@ export interface ProductInput {
   barcode?: string | null
   description?: string | null
   priceUsd: number
-  priceVes: number
   costUsd?: number | null
-  costVes?: number | null
   ivaRate?: number
   stock?: number
   minStock?: number
@@ -144,7 +139,6 @@ export interface Customer {
   phone: string | null
   email: string | null
   creditLimitUsd: number | null
-  creditLimitVes: number | null
   invoices?: Invoice[]
   createdAt: string
 }
@@ -159,7 +153,7 @@ export interface InvoiceItem {
   ivaRate: number
   totalUsd: number
   totalVes: number
-  product?: { id: string; name: string; costUsd: number; costVes: number } | null
+  product?: { id: string; name: string; costUsd: number } | null
 }
 
 export interface FiscalControl {
@@ -204,7 +198,6 @@ export interface InvoiceInput {
     productName: string
     quantity: number
     unitPriceUsd: number
-    unitPriceVes: number
     ivaRate: number
   }>
   currency: string
@@ -458,7 +451,6 @@ export const api = {
       phone?: string
       email?: string
       creditLimitUsd?: number
-      creditLimitVes?: number
     }) =>
       request<{ customer: Customer }>('/customers', {
         method: 'POST',
@@ -474,7 +466,6 @@ export const api = {
         phone?: string | null
         email?: string | null
         creditLimitUsd?: number | null
-        creditLimitVes?: number | null
       }
     ) =>
       request<{ customer: Customer }>(`/customers/${id}`, {
@@ -526,9 +517,7 @@ export const api = {
         summary: {
           totalProducts: number
           totalValueUsd: number
-          totalValueVes: number
           totalPriceUsd: number
-          totalPriceVes: number
           lowStockCount: number
           outOfStockCount: number
         }
@@ -638,7 +627,6 @@ export const api = {
       type: 'entry' | 'exit'
       quantity: number
       unitCostUsd?: number | null
-      unitCostVes?: number | null
       reference?: string | null
       notes?: string | null
     }) =>

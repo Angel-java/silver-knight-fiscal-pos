@@ -35,7 +35,6 @@ const invoiceItemSchema = z.object({
   productName: z.string().min(1, 'Nombre de producto requerido'),
   quantity: z.number().positive('Cantidad debe ser positiva'),
   unitPriceUsd: z.number().min(0),
-  unitPriceVes: z.number().min(0),
   ivaRate: z.number().min(0).max(100).default(DEFAULT_IVA_RATE)
 })
 
@@ -43,7 +42,7 @@ export const createInvoiceSchema = z.object({
   customerId: z.string().optional().nullable(),
   items: z.array(invoiceItemSchema).min(1, 'La factura debe tener al menos un item'),
   currency: z.enum(['USD', 'VES']).default('USD'),
-  exchangeRate: z.number().min(0).default(0),
+  exchangeRate: z.number().min(0).optional().default(0),
   payments: z
     .array(
       z.object({
@@ -68,9 +67,7 @@ export const createProductSchema = z.object({
   barcode: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   priceUsd: z.number().min(0, 'Precio USD requerido'),
-  priceVes: z.number().min(0, 'Precio VES requerido'),
   costUsd: z.number().min(0).optional().nullable(),
-  costVes: z.number().min(0).optional().nullable(),
   ivaRate: z.number().min(0).max(100).default(DEFAULT_IVA_RATE),
   stock: z.number().min(0).default(0),
   minStock: z.number().min(0).default(0),
@@ -80,7 +77,7 @@ export const createProductSchema = z.object({
 
 export const updateProductSchema = createProductSchema
   .partial()
-  .required({ name: true, priceUsd: true, priceVes: true })
+  .required({ name: true, priceUsd: true })
 
 export const stockAdjustSchema = z.object({
   quantity: z.number().positive('Cantidad debe ser positiva'),
@@ -93,8 +90,7 @@ export const createCustomerSchema = z.object({
   address: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().email('Email inválido').optional().nullable(),
-  creditLimitUsd: z.number().min(0).optional().nullable(),
-  creditLimitVes: z.number().min(0).optional().nullable()
+  creditLimitUsd: z.number().min(0).optional().nullable()
 })
 
 export const updateCustomerSchema = createCustomerSchema.partial().required({ name: true })
@@ -170,7 +166,6 @@ export const createInventoryEntrySchema = z.object({
   type: z.enum(['entry', 'exit'], { message: 'Tipo debe ser entry o exit' }),
   quantity: z.number().positive('Cantidad debe ser positiva'),
   unitCostUsd: z.number().min(0).optional().nullable(),
-  unitCostVes: z.number().min(0).optional().nullable(),
   reference: z.string().optional().nullable(),
   notes: z.string().optional().nullable()
 })

@@ -2,7 +2,7 @@
 type: entity
 tags: [inventory, movement, entry, exit, stock, audit]
 created: 2026-07-07
-updated: 2026-07-07
+updated: 2026-08-04
 sources: [db-schema]
 ---
 
@@ -19,10 +19,11 @@ Un **InventoryMovement** representa cualquier cambio en el stock de un [[product
 | type | string | `entry` \| `exit` \| `sale` \| `cancellation` |
 | quantity | decimal | Cantidad movida (positiva) |
 | unitCostUsd | decimal? | Costo unitario en USD al momento de la entrada |
-| unitCostVes | decimal? | Costo unitario en VES al momento de la entrada |
 | reference | string? | Documento de referencia (factura #, orden, etc.) |
 | notes | string? | Notas opcionales |
 | userId | string? | Usuario que realizó el movimiento |
+
+> **Histórico**: `unitCostVes` fue eliminado del modelo (2026-08-04). El costo se registra solo en USD ([[dual-currency]]).
 
 ## Relaciones
 

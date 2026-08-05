@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, clipboard } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, clipboard, net } from 'electron'
 import { join } from 'path'
 import { execSync } from 'child_process'
 import { readFileSync, existsSync } from 'fs'
@@ -26,7 +26,9 @@ import {
   restartServerContainer,
   stopServerContainer,
   getDockerSystemDf,
-  resetPostgresPassword
+  resetPostgresPassword,
+  getImageAvailability,
+  pullDbImage
 } from './docker'
 import { appUpdater } from './updater'
 import { ensureServerImage } from './server-image'
@@ -292,16 +294,73 @@ async function startBackend(): Promise<boolean> {
   sendSplash('splash-progress', 20)
 
   if (app.isPackaged) {
-    const imageResult = await ensureServerImage((line) => {
-      if (line.includes('Building')) {
-        sendSplash('splash-status', 'Construyendo imagen Docker...')
-        sendSplash('splash-progress', 40)
-      } else {
-        sendSplash('splash-status', line)
+    const images = await getImageAvailability()
+    const online = net.isOnline()
+    log('startup', `Image availability — db: ${images.db}, server: ${images.server}; online: ${online}`)
+
+    if (!images.db || !images.server) {
+      if (!online) {
+        log('startup', 'Offline and required images missing, asking for one online start')
+        const offlineMsg =
+          'Silver Knight necesita conectarse a internet una vez para descargar los componentes de su servidor.\n\n' +
+          'En este momento el equipo está sin conexión y faltan las imágenes de Docker necesarias ' +
+          '(PostgreSQL y el servidor de Silver Knight).\n\n' +
+          'Conecta el equipo a internet y pulsa "Reintentar". ' +
+          'Después de esta configuración inicial, la aplicación funcionará sin conexión.'
+        const offlineRetry = await dialog.showMessageBox({
+          type: 'info',
+          title: 'Se necesita internet una sola vez',
+          message: 'Primera configuración requiere internet',
+          detail: offlineMsg,
+          buttons: ['Reintentar', 'Copiar diagnóstico', 'Salir'],
+          defaultId: 0,
+          cancelId: 2
+        })
+        if (offlineRetry.response === 0) {
+          return startBackend()
+        }
+        if (offlineRetry.response === 1) {
+          await copyDiagnostics()
+          return startBackend()
+        }
+        app.quit()
+        return false
       }
-    })
-    if (imageResult.error) {
-      log('server-image', `Rebuild failed, continuing with existing image: ${imageResult.error}`)
+
+      log('startup', 'Online and images missing, pre-warming image cache...')
+      if (!images.server) {
+        const imageResult = await ensureServerImage((line) => {
+          if (line.includes('Building')) {
+            sendSplash('splash-status', 'Construyendo imagen Docker...')
+            sendSplash('splash-progress', 40)
+          } else {
+            sendSplash('splash-status', line)
+          }
+        })
+        if (imageResult.error) {
+          log('server-image', `Rebuild failed, continuing: ${imageResult.error}`)
+        }
+      }
+      if (!images.db) {
+        const dbPull = await pullDbImage((line) => {
+          sendSplash('splash-status', line)
+        })
+        if (!dbPull.success) {
+          log('image', `Postgres pull failed, compose will retry: ${dbPull.error}`)
+        }
+      }
+    } else {
+      const imageResult = await ensureServerImage((line) => {
+        if (line.includes('Building')) {
+          sendSplash('splash-status', 'Construyendo imagen Docker...')
+          sendSplash('splash-progress', 40)
+        } else {
+          sendSplash('splash-status', line)
+        }
+      })
+      if (imageResult.error && !imageResult.skippedOffline) {
+        log('server-image', `Rebuild failed, continuing with existing image: ${imageResult.error}`)
+      }
     }
   }
 

@@ -3,6 +3,5 @@ export interface CartItem {
   productName: string
   quantity: number
   unitPriceUsd: number
-  unitPriceVes: number
   ivaRate: number
 }

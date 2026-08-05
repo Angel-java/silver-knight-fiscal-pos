@@ -1,7 +1,9 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, net } from 'electron'
 import { autoUpdater, type UpdateInfo } from 'electron-updater'
 import { stopCompose, checkDockerRunning, pullImages, buildCompose } from './docker'
 import { log } from './logger'
+
+const RETRY_POLL_MS = 30_000
 
 export type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'
 
@@ -10,7 +12,9 @@ export class AppUpdater {
   private availableVersion = ''
   private lastError = ''
   private checkInterval: ReturnType<typeof setInterval> | null = null
+  private retryTimer: ReturnType<typeof setInterval> | null = null
   private mainWindow: BrowserWindow | null = null
+  private pendingCheck = false
 
   constructor() {
     autoUpdater.autoDownload = false
@@ -90,6 +94,14 @@ export class AppUpdater {
 
   async checkForUpdates(): Promise<void> {
     if (this.status === 'downloading') return
+    if (!net.isOnline()) {
+      log('check', 'Offline, update check skipped (will retry when connection is back)')
+      this.pendingCheck = true
+      this.startRetryPoll()
+      return
+    }
+    this.pendingCheck = false
+    this.stopRetryPoll()
     log('check', 'Checking for updates...')
     this.status = 'checking'
     this.send('update-checking')
@@ -100,6 +112,31 @@ export class AppUpdater {
       this.status = 'error'
       this.lastError = err instanceof Error ? err.message : String(err)
       this.send('update-error', this.lastError)
+    }
+  }
+
+  private startRetryPoll(): void {
+    if (this.retryTimer) return
+    this.retryTimer = setInterval(() => {
+      this.tryRunPendingCheck().catch(() => {})
+    }, RETRY_POLL_MS)
+  }
+
+  private stopRetryPoll(): void {
+    if (this.retryTimer) {
+      clearInterval(this.retryTimer)
+      this.retryTimer = null
+    }
+  }
+
+  private async tryRunPendingCheck(): Promise<void> {
+    if (!this.pendingCheck) {
+      this.stopRetryPoll()
+      return
+    }
+    if (net.isOnline()) {
+      log('scheduler', 'Connection restored, running pending update check')
+      await this.checkForUpdates()
     }
   }
 
@@ -162,6 +199,8 @@ export class AppUpdater {
       clearInterval(this.checkInterval)
       this.checkInterval = null
     }
+    this.stopRetryPoll()
+    this.pendingCheck = false
   }
 
   getStatus(): { status: UpdateStatus; version: string; error: string } {
