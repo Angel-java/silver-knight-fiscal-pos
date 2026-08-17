@@ -133,7 +133,8 @@ export const updateFiscalControlSchema = z.object({
 const PERMISSION_MODULES = [
   'dashboard', 'pos', 'products', 'categories', 'inventory',
   'inventory-entries', 'customers', 'invoices', 'reports',
-  'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users'
+  'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users',
+  'data-migration'
 ] as const
 
 export const permissionModules = PERMISSION_MODULES

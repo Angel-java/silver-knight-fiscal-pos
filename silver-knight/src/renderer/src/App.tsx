@@ -19,6 +19,7 @@ import UsersPage from './pages/UsersPage'
 import POSPage from './pages/POSPage'
 import InvoiceViewPage from './pages/InvoiceViewPage'
 import SuppliersPage from './pages/SuppliersPage'
+import DataMigrationPage from './pages/DataMigrationPage'
 
 const rlog = (tag: string, msg: string): void => {
   try { window.electron?.send('renderer-log', 'INFO', tag, msg) } catch {}
@@ -160,6 +161,14 @@ function App(): React.JSX.Element {
           element={
             <ProtectedRoute module="fiscal-control">
               <FiscalControlPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/data-migration"
+          element={
+            <ProtectedRoute module="data-migration">
+              <DataMigrationPage />
             </ProtectedRoute>
           }
         />

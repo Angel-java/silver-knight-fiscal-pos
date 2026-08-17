@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, clipboard, net } from 'electron'
 import { join } from 'path'
 import { execSync } from 'child_process'
-import { readFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import {
@@ -596,6 +596,28 @@ if (!gotTheLock) {
   })
 
   ipcMain.on('ping', () => log('ipc', 'pong'))
+
+  ipcMain.handle(
+    'save-file',
+    async (_event, data: { buffer: ArrayBuffer; defaultName: string }) => {
+      try {
+        const result = await dialog.showSaveDialog({
+          defaultPath: data.defaultName,
+          filters: [
+            { name: 'Todos los archivos', extensions: ['*'] },
+            { name: 'JSON', extensions: ['json'] },
+            { name: 'CSV', extensions: ['csv'] }
+          ]
+        })
+        if (result.canceled || !result.filePath) return { canceled: true }
+        writeFileSync(result.filePath, Buffer.from(data.buffer))
+        return { canceled: false, filePath: result.filePath }
+      } catch (e) {
+        log('ipc', `save-file error: ${e instanceof Error ? e.message : String(e)}`)
+        return { canceled: true, error: e instanceof Error ? e.message : String(e) }
+      }
+    }
+  )
 
   ipcMain.handle('config:exists', () => {
     return ensureConfig()

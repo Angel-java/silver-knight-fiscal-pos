@@ -88,6 +88,23 @@ const icons: Record<string, ReactElement> = {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
+  migration: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-8 h-8"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="17 1 21 5 17 9" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+      <polyline points="7 23 3 19 7 15" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </svg>
+  ),
   settings: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -118,6 +135,7 @@ const allMenuItems: MenuItem[] = [
   { label: 'Clientes', key: 'customers', path: '/customers', module: 'customers' },
   { label: 'Reportes', key: 'reports', path: '/reports', module: 'reports' },
   { label: 'Usuarios', key: 'users', path: '/users', module: 'users' },
+  { label: 'Migración', key: 'migration', path: '/settings/data-migration', module: 'data-migration' },
   { label: 'Configuración', key: 'settings', path: '/settings', module: 'settings' }
 ]
 
@@ -178,7 +196,7 @@ export default function DashboardPage(): JSX.Element {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {menuItems.map((item) => (
             <button
               key={item.path}

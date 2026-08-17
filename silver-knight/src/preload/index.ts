@@ -84,7 +84,9 @@ const api = {
       ipcRenderer.invoke('config:has-existing-db') as Promise<boolean>,
     startBackend: (): Promise<{ success: boolean; error?: string; message?: string; logs?: string }> =>
       ipcRenderer.invoke('config:start-backend') as Promise<{ success: boolean; error?: string; message?: string; logs?: string }>
-  }
+  },
+  saveFile: (data: { buffer: ArrayBuffer; defaultName: string }): Promise<{ canceled: boolean; filePath?: string; error?: string }> =>
+    ipcRenderer.invoke('save-file', data) as Promise<{ canceled: boolean; filePath?: string; error?: string }>
 }
 
 if (process.contextIsolated) {

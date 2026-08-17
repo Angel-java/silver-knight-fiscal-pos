@@ -57,7 +57,8 @@ export interface User {
 export const PERMISSION_MODULES = [
   'dashboard', 'pos', 'products', 'categories', 'inventory',
   'inventory-entries', 'customers', 'invoices', 'reports',
-  'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users'
+  'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users',
+  'data-migration'
 ] as const
 
 export type PermissionModule = (typeof PERMISSION_MODULES)[number]
@@ -204,6 +205,87 @@ export interface InvoiceInput {
   exchangeRate: number
   documentType?: string
   payments?: Array<{ method: string; amount: number; currency: string }>
+}
+
+export type MigrationStrategy = 'skip' | 'overwrite'
+
+export interface MigrationPreviewEntity {
+  entity: string
+  total: number
+  toCreate: number
+  toSkip: number
+  toOverwrite: number
+  errors: Array<{ row: number; message: string }>
+}
+
+export interface MigrationPreview {
+  format: 'backup' | 'csv'
+  entity?: string
+  summary: MigrationPreviewEntity[]
+  totalRecords: number
+}
+
+export interface MigrationImportResult {
+  format: 'backup' | 'csv'
+  entity?: string
+  strategy: MigrationStrategy
+  summary: Array<{
+    entity: string
+    imported: number
+    skipped: number
+    overwritten: number
+    errors: Array<{ row: number; message: string }>
+  }>
+  durationMs: number
+}
+
+export interface MigrationLogEntry {
+  id: string
+  kind: string
+  entity: string | null
+  strategy: string
+  imported: number
+  skipped: number
+  errors: number
+  errorDetail: string | null
+  fileName: string | null
+  createdBy: string | null
+  createdAt: string
+}
+
+export interface MigrationScopes {
+  formats: string[]
+  backupFormat: string
+  scopes: Array<{ value: string; label: string }>
+  csvEntities: string[]
+  strategies: Array<{ value: string; label: string }>
+  maxImportBytes: number
+}
+
+async function download(path: string): Promise<boolean> {
+  const token = localStorage.getItem('token')
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${getApiBase()}${path}`, { headers })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Error de descarga' }))
+    throw new Error(err.error || `HTTP ${res.status}`)
+  }
+  const blob = await res.blob()
+  const disposition = res.headers.get('Content-Disposition') || ''
+  const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/)
+  const fallback = disposition.match(/filename="?([^";]+)"?/)
+  const filename = utf8
+    ? decodeURIComponent(utf8[1])
+    : fallback
+      ? fallback[1]
+      : 'descarga'
+
+  const arrayBuf = await blob.arrayBuffer()
+  const result = await window.api.saveFile({ buffer: arrayBuf, defaultName: filename })
+  if (result.canceled) return false
+  return true
 }
 
 export const api = {
@@ -746,6 +828,32 @@ export const api = {
     listPrinters: () => request<{ printers: string[] }>('/print/printers'),
 
     invoice: (id: string) => request<{ ok: boolean }>(`/print/invoice/${id}`, { method: 'POST' })
+  },
+
+  migration: {
+    scopes: () => request<MigrationScopes>('/migration/scopes'),
+
+    exportJson: (scope: string) => download(`/migration/export?format=json&scope=${scope}`),
+
+    exportCsv: (entity: string) => download(`/migration/export?format=csv&entity=${entity}`),
+
+    template: (entity: string) => download(`/migration/templates?entity=${entity}`),
+
+    preview: (payload: unknown, strategy?: MigrationStrategy) =>
+      request<MigrationPreview>('/migration/preview', {
+        method: 'POST',
+        body: JSON.stringify({ payload, strategy }),
+        timeoutMs: 120000
+      }),
+
+    import: (payload: unknown, strategy: MigrationStrategy, fileName?: string) =>
+      request<MigrationImportResult>('/migration/import', {
+        method: 'POST',
+        body: JSON.stringify({ payload, strategy, fileName }),
+        timeoutMs: 120000
+      }),
+
+    logs: () => request<{ logs: MigrationLogEntry[] }>('/migration/logs')
   },
 
   getApiBase,

@@ -23,6 +23,7 @@ import puntoVentaRoutes from './routes/puntoVenta'
 import syncRoutes from './routes/sync'
 import inventoryEntriesRoutes from './routes/inventoryEntries'
 import suppliersRoutes from './routes/suppliers'
+import migrationRoutes from './routes/migration'
 import { startBcvScheduler } from './scheduler'
 import { syncService } from './syncService'
 import { autoCreateRoot } from './auth/autoAdmin'
@@ -50,6 +51,9 @@ export async function createServer(): Promise<ReturnType<typeof express>> {
     })
   )
   app.use(helmet({ contentSecurityPolicy: false }))
+  // NOTA: migrationRoutes se monta ANTES de express.json() porque tiene su propio
+  // parser con límite de 25MB (MAX_IMPORT_BYTES). El parser global usa 100KB default.
+  app.use('/api/migration', migrationRoutes)
   app.use(express.json())
 
   await autoCreateRoot()

@@ -2,10 +2,25 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-08-04
+updated: 2026-08-16
 ---
 
 # Log de operaciones — Silver Knight
+
+## [2026-08-16] build | Módulo de Migración de Datos (export/import)
+- **Descripción**: módulo completo para migrar datos dentro del mismo sistema y hacia sistemas diferentes. Formatos CSV (catálogo/maestros) y JSON (`silverknight-backup` v1, respaldo completo/facturas). Import con dry-run (`/preview`), estrategias `skip`/`overwrite`/`create-new`, transacción con rollback y `MigrationLog`. Permisos: export root+admin, import/preview solo root (rate-limit 10/h, body 25MB).
+- **Páginas creadas**: [[data-migration]]
+- **Páginas actualizadas**: [[index]], [[log]]
+- **Archivos creados**:
+  - `src/server/migration/csv.ts`, `formats.ts`, `exporter.ts`, `importer.ts`
+  - `src/server/routes/migration.ts` (scopes/export/templates/preview/import/logs)
+  - `src/renderer/src/pages/DataMigrationPage.tsx`
+  - Tests: `csv.test.ts`, `exporter.test.ts`, `importer.test.ts`, `routes/__tests__/migration.test.ts`
+- **Archivos modificados**: `schema.prisma` (`Invoice.importedFrom` + modelo `MigrationLog`), `server/index.ts` (montaje antes del json global), `validation/schemas.ts` (`PERMISSION_MODULES` + `'data-migration'`), `api.ts`, `App.tsx`, `SettingsPage.tsx`, `DashboardPage.tsx`, `UsersPage.tsx`
+- **Reglas fiscales**: `FiscalControl` nunca se sobrescribe; user root nunca se pisa; facturas importadas son históricas (`importedFrom='backup'`) y no avanzan `FiscalControl.currentNumber` del destino; FKs remapeadas por prefijo (`category-N`, `supplier-N`, `product-N`).
+- **Verificación**: `npm test` 174/174 (14 files), typecheck node+web PASS, `prisma generate` OK. Lint: solo warnings CRLF prettier; 12 errores eslint **preexistentes** no relacionados (PaymentModal, main.tsx, afterPack.js, etc.).
+- **Pendiente**: `prisma db push` contra BD dev falla (P1000 credenciales localhost:5432); schema se aplicará en entorno Docker/productivo.
+
 
 ## [2026-06-30] init | Inicialización de la wiki
 - **Descripción**: Creación inicial de la estructura LLM Wiki siguiendo el patrón de Karpathy

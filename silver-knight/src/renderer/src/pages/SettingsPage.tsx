@@ -1472,6 +1472,21 @@ export default function SettingsPage(): JSX.Element {
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold">Migración de Datos</h2>
+            <button
+              onClick={() => navigate('/settings/data-migration')}
+              className="text-sm text-primary hover:text-primary-dark font-medium"
+            >
+              Exportar / Importar →
+            </button>
+          </div>
+          <p className="text-sm text-gray-500">
+            Exporta respaldos o migra datos entre sistemas Silver Knight.
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold">Libros IVA</h2>
             <button
               onClick={() => navigate('/iva')}
