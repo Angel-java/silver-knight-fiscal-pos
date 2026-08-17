@@ -39,18 +39,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # electron-builder creates the release as draft and does not set the
-      # "Latest" flag, which makes the auto-updater miss it. Also, the
-      # .blockmap is uploaded before the release exists and gets lost.
+      # "Latest" flag, which makes the auto-updater miss it. Also, uploads
+      # may race with release creation and get lost.
       # This step publishes the release, marks it as latest and re-uploads
-      # the blockmap so differential updates keep working.
-      - name: Finalize release (publish + latest + blockmap)
+      # all required artifacts so auto-updates keep working.
+      - name: Finalize release (publish + latest + artifacts)
         shell: bash
         working-directory: silver-knight
         run: |
           REF=${{ github.ref_name }}
           gh release edit "$REF" --draft=false --latest
-          if ls dist/*.blockmap >/dev/null 2>&1; then
-            gh release upload "$REF" dist/*.blockmap --clobber
-          fi
+          for f in dist/*.exe dist/*.blockmap dist/latest.yml; do
+            if [ -f "$f" ]; then
+              echo "Uploading $f"
+              gh release upload "$REF" "$f" --clobber
+            fi
+          done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
