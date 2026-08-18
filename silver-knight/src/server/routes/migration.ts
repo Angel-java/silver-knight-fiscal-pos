@@ -3,7 +3,6 @@ import rateLimit from 'express-rate-limit'
 import { prisma } from '../database/prisma'
 import {
   authMiddleware,
-  rootMiddleware,
   rootOrAdminMiddleware,
   requirePermission
 } from '../middleware/auth'
