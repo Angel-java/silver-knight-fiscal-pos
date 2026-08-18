@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, net } from 'electron'
 import { autoUpdater, type UpdateInfo } from 'electron-updater'
-import { stopCompose, checkDockerRunning, pullImages, buildCompose } from './docker'
+import { stopCompose } from './docker'
 import { log } from './logger'
 
 const RETRY_POLL_MS = 30_000
@@ -157,31 +157,12 @@ export class AppUpdater {
   async installUpdate(): Promise<void> {
     if (this.status !== 'downloaded') return
     log('install', 'Quitting and installing update...')
+    this.send('update-installing')
     try {
       log('install', 'Stopping docker compose before update...')
       await stopCompose()
     } catch (err) {
       log('install', `Error stopping compose before update: ${err}`)
-    }
-    try {
-      if (await checkDockerRunning()) {
-        log('install', 'Pre-warming Docker image cache for faster post-update start...')
-        try {
-          await pullImages()
-        } catch (err) {
-          log('install', `Image pull skipped: ${err}`)
-        }
-        const build = await buildCompose()
-        if (build.success) {
-          log('install', 'Docker image cache pre-warmed')
-        } else {
-          log('install', `Cache pre-warm build failed (will build on next start): ${build.error}`)
-        }
-      } else {
-        log('install', 'Docker not running, skipping cache pre-warm')
-      }
-    } catch (err) {
-      log('install', `Cache pre-warm skipped (will build on next start): ${err}`)
     }
     autoUpdater.quitAndInstall(false, true)
   }

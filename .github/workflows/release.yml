@@ -32,28 +32,24 @@ jobs:
         working-directory: silver-knight
         run: npm run build
 
-      - name: Build and Publish
+      - name: Package installer (no publish)
         working-directory: silver-knight
-        run: npx electron-builder --win --publish always
+        run: npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # electron-builder creates the release as draft and does not set the
-      # "Latest" flag, which makes the auto-updater miss it. Also, uploads
-      # may race with release creation and get lost.
-      # This step publishes the release, marks it as latest and re-uploads
-      # all required artifacts so auto-updates keep working.
-      - name: Finalize release (publish + latest + artifacts)
+      - name: Create release and upload artifacts
         shell: bash
         working-directory: silver-knight
         run: |
           REF=${{ github.ref_name }}
-          gh release edit "$REF" --draft=false --latest
-          for f in dist/*.exe dist/*.blockmap dist/latest.yml; do
-            if [ -f "$f" ]; then
-              echo "Uploading $f"
-              gh release upload "$REF" "$f" --clobber
-            fi
-          done
+          # Delete existing release if any (allows safe re-runs)
+          gh release delete "$REF" --yes --cleanup-tag 2>/dev/null || true
+          # Create release with all artifacts
+          gh release create "$REF" \
+            dist/*.exe dist/*.blockmap dist/latest.yml \
+            --title "Silver Knight $REF" \
+            --generate-notes \
+            --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -30,14 +30,11 @@ vi.mock('electron-updater', () => ({
 }))
 
 vi.mock('./docker', () => ({
-  stopCompose: vi.fn().mockResolvedValue(undefined),
-  checkDockerRunning: vi.fn().mockResolvedValue(false),
-  pullImages: vi.fn().mockResolvedValue({ success: true }),
-  buildCompose: vi.fn().mockResolvedValue({ success: true })
+  stopCompose: vi.fn().mockResolvedValue(undefined)
 }))
 
 import { AppUpdater } from './updater'
-import { stopCompose, checkDockerRunning, pullImages, buildCompose } from './docker'
+import { stopCompose } from './docker'
 
 describe('AppUpdater', () => {
   let updater: AppUpdater
@@ -165,31 +162,6 @@ describe('AppUpdater', () => {
     eventHandlers['update-downloaded']()
     await updater.installUpdate()
     expect(stopCompose).toHaveBeenCalled()
-  })
-
-  it('installUpdate pre-warms Docker cache when daemon is running', async () => {
-    vi.mocked(checkDockerRunning).mockResolvedValue(true)
-    eventHandlers['update-downloaded']()
-    await updater.installUpdate()
-    expect(pullImages).toHaveBeenCalled()
-    expect(buildCompose).toHaveBeenCalled()
-    expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true)
-  })
-
-  it('installUpdate skips pre-warm when Docker is not running', async () => {
-    vi.mocked(checkDockerRunning).mockResolvedValue(false)
-    eventHandlers['update-downloaded']()
-    await updater.installUpdate()
-    expect(buildCompose).not.toHaveBeenCalled()
-    expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true)
-  })
-
-  it('installUpdate still installs when pre-warm fails', async () => {
-    vi.mocked(checkDockerRunning).mockResolvedValue(true)
-    vi.mocked(buildCompose).mockResolvedValue({ success: false, error: 'registry timeout' })
-    eventHandlers['update-downloaded']()
-    await updater.installUpdate()
-    expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true)
   })
 
   it('send does not crash when mainWindow is null', () => {
