@@ -135,7 +135,6 @@ const allMenuItems: MenuItem[] = [
   { label: 'Clientes', key: 'customers', path: '/customers', module: 'customers' },
   { label: 'Reportes', key: 'reports', path: '/reports', module: 'reports' },
   { label: 'Usuarios', key: 'users', path: '/users', module: 'users' },
-  { label: 'Migración', key: 'migration', path: '/settings/data-migration', module: 'data-migration' },
   { label: 'Configuración', key: 'settings', path: '/settings', module: 'settings' }
 ]
 
