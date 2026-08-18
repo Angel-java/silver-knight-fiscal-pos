@@ -157,7 +157,6 @@ export class AppUpdater {
   async installUpdate(): Promise<void> {
     if (this.status !== 'downloaded') return
     log('install', 'Quitting and installing update...')
-    this.send('update-installing')
     try {
       log('install', 'Stopping docker compose before update...')
       await stopCompose()
