@@ -7,6 +7,7 @@ export default function SettingsPage(): JSX.Element {
   const navigate = useNavigate()
   const { hasPermission } = useAuth()
   const isAdmin = hasPermission('settings')
+  const canMigrate = hasPermission('data-migration')
   const [rate, setRate] = useState('')
   const [currentRate, setCurrentRate] = useState<{
     rate: number
@@ -1470,6 +1471,7 @@ export default function SettingsPage(): JSX.Element {
           </p>
         </div>
 
+        {canMigrate && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold">Migración de Datos</h2>
@@ -1484,6 +1486,7 @@ export default function SettingsPage(): JSX.Element {
             Exporta respaldos o migra datos entre sistemas Silver Knight.
           </p>
         </div>
+        )}
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
