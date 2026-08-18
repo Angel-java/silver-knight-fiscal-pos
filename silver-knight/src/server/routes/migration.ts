@@ -97,7 +97,7 @@ router.get(
 
 router.post(
   '/preview',
-  rootMiddleware,
+  rootOrAdminMiddleware,
   asyncHandler(async (req: Request, res: Response) => {
     const body = req.body as { payload?: unknown; strategy?: ImportStrategy }
     const payload = body.payload
@@ -112,7 +112,7 @@ router.post(
 
 router.post(
   '/import',
-  rootMiddleware,
+  rootOrAdminMiddleware,
   importLimiter,
   asyncHandler(async (req: Request, res: Response) => {
     const body = req.body as { payload?: unknown; strategy?: ImportStrategy; fileName?: string }
