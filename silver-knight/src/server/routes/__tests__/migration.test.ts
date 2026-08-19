@@ -188,8 +188,8 @@ describe('GET /api/migration/templates', () => {
 })
 
 describe('POST /api/migration/preview', () => {
-  it('requires root or admin role', async () => {
-    roleState.role = 'gerente'
+  it('requires root role', async () => {
+    roleState.role = 'admin'
     const res = await request(createApp()).post('/api/migration/preview').send({ payload: {} })
     expect(res.status).toBe(403)
   })
@@ -252,8 +252,8 @@ describe('POST /api/migration/preview', () => {
 })
 
 describe('POST /api/migration/import', () => {
-  it('requires root or admin role', async () => {
-    roleState.role = 'gerente'
+  it('requires root role', async () => {
+    roleState.role = 'admin'
     const res = await request(createApp())
       .post('/api/migration/import')
       .send({ payload: {}, strategy: 'skip' })

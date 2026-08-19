@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit'
 import { prisma } from '../database/prisma'
 import {
   authMiddleware,
+  rootMiddleware,
   rootOrAdminMiddleware,
   requirePermission
 } from '../middleware/auth'
@@ -96,7 +97,7 @@ router.get(
 
 router.post(
   '/preview',
-  rootOrAdminMiddleware,
+  rootMiddleware,
   asyncHandler(async (req: Request, res: Response) => {
     const body = req.body as { payload?: unknown; strategy?: ImportStrategy }
     const payload = body.payload
@@ -111,7 +112,7 @@ router.post(
 
 router.post(
   '/import',
-  rootOrAdminMiddleware,
+  rootMiddleware,
   importLimiter,
   asyncHandler(async (req: Request, res: Response) => {
     const body = req.body as { payload?: unknown; strategy?: ImportStrategy; fileName?: string }

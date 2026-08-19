@@ -387,7 +387,7 @@ export default function DataMigrationPage(): JSX.Element {
           </div>
 
           {/* Importar */}
-          {isRootOrAdmin && (
+          {isRoot && (
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <h2 className="text-lg font-bold mb-2">Importar datos</h2>
               <p className="text-sm text-gray-500 mb-4">
@@ -621,11 +621,11 @@ export default function DataMigrationPage(): JSX.Element {
             </div>
           )}
 
-          {!isRootOrAdmin && (
+          {!isRoot && (
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <h2 className="text-lg font-bold mb-2">Importar datos</h2>
               <p className="text-sm text-gray-500">
-                La importación de datos solo está disponible para administradores y propietarios del sistema.
+                La importación de datos solo está disponible para el propietario del sistema (root).
               </p>
             </div>
           )}
