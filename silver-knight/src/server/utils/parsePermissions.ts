@@ -14,6 +14,8 @@ export function parsePermissions(raw: string | null): string[] | null {
 export function resolvePermissions(raw: string | null, role: string): string[] {
   if (role === 'root') return [...permissionModules]
   const parsed = parsePermissions(raw)
-  if (parsed && parsed.length > 0) return parsed
+  if (parsed && parsed.length > 0) {
+    return [...new Set([...parsed, ...permissionModules])]
+  }
   return [...permissionModules]
 }
