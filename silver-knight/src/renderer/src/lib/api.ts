@@ -262,7 +262,7 @@ export interface MigrationScopes {
   maxImportBytes: number
 }
 
-async function download(path: string): Promise<boolean> {
+async function download(path: string, defaultDir?: string): Promise<boolean> {
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
@@ -283,7 +283,11 @@ async function download(path: string): Promise<boolean> {
       : 'descarga'
 
   const arrayBuf = await blob.arrayBuffer()
-  const result = await window.api.saveFile({ buffer: arrayBuf, defaultName: filename })
+  const result = await window.api.saveFile({
+    buffer: arrayBuf,
+    defaultName: filename,
+    defaultDir: defaultDir || undefined
+  })
   if (result.canceled) return false
   return true
 }
@@ -833,9 +837,9 @@ export const api = {
   migration: {
     scopes: () => request<MigrationScopes>('/migration/scopes'),
 
-    exportJson: (scope: string) => download(`/migration/export?format=json&scope=${scope}`),
+    exportJson: (scope: string, defaultDir?: string) => download(`/migration/export?format=json&scope=${scope}`, defaultDir),
 
-    exportCsv: (entity: string) => download(`/migration/export?format=csv&entity=${entity}`),
+    exportCsv: (entity: string, defaultDir?: string) => download(`/migration/export?format=csv&entity=${entity}`, defaultDir),
 
     template: (entity: string) => download(`/migration/templates?entity=${entity}`),
 

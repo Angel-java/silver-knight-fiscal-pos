@@ -1,4 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, clipboard, net } from 'electron'
+import path from 'path'
 import { join } from 'path'
 import { execSync } from 'child_process'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
@@ -599,10 +600,23 @@ if (!gotTheLock) {
 
   ipcMain.handle(
     'save-file',
-    async (_event, data: { buffer: ArrayBuffer; defaultName: string }) => {
+    async (
+      _event,
+      data: { buffer: ArrayBuffer; defaultName: string; defaultDir?: string }
+    ) => {
       try {
+        const defaultPath =
+          data.defaultDir && data.defaultDir.trim()
+            ? path.join(data.defaultDir.trim(), data.defaultName)
+            : data.defaultName
+
+        if (data.defaultDir && data.defaultDir.trim()) {
+          const { mkdirSync } = await import('fs')
+          mkdirSync(data.defaultDir.trim(), { recursive: true })
+        }
+
         const result = await dialog.showSaveDialog({
-          defaultPath: data.defaultName,
+          defaultPath,
           filters: [
             { name: 'Todos los archivos', extensions: ['*'] },
             { name: 'JSON', extensions: ['json'] },
@@ -618,6 +632,19 @@ if (!gotTheLock) {
       }
     }
   )
+
+  ipcMain.handle('select-directory', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory']
+      })
+      if (result.canceled || !result.filePaths[0]) return { canceled: true }
+      return { canceled: false, path: result.filePaths[0] }
+    } catch (e) {
+      log('ipc', `select-directory error: ${e instanceof Error ? e.message : String(e)}`)
+      return { canceled: true }
+    }
+  })
 
   ipcMain.handle('config:exists', () => {
     return ensureConfig()

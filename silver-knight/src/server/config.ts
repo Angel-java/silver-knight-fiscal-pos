@@ -5,3 +5,4 @@ export const DEFAULT_IVA_RATE = 16
 export const DEFAULT_PAGE_SIZE = 20
 export const DEFAULT_INVOICE_PAGE_SIZE = 50
 export const DEFAULT_EXCHANGE_RATE_PAGE_SIZE = 50
+export const DEFAULT_EXPORT_DIR = 'silverknight'

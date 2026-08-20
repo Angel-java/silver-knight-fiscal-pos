@@ -85,8 +85,10 @@ const api = {
     startBackend: (): Promise<{ success: boolean; error?: string; message?: string; logs?: string }> =>
       ipcRenderer.invoke('config:start-backend') as Promise<{ success: boolean; error?: string; message?: string; logs?: string }>
   },
-  saveFile: (data: { buffer: ArrayBuffer; defaultName: string }): Promise<{ canceled: boolean; filePath?: string; error?: string }> =>
-    ipcRenderer.invoke('save-file', data) as Promise<{ canceled: boolean; filePath?: string; error?: string }>
+  saveFile: (data: { buffer: ArrayBuffer; defaultName: string; defaultDir?: string }): Promise<{ canceled: boolean; filePath?: string; error?: string }> =>
+    ipcRenderer.invoke('save-file', data) as Promise<{ canceled: boolean; filePath?: string; error?: string }>,
+  selectDirectory: (): Promise<{ canceled: boolean; path?: string }> =>
+    ipcRenderer.invoke('select-directory') as Promise<{ canceled: boolean; path?: string }>
 }
 
 if (process.contextIsolated) {

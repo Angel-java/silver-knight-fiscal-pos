@@ -110,6 +110,9 @@ export default function DataMigrationPage(): JSX.Element {
   const [exportEntity, setExportEntity] = useState('categories')
   const [exporting, setExporting] = useState(false)
 
+  const DEFAULT_EXPORT_DIR = 'silverknight'
+  const [exportDir, setExportDir] = useState<string>(DEFAULT_EXPORT_DIR)
+
   const [fileName, setFileName] = useState('')
   const [payload, setPayload] = useState<unknown>(null)
   const [csvEntity, setCsvEntity] = useState('categories')
@@ -144,6 +147,25 @@ export default function DataMigrationPage(): JSX.Element {
     void loadLogs()
   }, [])
 
+  useEffect(() => {
+    api.settings
+      .getAll()
+      .then((res) => {
+        if (res.settings['exportDir']) {
+          setExportDir(res.settings['exportDir'])
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSelectExportDir = async (): Promise<void> => {
+    const result = await window.api.selectDirectory()
+    if (!result.canceled && result.path) {
+      setExportDir(result.path)
+      api.settings.set('exportDir', result.path).catch(() => {})
+    }
+  }
+
   const showError = (msg: string): void => {
     setError(msg)
     setSuccess('')
@@ -159,10 +181,10 @@ export default function DataMigrationPage(): JSX.Element {
     setExporting(true)
     try {
       if (exportFormat === 'json') {
-        const saved = await api.migration.exportJson(exportScope)
+        const saved = await api.migration.exportJson(exportScope, exportDir)
         if (saved) showSuccess('Respaldo exportado correctamente')
       } else {
-        const saved = await api.migration.exportCsv(exportEntity)
+        const saved = await api.migration.exportCsv(exportEntity, exportDir)
         if (saved) showSuccess('CSV exportado correctamente')
       }
     } catch (err) {
@@ -366,6 +388,30 @@ export default function DataMigrationPage(): JSX.Element {
                 ))}
               </div>
             )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ubicación de exportación
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={exportDir}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-600 cursor-default"
+                />
+                <button
+                  onClick={handleSelectExportDir}
+                  type="button"
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors whitespace-nowrap"
+                >
+                  Examinar...
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Los archivos se guardarán en esta carpeta
+              </p>
+            </div>
 
             <div className="flex gap-3 items-center">
               <button

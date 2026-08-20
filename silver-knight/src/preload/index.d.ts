@@ -35,7 +35,8 @@ interface SilverKnightAPI {
   onUpdateChecking: (callback: () => void) => (() => void)
   docker: DockerAPI
   config: ConfigAPI
-  saveFile: (data: { buffer: ArrayBuffer; defaultName: string }) => Promise<{ canceled: boolean; filePath?: string; error?: string }>
+  saveFile: (data: { buffer: ArrayBuffer; defaultName: string; defaultDir?: string }) => Promise<{ canceled: boolean; filePath?: string; error?: string }>
+  selectDirectory: () => Promise<{ canceled: boolean; path?: string }>
 }
 
 declare global {
