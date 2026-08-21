@@ -28,6 +28,6 @@ RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:3001/api/health || exit 1
+  CMD wget -qO- http://127.0.0.1:3001/api/health || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

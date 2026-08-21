@@ -126,9 +126,7 @@ describe('GET /api/migration/export', () => {
       { name: 'Bebidas', description: null }
     ] as any)
 
-    const res = await request(createApp()).get(
-      '/api/migration/export?format=csv&entity=categories'
-    )
+    const res = await request(createApp()).get('/api/migration/export?format=csv&entity=categories')
 
     expect(res.status).toBe(200)
     expect(res.headers['content-type']).toContain('text/csv')
@@ -229,9 +227,7 @@ describe('POST /api/migration/preview', () => {
 
   it('returns preview with overwrite classification when strategy is overwrite', async () => {
     mockEmptyDb()
-    vi.mocked(prisma.category.findMany).mockResolvedValue([
-      { id: 'c1', name: 'Bebidas' }
-    ] as any)
+    vi.mocked(prisma.category.findMany).mockResolvedValue([{ id: 'c1', name: 'Bebidas' }] as any)
 
     const res = await request(createApp())
       .post('/api/migration/preview')
@@ -306,14 +302,47 @@ describe('POST /api/migration/import', () => {
 
     expect(res.status).toBe(500)
     expect(res.body.error).toContain('revertida')
-    expect(prisma.migrationLog.create).not.toHaveBeenCalled()
+    expect(prisma.migrationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ imported: 0, errors: 1 })
+      })
+    )
+  })
+
+  it('returns 400 with structured details when any record is invalid', async () => {
+    mockEmptyDb()
+    const res = await request(createApp())
+      .post('/api/migration/import')
+      .send({
+        payload: {
+          format: 'silverknight-backup',
+          version: 1,
+          data: {
+            settings: [
+              { key: 'printer', value: 'a' },
+              { key: 'printer', value: 'b' }
+            ]
+          }
+        },
+        strategy: 'skip'
+      })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('No se importó nada')
+    expect(Array.isArray(res.body.details)).toBe(true)
+    expect(res.body.details[0].entity).toBe('settings')
+    expect(JSON.stringify(res.body.details[0].errors)).toContain('duplicado')
+    expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 
   it('rejects create-new strategy', async () => {
     mockEmptyDb()
     const res = await request(createApp())
       .post('/api/migration/import')
-      .send({ payload: { format: 'csv', entity: 'categories', csvText: 'name\r\nCafé\r\n' }, strategy: 'create-new' })
+      .send({
+        payload: { format: 'csv', entity: 'categories', csvText: 'name\r\nCafé\r\n' },
+        strategy: 'create-new'
+      })
     expect(res.status).toBe(400)
   })
 

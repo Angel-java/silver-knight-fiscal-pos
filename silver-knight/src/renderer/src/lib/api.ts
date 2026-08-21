@@ -8,6 +8,27 @@ export function setApiBase(url: string): void {
 
 const DEFAULT_TIMEOUT_MS = 15000
 
+export interface ApiError extends Error {
+  details?: unknown
+}
+
+export interface MigrationEntityErrors {
+  entity: string
+  errors: Array<{ row: number; message: string }>
+}
+
+export function migrationErrorDetails(err: unknown): MigrationEntityErrors[] | null {
+  const details = (err as ApiError)?.details
+  if (!Array.isArray(details)) return null
+  return details.filter(
+    (d): d is MigrationEntityErrors =>
+      !!d &&
+      typeof d === 'object' &&
+      'entity' in d &&
+      Array.isArray((d as MigrationEntityErrors).errors)
+  )
+}
+
 export interface RequestOptions extends RequestInit {
   timeoutMs?: number
 }
@@ -27,10 +48,16 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   }
 
   try {
-    const res = await fetch(`${getApiBase()}${path}`, { ...rest, headers, signal: controller.signal })
+    const res = await fetch(`${getApiBase()}${path}`, {
+      ...rest,
+      headers,
+      signal: controller.signal
+    })
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Error de conexión' }))
-      throw new Error(err.error || `HTTP ${res.status}`)
+      const e = new Error(err.error || `HTTP ${res.status}`) as ApiError
+      if (err.details !== undefined) e.details = err.details
+      throw e
     }
     return res.json()
   } catch (err) {
@@ -55,9 +82,20 @@ export interface User {
 }
 
 export const PERMISSION_MODULES = [
-  'dashboard', 'pos', 'products', 'categories', 'inventory',
-  'inventory-entries', 'customers', 'invoices', 'reports',
-  'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users',
+  'dashboard',
+  'pos',
+  'products',
+  'categories',
+  'inventory',
+  'inventory-entries',
+  'customers',
+  'invoices',
+  'reports',
+  'settings',
+  'exchange-rates',
+  'iva-books',
+  'fiscal-control',
+  'users',
   'data-migration'
 ] as const
 
@@ -108,7 +146,13 @@ export interface Product {
 export interface InventoryMovement {
   id: string
   productId: string
-  product: { id: string; name: string; code: string | null; costUsd: number | null; priceUsd: number } | null
+  product: {
+    id: string
+    name: string
+    code: string | null
+    costUsd: number | null
+    priceUsd: number
+  } | null
   type: string
   quantity: number
   unitCostUsd: number | null
@@ -276,11 +320,7 @@ async function download(path: string, defaultDir?: string): Promise<boolean> {
   const disposition = res.headers.get('Content-Disposition') || ''
   const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/)
   const fallback = disposition.match(/filename="?([^";]+)"?/)
-  const filename = utf8
-    ? decodeURIComponent(utf8[1])
-    : fallback
-      ? fallback[1]
-      : 'descarga'
+  const filename = utf8 ? decodeURIComponent(utf8[1]) : fallback ? fallback[1] : 'descarga'
 
   const arrayBuf = await blob.arrayBuffer()
   const result = await window.api.saveFile({
@@ -316,8 +356,7 @@ export const api = {
   health: (timeoutMs?: number) =>
     request<{ ok: boolean; service: string; companyCount?: number }>('/health', { timeoutMs }),
 
-  deploy: () =>
-    request<{ success: boolean; output: string }>('/deploy', { method: 'POST' }),
+  deploy: () => request<{ success: boolean; output: string }>('/deploy', { method: 'POST' }),
 
   categories: {
     list: () => request<{ categories: Category[] }>('/categories'),
@@ -347,15 +386,33 @@ export const api = {
       )
     },
 
-    get: (id: string) => request<{ supplier: Supplier & { products?: { id: string; name: string; code: string | null }[] } }>(`/suppliers/${id}`),
+    get: (id: string) =>
+      request<{
+        supplier: Supplier & { products?: { id: string; name: string; code: string | null }[] }
+      }>(`/suppliers/${id}`),
 
-    create: (data: { name: string; rif?: string; phone?: string; email?: string; address?: string }) =>
+    create: (data: {
+      name: string
+      rif?: string
+      phone?: string
+      email?: string
+      address?: string
+    }) =>
       request<{ supplier: Supplier }>('/suppliers', {
         method: 'POST',
         body: JSON.stringify(data)
       }),
 
-    update: (id: string, data: { name: string; rif?: string | null; phone?: string | null; email?: string | null; address?: string | null }) =>
+    update: (
+      id: string,
+      data: {
+        name: string
+        rif?: string | null
+        phone?: string | null
+        email?: string | null
+        address?: string | null
+      }
+    ) =>
       request<{ supplier: Supplier }>(`/suppliers/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data)
@@ -399,8 +456,7 @@ export const api = {
     deactivate: (id: string) =>
       request<{ product: Product }>(`/products/${id}/deactivate`, { method: 'PATCH' }),
 
-    delete: (id: string) =>
-      request<{ ok: boolean }>(`/products/${id}`, { method: 'DELETE' })
+    delete: (id: string) => request<{ ok: boolean }>(`/products/${id}`, { method: 'DELETE' })
   },
 
   settings: {
@@ -681,21 +737,37 @@ export const api = {
   },
 
   users: {
-    list: () =>
-      request<{ users: User[] }>('/users'),
+    list: () => request<{ users: User[] }>('/users'),
 
-    create: (data: { username: string; fullName?: string | null; pin: string; role?: string; permissions?: string[] | null }) =>
-      request<{ user: User }>('/users', { method: 'POST', body: JSON.stringify(data) }),
+    create: (data: {
+      username: string
+      fullName?: string | null
+      pin: string
+      role?: string
+      permissions?: string[] | null
+    }) => request<{ user: User }>('/users', { method: 'POST', body: JSON.stringify(data) }),
 
     update: (
       id: string,
-      data: { username?: string; fullName?: string | null; pin?: string; role?: string; isActive?: boolean; permissions?: string[] | null }
-    ) =>
-      request<{ user: User }>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+      data: {
+        username?: string
+        fullName?: string | null
+        pin?: string
+        role?: string
+        isActive?: boolean
+        permissions?: string[] | null
+      }
+    ) => request<{ user: User }>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   },
 
   inventoryEntries: {
-    list: (params?: { productId?: string; type?: string; from?: string; to?: string; page?: number }) => {
+    list: (params?: {
+      productId?: string
+      type?: string
+      from?: string
+      to?: string
+      page?: number
+    }) => {
       const q = new URLSearchParams()
       if (params?.productId) q.set('productId', params.productId)
       if (params?.type) q.set('type', params.type)
@@ -703,9 +775,12 @@ export const api = {
       if (params?.to) q.set('to', params.to)
       if (params?.page) q.set('page', String(params.page))
       const qs = q.toString()
-      return request<{ movements: InventoryMovement[]; total: number; page: number; pages: number }>(
-        `/inventory-entries${qs ? '?' + qs : ''}`
-      )
+      return request<{
+        movements: InventoryMovement[]
+        total: number
+        page: number
+        pages: number
+      }>(`/inventory-entries${qs ? '?' + qs : ''}`)
     },
 
     create: (data: {
@@ -837,9 +912,11 @@ export const api = {
   migration: {
     scopes: () => request<MigrationScopes>('/migration/scopes'),
 
-    exportJson: (scope: string, defaultDir?: string) => download(`/migration/export?format=json&scope=${scope}`, defaultDir),
+    exportJson: (scope: string, defaultDir?: string) =>
+      download(`/migration/export?format=json&scope=${scope}`, defaultDir),
 
-    exportCsv: (entity: string, defaultDir?: string) => download(`/migration/export?format=csv&entity=${entity}`, defaultDir),
+    exportCsv: (entity: string, defaultDir?: string) =>
+      download(`/migration/export?format=csv&entity=${entity}`, defaultDir),
 
     template: (entity: string) => download(`/migration/templates?entity=${entity}`),
 

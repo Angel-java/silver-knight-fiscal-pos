@@ -105,7 +105,17 @@ const VALID_BACKUP = {
         status: 'active',
         payments: null,
         createdAt: '2026-01-01T10:00:00Z',
-        items: [{ productId: 'old-prod', productName: 'Café', quantity: 2, unitPriceUsd: 5, ivaRate: 16, totalUsd: 10, totalVes: 920 }]
+        items: [
+          {
+            productId: 'old-prod',
+            productName: 'Café',
+            quantity: 2,
+            unitPriceUsd: 5,
+            ivaRate: 16,
+            totalUsd: 10,
+            totalVes: 920
+          }
+        ]
       }
     ]
   }
@@ -135,9 +145,7 @@ describe('previewImport', () => {
 
   it('marks existing records as skip', async () => {
     mockEmptyDb()
-    vi.mocked(prisma.category.findMany).mockResolvedValue([
-      { id: 'c1', name: 'Bebidas' }
-    ] as any)
+    vi.mocked(prisma.category.findMany).mockResolvedValue([{ id: 'c1', name: 'Bebidas' }] as any)
 
     const preview = await previewImport(VALID_BACKUP)
     const cat = preview.summary.find((s) => s.entity === 'categories')
@@ -159,6 +167,23 @@ describe('previewImport', () => {
     expect(preview.summary[0]).toMatchObject({ toCreate: 1, toSkip: 0 })
   })
 
+  it('reports intra-file duplicates as preview errors', async () => {
+    mockEmptyDb()
+    const preview = await previewImport({
+      format: 'silverknight-backup',
+      version: 1,
+      data: {
+        settings: [
+          { key: 'printer', value: 'a' },
+          { key: 'printer', value: 'b' }
+        ]
+      }
+    })
+
+    expect(preview.summary[0].errors).toHaveLength(1)
+    expect(preview.summary[0].errors[0].message).toMatch(/duplicado/)
+  })
+
   it('collects validation errors for bad rows', async () => {
     mockEmptyDb()
     const preview = await previewImport({
@@ -172,9 +197,7 @@ describe('previewImport', () => {
 
   it('classifies conflicts as toOverwrite when strategy is overwrite', async () => {
     mockEmptyDb()
-    vi.mocked(prisma.category.findMany).mockResolvedValue([
-      { id: 'c1', name: 'Bebidas' }
-    ] as any)
+    vi.mocked(prisma.category.findMany).mockResolvedValue([{ id: 'c1', name: 'Bebidas' }] as any)
 
     const preview = await previewImport(VALID_BACKUP, 'overwrite')
     const cat = preview.summary.find((s) => s.entity === 'categories')
@@ -185,9 +208,7 @@ describe('previewImport', () => {
 
   it('classifies conflicts as toSkip when strategy is skip', async () => {
     mockEmptyDb()
-    vi.mocked(prisma.category.findMany).mockResolvedValue([
-      { id: 'c1', name: 'Bebidas' }
-    ] as any)
+    vi.mocked(prisma.category.findMany).mockResolvedValue([{ id: 'c1', name: 'Bebidas' }] as any)
 
     const preview = await previewImport(VALID_BACKUP, 'skip')
     const cat = preview.summary.find((s) => s.entity === 'categories')
@@ -197,9 +218,7 @@ describe('previewImport', () => {
 
   it('classifies conflicts as toSkip when no strategy provided', async () => {
     mockEmptyDb()
-    vi.mocked(prisma.category.findMany).mockResolvedValue([
-      { id: 'c1', name: 'Bebidas' }
-    ] as any)
+    vi.mocked(prisma.category.findMany).mockResolvedValue([{ id: 'c1', name: 'Bebidas' }] as any)
 
     const preview = await previewImport(VALID_BACKUP)
     const cat = preview.summary.find((s) => s.entity === 'categories')
@@ -210,9 +229,7 @@ describe('previewImport', () => {
 
 describe('applyImport', () => {
   it('rejects invalid strategy', async () => {
-    await expect(
-      applyImport(VALID_BACKUP, 'other' as any, 'u1')
-    ).rejects.toThrow(AppError)
+    await expect(applyImport(VALID_BACKUP, 'other' as any, 'u1')).rejects.toThrow(AppError)
   })
 
   it('rejects unsupported format', async () => {
@@ -263,9 +280,7 @@ describe('applyImport', () => {
 
   it('skips existing records with skip strategy', async () => {
     mockEmptyDb()
-    vi.mocked(prisma.category.findMany).mockResolvedValue([
-      { id: 'c1', name: 'Bebidas' }
-    ] as any)
+    vi.mocked(prisma.category.findMany).mockResolvedValue([{ id: 'c1', name: 'Bebidas' }] as any)
     const tx = makeTx()
     mockTransaction(tx)
 
@@ -278,9 +293,7 @@ describe('applyImport', () => {
 
   it('overwrites existing records with overwrite strategy', async () => {
     mockEmptyDb()
-    vi.mocked(prisma.category.findMany).mockResolvedValue([
-      { id: 'c1', name: 'Bebidas' }
-    ] as any)
+    vi.mocked(prisma.category.findMany).mockResolvedValue([{ id: 'c1', name: 'Bebidas' }] as any)
     const tx = makeTx()
     mockTransaction(tx)
 
@@ -295,7 +308,16 @@ describe('applyImport', () => {
   it('never overwrites fiscal controls', async () => {
     mockEmptyDb()
     const controls = [
-      { id: 'fc-1', documentType: 'FACT', prefix: '0F', resolution: 'R-1', startNumber: 1, endNumber: 100, currentNumber: 5, issuedAt: '2026-01-01' }
+      {
+        id: 'fc-1',
+        documentType: 'FACT',
+        prefix: '0F',
+        resolution: 'R-1',
+        startNumber: 1,
+        endNumber: 100,
+        currentNumber: 5,
+        issuedAt: '2026-01-01'
+      }
     ]
     const backup = {
       format: 'silverknight-backup',
@@ -364,18 +386,159 @@ describe('applyImport', () => {
     )
   })
 
-  it('rolls back when the transaction throws', async () => {
+  it('rolls back and logs the failure when the transaction throws', async () => {
     mockEmptyDb()
     vi.mocked(prisma.$transaction).mockRejectedValue(new Error('db down'))
 
-    await expect(applyImport(VALID_BACKUP, 'skip', 'u1')).rejects.toThrow(AppError)
-    expect(prisma.migrationLog.create).not.toHaveBeenCalled()
+    await expect(applyImport(VALID_BACKUP, 'skip', 'u1')).rejects.toThrow(/revertida/)
+    expect(prisma.migrationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ imported: 0, errors: 1 })
+      })
+    )
+  })
+
+  it('rejects the whole import when any record is invalid (all-or-nothing)', async () => {
+    mockEmptyDb()
+    const tx = makeTx()
+    mockTransaction(tx)
+
+    const backup = {
+      format: 'silverknight-backup',
+      version: 1,
+      data: {
+        categories: [{ id: 'old-cat', name: 'Bebidas' }],
+        invoices: [{ id: 'inv-bad', number: 'INV-BAD', totalUsd: 10, totalVes: 100, items: [] }]
+      }
+    }
+
+    const err: AppError = await applyImport(backup, 'skip', 'u1').catch((e) => e)
+    expect(err).toBeInstanceOf(AppError)
+    expect(err.statusCode).toBe(400)
+    expect(err.message).toMatch(/rechazada/)
+    expect(Array.isArray(err.details)).toBe(true)
+
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(tx.category.create).not.toHaveBeenCalled()
+    expect(prisma.migrationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ imported: 0, errors: 1 })
+      })
+    )
+  })
+
+  it('rejects intra-file duplicates before touching the database', async () => {
+    mockEmptyDb()
+    const tx = makeTx()
+    mockTransaction(tx)
+
+    const backup = {
+      format: 'silverknight-backup',
+      version: 1,
+      data: {
+        settings: [
+          { key: 'printer', value: 'a' },
+          { key: 'printer', value: 'b' }
+        ]
+      }
+    }
+
+    const err: AppError = await applyImport(backup, 'skip', 'u1').catch((e) => e)
+    expect(err).toBeInstanceOf(AppError)
+    expect(err.message).toMatch(/rechazada/)
+    expect(JSON.stringify(err.details)).toMatch(/duplicado/)
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(tx.setting.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects records with broken references before touching the database', async () => {
+    mockEmptyDb()
+    const tx = makeTx()
+    mockTransaction(tx)
+
+    const backup = {
+      format: 'silverknight-backup',
+      version: 1,
+      data: {
+        inventoryMovements: [{ productId: 'ghost-product', type: 'entry', quantity: 2 }]
+      }
+    }
+
+    const err: AppError = await applyImport(backup, 'skip', 'u1').catch((e) => e)
+    expect(err).toBeInstanceOf(AppError)
+    expect(err.message).toMatch(/rechazada/)
+    expect(JSON.stringify(err.details)).toMatch(/Referencia no encontrada/)
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled()
+  })
+
+  it('maps references to a skipped root user to null instead of failing', async () => {
+    mockEmptyDb()
+    vi.mocked(prisma.user.findFirst).mockResolvedValue({ id: 'root-dest' } as any)
+    const tx = makeTx()
+    mockTransaction(tx)
+
+    const backup = {
+      format: 'silverknight-backup',
+      version: 1,
+      data: {
+        users: [{ id: 'root-old', username: 'angel', role: 'root' }],
+        invoices: [
+          {
+            id: 'inv-1',
+            number: 'F-001',
+            documentType: 'FACT',
+            totalUsd: 10,
+            totalVes: 920,
+            userId: 'root-old',
+            status: 'active',
+            items: [
+              {
+                productId: null,
+                productName: 'Servicio',
+                quantity: 1,
+                unitPriceUsd: 10,
+                totalUsd: 10,
+                totalVes: 920
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+    const result = await applyImport(backup, 'skip', 'u1')
+
+    const users = result.summary.find((s) => s.entity === 'users')
+    expect(users?.skipped).toBe(1)
+    const invoiceData = tx.invoice.create.mock.calls[0][0].data
+    expect(invoiceData.userId).toBeNull()
+  })
+
+  it('rejects csv products whose category does not exist', async () => {
+    mockEmptyDb()
+    const tx = makeTx()
+    mockTransaction(tx)
+
+    const err: AppError = await applyImport(
+      {
+        format: 'csv',
+        entity: 'products',
+        csvText: 'name,priceUsd,category\r\nCafé,5,NoExiste\r\n'
+      },
+      'skip',
+      'u1'
+    ).catch((e) => e)
+
+    expect(err).toBeInstanceOf(AppError)
+    expect(err.message).toMatch(/rechazada/)
+    expect(JSON.stringify(err.details)).toMatch(/no existe en el sistema/)
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(tx.product.create).not.toHaveBeenCalled()
   })
 
   it('rejects create-new strategy', async () => {
-    await expect(
-      applyImport(VALID_BACKUP, 'create-new' as any, 'u1')
-    ).rejects.toThrow(AppError)
+    await expect(applyImport(VALID_BACKUP, 'create-new' as any, 'u1')).rejects.toThrow(AppError)
   })
 
   it('assigns default hashed PIN to imported users', async () => {

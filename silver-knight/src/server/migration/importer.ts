@@ -48,9 +48,16 @@ const BACKUP_ORDER: EntityName[] = [
   'settings'
 ]
 
+const NULL_REF = ''
+
 export interface MigrationError {
   row: number
   message: string
+}
+
+export interface MigrationEntityErrors {
+  entity: string
+  errors: MigrationError[]
 }
 
 export interface PreviewEntitySummary {
@@ -93,6 +100,7 @@ interface ExistingKeys {
   customerByRif: Map<string, string>
   fiscalByKey: Map<string, string>
   userByUsername: Map<string, string>
+  userRoleById: Map<string, string>
   companyByRif: Map<string, string>
   invoiceByNumber: Map<string, string>
   settingByKey: Map<string, string>
@@ -160,20 +168,31 @@ function msg(e: unknown): string {
 }
 
 async function loadExistingKeys(): Promise<ExistingKeys> {
-  const [categories, suppliers, products, customers, fiscalControls, users, companies, invoices, settings, rootUser, companyAny] =
-    await Promise.all([
-      prisma.category.findMany({ select: { id: true, name: true } }),
-      prisma.supplier.findMany({ select: { id: true, name: true } }),
-      prisma.product.findMany({ select: { id: true, code: true, barcode: true } }),
-      prisma.customer.findMany({ select: { id: true, rif: true } }),
-      prisma.fiscalControl.findMany({ select: { id: true, documentType: true, prefix: true } }),
-      prisma.user.findMany({ select: { id: true, username: true } }),
-      prisma.company.findMany({ select: { id: true, rif: true } }),
-      prisma.invoice.findMany({ select: { id: true, number: true } }),
-      prisma.setting.findMany({ select: { id: true, key: true } }),
-      prisma.user.findFirst({ where: { role: 'root' }, select: { id: true } }),
-      prisma.company.findFirst({ select: { id: true } })
-    ])
+  const [
+    categories,
+    suppliers,
+    products,
+    customers,
+    fiscalControls,
+    users,
+    companies,
+    invoices,
+    settings,
+    rootUser,
+    companyAny
+  ] = await Promise.all([
+    prisma.category.findMany({ select: { id: true, name: true } }),
+    prisma.supplier.findMany({ select: { id: true, name: true } }),
+    prisma.product.findMany({ select: { id: true, code: true, barcode: true } }),
+    prisma.customer.findMany({ select: { id: true, rif: true } }),
+    prisma.fiscalControl.findMany({ select: { id: true, documentType: true, prefix: true } }),
+    prisma.user.findMany({ select: { id: true, username: true, role: true } }),
+    prisma.company.findMany({ select: { id: true, rif: true } }),
+    prisma.invoice.findMany({ select: { id: true, number: true } }),
+    prisma.setting.findMany({ select: { id: true, key: true } }),
+    prisma.user.findFirst({ where: { role: 'root' }, select: { id: true } }),
+    prisma.company.findFirst({ select: { id: true } })
+  ])
 
   return {
     categoryByName: new Map(categories.map((c) => [lower(c.name), c.id])),
@@ -185,6 +204,7 @@ async function loadExistingKeys(): Promise<ExistingKeys> {
     customerByRif: new Map(customers.filter((c) => c.rif).map((c) => [c.rif as string, c.id])),
     fiscalByKey: new Map(fiscalControls.map((f) => [`${f.documentType}:${f.prefix}`, f.id])),
     userByUsername: new Map(users.map((u) => [lower(u.username), u.id])),
+    userRoleById: new Map(users.map((u) => [u.id, u.role])),
     companyByRif: new Map(companies.map((c) => [c.rif, c.id])),
     invoiceByNumber: new Map(invoices.map((i) => [i.number, i.id])),
     settingByKey: new Map(settings.map((s) => [s.key, s.id])),
@@ -210,7 +230,10 @@ function classifyBackupRecord(
     case 'products': {
       const code = rec.code ? String(rec.code) : null
       const barcode = rec.barcode ? String(rec.barcode) : null
-      if ((code && keys.productByCode.has(code)) || (barcode && keys.productByBarcode.has(barcode))) {
+      if (
+        (code && keys.productByCode.has(code)) ||
+        (barcode && keys.productByBarcode.has(barcode))
+      ) {
         return 'conflict'
       }
       return 'new'
@@ -269,6 +292,8 @@ function validateBackupRecord(entity: EntityName, rec: Record<string, unknown>):
         return 'Factura requiere al menos un item'
       }
       if (rec.totalUsd == null || rec.totalVes == null) return 'Factura requiere totales'
+      if (!Number.isFinite(Number(rec.totalUsd))) return 'Factura tiene un totalUsd inválido'
+      if (!Number.isFinite(Number(rec.totalVes))) return 'Factura tiene un totalVes inválido'
       if (rec.documentType && !['FACT', 'NCR', 'NDB'].includes(String(rec.documentType))) {
         return 'Tipo de documento inválido'
       }
@@ -276,6 +301,7 @@ function validateBackupRecord(entity: EntityName, rec: Record<string, unknown>):
         const item = it as Record<string, unknown>
         if (!item.productName) return 'Item requiere nombre de producto'
         if (!(Number(item.quantity) > 0)) return 'Cantidad de item debe ser positiva'
+        if (!(Number(item.unitPriceUsd) > 0)) return 'Item requiere precio unitario válido'
       }
       return null
     }
@@ -329,7 +355,39 @@ function existingId(
   }
 }
 
-function mapExistingId(
+function initMaps(): Record<string, Map<string, string>> {
+  const maps: Record<string, Map<string, string>> = {}
+  for (const e of [
+    'categories',
+    'suppliers',
+    'products',
+    'customers',
+    'users',
+    'fiscalControls',
+    'invoices'
+  ]) {
+    maps[e] = new Map()
+  }
+  return maps
+}
+
+function registerSkipMapping(
+  entity: EntityName,
+  rec: Record<string, unknown>,
+  maps: Record<string, Map<string, string>>,
+  keys: ExistingKeys
+): void {
+  const dest = existingId(entity, rec, keys)
+  if (dest && rec.id != null && maps[entity]) {
+    maps[entity].set(String(rec.id), dest)
+    return
+  }
+  if (entity === 'users' && String(rec.role ?? '') === 'root' && rec.id != null && maps['users']) {
+    maps['users'].set(String(rec.id), NULL_REF)
+  }
+}
+
+function registerConflictMapping(
   entity: EntityName,
   rec: Record<string, unknown>,
   maps: Record<string, Map<string, string>>,
@@ -341,9 +399,149 @@ function mapExistingId(
   }
 }
 
-function remap(id: unknown, entity: string, maps: Record<string, Map<string, string>>): string | null {
+function resolveRef(
+  maps: Record<string, Map<string, string>>,
+  entity: string,
+  value: unknown
+): { ok: boolean; id: string | null } {
+  if (value == null || value === '') return { ok: true, id: null }
+  const mapped = maps[entity]?.get(String(value))
+  if (mapped === undefined) return { ok: false, id: null }
+  return { ok: true, id: mapped === NULL_REF ? null : mapped }
+}
+
+function validateBackupRefs(
+  entity: EntityName,
+  rec: Record<string, unknown>,
+  maps: Record<string, Map<string, string>>
+): string | null {
+  const missing = (value: unknown, label: string, target: string): string | null => {
+    const r = resolveRef(maps, target, value)
+    return r.ok
+      ? null
+      : `Referencia no encontrada (${label}): "${String(value)}" no existe en la base de datos ni en el archivo`
+  }
+  switch (entity) {
+    case 'products': {
+      const cat = missing(rec.categoryId, 'categoría', 'categories')
+      if (cat) return cat
+      return missing(rec.supplierId, 'proveedor', 'suppliers')
+    }
+    case 'invoices': {
+      const cust = missing(rec.customerId, 'cliente', 'customers')
+      if (cust) return cust
+      const usr = missing(rec.userId, 'usuario', 'users')
+      if (usr) return usr
+      const fc = missing(rec.fiscalControlId, 'talonario fiscal', 'fiscalControls')
+      if (fc) return fc
+      if (Array.isArray(rec.items)) {
+        for (const it of rec.items) {
+          const item = it as Record<string, unknown>
+          const prod = missing(item.productId, 'producto', 'products')
+          if (prod) return prod
+        }
+      }
+      return null
+    }
+    case 'inventoryMovements': {
+      const prod = missing(rec.productId, 'producto', 'products')
+      if (prod) return prod
+      return missing(rec.userId, 'usuario', 'users')
+    }
+    default:
+      return null
+  }
+}
+
+function backupUniqueKeys(entity: EntityName, rec: Record<string, unknown>): string[] {
+  switch (entity) {
+    case 'company':
+      return rec.rif != null && rec.rif !== '' ? [`rif:${String(rec.rif)}`] : []
+    case 'users':
+      return rec.username ? [`u:${lower(String(rec.username))}`] : []
+    case 'categories':
+      return rec.name ? [`n:${lower(String(rec.name))}`] : []
+    case 'suppliers':
+      return rec.name ? [`n:${lower(String(rec.name))}`] : []
+    case 'products': {
+      const ks: string[] = []
+      if (rec.code) ks.push(`c:${String(rec.code)}`)
+      if (rec.barcode) ks.push(`b:${String(rec.barcode)}`)
+      return ks
+    }
+    case 'customers':
+      return rec.rif ? [`rif:${String(rec.rif)}`] : []
+    case 'fiscalControls': {
+      const docType = String(rec.documentType ?? '')
+      if (!docType) return []
+      const prefix =
+        rec.prefix != null && String(rec.prefix) !== ''
+          ? String(rec.prefix)
+          : `0${docType.charAt(0)}`
+      return [`f:${docType}:${prefix}`]
+    }
+    case 'invoices':
+      return rec.number ? [`num:${String(rec.number)}`] : []
+    case 'settings':
+      return rec.key ? [`k:${String(rec.key)}`] : []
+    default:
+      return []
+  }
+}
+
+function csvUniqueKeys(entity: CsvEntity, built: BuiltCsvRecord): string[] {
+  const data = built.data
+  switch (entity) {
+    case 'categories':
+      return data.name ? [`n:${lower(String(data.name))}`] : []
+    case 'suppliers':
+      return data.name ? [`n:${lower(String(data.name))}`] : []
+    case 'products': {
+      const ks: string[] = []
+      if (data.code) ks.push(`c:${String(data.code)}`)
+      if (data.barcode) ks.push(`b:${String(data.barcode)}`)
+      return ks
+    }
+    case 'customers':
+      return data.rif ? [`rif:${String(data.rif)}`] : []
+    default:
+      return []
+  }
+}
+
+function wouldOverwriteBackup(
+  entity: EntityName,
+  rec: Record<string, unknown>,
+  keys: ExistingKeys
+): boolean {
+  switch (entity) {
+    case 'company':
+      return keys.companyByRif.has(String(rec.rif))
+    case 'users': {
+      const dest = keys.userByUsername.get(lower(String(rec.username)))
+      if (!dest) return false
+      if (keys.userRoleById.get(dest) === 'root') return false
+      const newRole = rec.role ? String(rec.role) : 'operador'
+      return newRole !== 'root'
+    }
+    case 'fiscalControls':
+      return false
+    case 'exchangeRates':
+    case 'inventoryMovements':
+      return false
+    default:
+      return !!existingId(entity, rec, keys)
+  }
+}
+
+function remap(
+  id: unknown,
+  entity: string,
+  maps: Record<string, Map<string, string>>
+): string | null {
   if (id == null || id === '') return null
-  return maps[entity]?.get(String(id)) ?? null
+  const mapped = maps[entity]?.get(String(id))
+  return mapped ? mapped : null
 }
 
 function remapOrRequired(
@@ -393,7 +591,10 @@ async function createBackupRecord(
     }
     case 'categories': {
       const created = await tx.category.create({
-        data: { name: String(rec.name), description: rec.description != null ? String(rec.description) : null }
+        data: {
+          name: String(rec.name),
+          description: rec.description != null ? String(rec.description) : null
+        }
       })
       return created.id
     }
@@ -579,7 +780,10 @@ async function overwriteBackupRecord(
       if (dest) {
         await tx.category.update({
           where: { id: dest },
-          data: { name: String(rec.name), description: rec.description != null ? String(rec.description) : null }
+          data: {
+            name: String(rec.name),
+            description: rec.description != null ? String(rec.description) : null
+          }
         })
         return true
       }
@@ -706,62 +910,125 @@ async function overwriteBackupRecord(
   }
 }
 
-async function applyBackupRecords(
-  tx: Tx,
-  entity: EntityName,
-  records: Array<Record<string, unknown>>,
-  strategy: ImportStrategy,
-  keys: ExistingKeys,
-  maps: Record<string, Map<string, string>>,
-  result: ImportEntityResult
-): Promise<void> {
-  for (let i = 0; i < records.length; i++) {
-    const rec = records[i]
-    const row = i + 1
-    const err = validateBackupRecord(entity, rec)
-    if (err) {
-      result.errors.push({ row, message: err })
-      continue
-    }
-    if (entity === 'users' && rec.role === 'root') {
-      result.skipped++
-      mapExistingId(entity, rec, maps, keys)
-      continue
-    }
-    const conflict = classifyBackupRecord(entity, rec, keys)
-    if (conflict === 'conflict') {
-      if (strategy === 'skip') {
-        result.skipped++
-        mapExistingId(entity, rec, maps, keys)
-      } else {
-        try {
-          const didOverwrite = await overwriteBackupRecord(tx, entity, rec, maps, keys)
-          mapExistingId(entity, rec, maps, keys)
-          if (didOverwrite) result.overwritten++
-          else result.skipped++
-        } catch (e) {
-          result.errors.push({ row, message: msg(e) })
-        }
-      }
-      continue
-    }
-    try {
-      const newId = await createBackupRecord(tx, entity, rec, maps)
-      if (newId && rec.id != null && maps[entity]) {
-        maps[entity].set(String(rec.id), newId)
-      }
-      result.imported++
-    } catch (e) {
-      result.errors.push({ row, message: msg(e) })
-    }
-  }
-}
-
 interface BuiltCsvRecord {
   data: Record<string, unknown>
   categoryName?: string | null
   supplierName?: string | null
   isActive?: boolean
+}
+
+interface PlannedBackupOp {
+  op: 'create' | 'overwrite' | 'skip'
+  entity: EntityName
+  rec: Record<string, unknown>
+  row: number
+}
+
+interface PlannedCsvOp {
+  op: 'create' | 'overwrite' | 'skip'
+  built: BuiltCsvRecord
+  row: number
+}
+
+interface PlanContext {
+  maps: Record<string, Map<string, string>>
+  seen: Map<string, number>
+  seq: number
+}
+
+function findDup(
+  scope: string,
+  uks: string[],
+  ctx: PlanContext,
+  row: number,
+  s: PreviewEntitySummary
+): boolean {
+  for (const k of uks) {
+    const seenKey = `${scope}:${k}`
+    const firstRow = ctx.seen.get(seenKey)
+    if (firstRow !== undefined) {
+      s.errors.push({
+        row,
+        message: `"${k.slice(k.indexOf(':') + 1)}" está duplicado en el archivo (fila ${firstRow})`
+      })
+      return true
+    }
+  }
+  for (const k of uks) ctx.seen.set(`${scope}:${k}`, row)
+  return false
+}
+
+function planBackupRecords(
+  data: Record<string, unknown[]>,
+  strategy: ImportStrategy,
+  keys: ExistingKeys,
+  ctx: PlanContext,
+  summary: PreviewEntitySummary[],
+  ops: PlannedBackupOp[]
+): void {
+  for (const name of BACKUP_ORDER) {
+    const records = data[name]
+    if (!Array.isArray(records) || records.length === 0) continue
+    const s: PreviewEntitySummary = {
+      entity: name,
+      total: records.length,
+      toCreate: 0,
+      toSkip: 0,
+      toOverwrite: 0,
+      errors: []
+    }
+    for (let i = 0; i < records.length; i++) {
+      const row = i + 1
+      const raw = records[i]
+      if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
+        s.errors.push({ row, message: 'Registro inválido' })
+        continue
+      }
+      const rec = raw as Record<string, unknown>
+      const err = validateBackupRecord(name, rec)
+      if (err) {
+        s.errors.push({ row, message: err })
+        continue
+      }
+
+      let op: 'create' | 'overwrite' | 'skip'
+      if (name === 'users' && String(rec.role ?? '') === 'root') {
+        op = 'skip'
+        registerSkipMapping(name, rec, ctx.maps, keys)
+      } else {
+        const conflict = classifyBackupRecord(name, rec, keys)
+        if (conflict === 'conflict') {
+          if (strategy === 'overwrite' && wouldOverwriteBackup(name, rec, keys)) {
+            op = 'overwrite'
+          } else {
+            op = 'skip'
+          }
+          registerConflictMapping(name, rec, ctx.maps, keys)
+        } else {
+          if (findDup(name, backupUniqueKeys(name, rec), ctx, row, s)) continue
+          op = 'create'
+          if (rec.id != null && ctx.maps[name]) {
+            ctx.maps[name].set(String(rec.id), `__new_${ctx.seq++}__`)
+          }
+        }
+      }
+
+      if (op !== 'skip') {
+        const refErr = validateBackupRefs(name, rec, ctx.maps)
+        if (refErr) {
+          if (op === 'create' && rec.id != null) ctx.maps[name]?.delete(String(rec.id))
+          s.errors.push({ row, message: refErr })
+          continue
+        }
+      }
+
+      if (op === 'create') s.toCreate++
+      else if (op === 'overwrite') s.toOverwrite++
+      else s.toSkip++
+      ops.push({ op, entity: name, rec, row })
+    }
+    summary.push(s)
+  }
 }
 
 function buildCsvRecord(entity: CsvEntity, row: Record<string, string>): BuiltCsvRecord {
@@ -843,11 +1110,7 @@ function validateCsv(entity: CsvEntity, built: BuiltCsvRecord): string | null {
   }
 }
 
-function classifyCsvRecord(
-  entity: CsvEntity,
-  built: BuiltCsvRecord,
-  keys: ExistingKeys
-): boolean {
+function classifyCsvRecord(entity: CsvEntity, built: BuiltCsvRecord, keys: ExistingKeys): boolean {
   const data = built.data
   switch (entity) {
     case 'categories':
@@ -857,13 +1120,75 @@ function classifyCsvRecord(
     case 'products': {
       const code = data.code ? String(data.code) : null
       const barcode = data.barcode ? String(data.barcode) : null
-      return !!((code && keys.productByCode.has(code)) || (barcode && keys.productByBarcode.has(barcode)))
+      return !!(
+        (code && keys.productByCode.has(code)) ||
+        (barcode && keys.productByBarcode.has(barcode))
+      )
     }
     case 'customers':
       return !!data.rif && keys.customerByRif.has(String(data.rif))
     case 'exchange-rates':
       return false
   }
+}
+
+function planCsvRecords(
+  rows: Array<Record<string, string>>,
+  entity: CsvEntity,
+  strategy: ImportStrategy,
+  keys: ExistingKeys,
+  ctx: PlanContext,
+  summary: PreviewEntitySummary[]
+): PlannedCsvOp[] {
+  const ops: PlannedCsvOp[] = []
+  const s: PreviewEntitySummary = {
+    entity,
+    total: rows.length,
+    toCreate: 0,
+    toSkip: 0,
+    toOverwrite: 0,
+    errors: []
+  }
+  for (let i = 0; i < rows.length; i++) {
+    const row = i + 2
+    const built = buildCsvRecord(entity, rows[i])
+    const err = validateCsv(entity, built)
+    if (err) {
+      s.errors.push({ row, message: err })
+      continue
+    }
+    if (classifyCsvRecord(entity, built, keys)) {
+      if (strategy === 'overwrite') {
+        s.toOverwrite++
+        ops.push({ op: 'overwrite', built, row })
+      } else {
+        s.toSkip++
+        ops.push({ op: 'skip', built, row })
+      }
+      continue
+    }
+    if (findDup(`csv:${entity}`, csvUniqueKeys(entity, built), ctx, row, s)) continue
+    if (entity === 'products') {
+      if (built.categoryName && !keys.categoryByName.has(lower(built.categoryName))) {
+        s.errors.push({
+          row,
+          message: `La categoría "${built.categoryName}" no existe en el sistema`
+        })
+        continue
+      }
+      if (built.supplierName && !keys.supplierByName.has(lower(built.supplierName))) {
+        s.errors.push({
+          row,
+          message: `El proveedor "${built.supplierName}" no existe en el sistema`
+        })
+        continue
+      }
+    }
+    s.toCreate++
+    ops.push({ op: 'create', built, row })
+  }
+  summary.push(s)
+  return ops
 }
 
 async function createCsvRecord(
@@ -875,7 +1200,9 @@ async function createCsvRecord(
   const data = built.data
   switch (entity) {
     case 'categories':
-      await tx.category.create({ data: { name: String(data.name), description: (data.description as string | null) ?? null } })
+      await tx.category.create({
+        data: { name: String(data.name), description: (data.description as string | null) ?? null }
+      })
       break
     case 'suppliers':
       await tx.supplier.create({
@@ -890,10 +1217,10 @@ async function createCsvRecord(
       break
     case 'products': {
       const categoryId = built.categoryName
-        ? keys.categoryByName.get(lower(built.categoryName)) ?? null
+        ? (keys.categoryByName.get(lower(built.categoryName)) ?? null)
         : null
       const supplierId = built.supplierName
-        ? keys.supplierByName.get(lower(built.supplierName)) ?? null
+        ? (keys.supplierByName.get(lower(built.supplierName)) ?? null)
         : null
       await tx.product.create({
         data: {
@@ -950,7 +1277,10 @@ async function overwriteCsvRecord(
       if (dest) {
         await tx.category.update({
           where: { id: dest },
-          data: { name: String(data.name), description: (data.description as string | null) ?? null }
+          data: {
+            name: String(data.name),
+            description: (data.description as string | null) ?? null
+          }
         })
         return true
       }
@@ -982,10 +1312,10 @@ async function overwriteCsvRecord(
       }
       if (dest) {
         const categoryId = built.categoryName
-          ? keys.categoryByName.get(lower(built.categoryName)) ?? null
+          ? (keys.categoryByName.get(lower(built.categoryName)) ?? null)
           : null
         const supplierId = built.supplierName
-          ? keys.supplierByName.get(lower(built.supplierName)) ?? null
+          ? (keys.supplierByName.get(lower(built.supplierName)) ?? null)
           : null
         await tx.product.update({
           where: { id: dest },
@@ -1031,42 +1361,52 @@ async function overwriteCsvRecord(
   }
 }
 
-async function applyCsvRecords(
+async function executeBackupOps(
   tx: Tx,
-  entity: CsvEntity,
-  rows: Array<Record<string, string>>,
-  strategy: ImportStrategy,
+  ops: PlannedBackupOp[],
   keys: ExistingKeys,
-  result: ImportEntityResult
+  maps: Record<string, Map<string, string>>,
+  results: ImportEntityResult[]
 ): Promise<void> {
-  for (let i = 0; i < rows.length; i++) {
-    const row = i + 2
-    const built = buildCsvRecord(entity, rows[i])
-    const err = validateCsv(entity, built)
-    if (err) {
-      result.errors.push({ row, message: err })
-      continue
-    }
-    const conflict = classifyCsvRecord(entity, built, keys)
-    if (conflict) {
-      if (strategy === 'skip') {
-        result.skipped++
-      } else {
-        try {
-          const didOverwrite = await overwriteCsvRecord(tx, entity, built, keys)
-          if (didOverwrite) result.overwritten++
-          else result.skipped++
-        } catch (e) {
-          result.errors.push({ row, message: msg(e) })
-        }
+  const byEntity = new Map(results.map((r) => [r.entity, r]))
+  for (const planned of ops) {
+    const r = byEntity.get(planned.entity)
+    if (!r) continue
+    if (planned.op === 'create') {
+      const newId = await createBackupRecord(tx, planned.entity, planned.rec, maps)
+      if (newId && planned.rec.id != null && maps[planned.entity]) {
+        maps[planned.entity].set(String(planned.rec.id), newId)
       }
-      continue
+      r.imported++
+    } else if (planned.op === 'overwrite') {
+      const ok = await overwriteBackupRecord(tx, planned.entity, planned.rec, maps, keys)
+      if (ok) r.overwritten++
+      else r.skipped++
+    } else {
+      r.skipped++
     }
-    try {
-      await createCsvRecord(tx, entity, built, keys)
-      result.imported++
-    } catch (e) {
-      result.errors.push({ row, message: msg(e) })
+  }
+}
+
+async function executeCsvOps(
+  tx: Tx,
+  ops: PlannedCsvOp[],
+  entity: CsvEntity,
+  keys: ExistingKeys,
+  results: ImportEntityResult[]
+): Promise<void> {
+  const r = results[0]
+  if (!r) return
+  for (const planned of ops) {
+    if (planned.op === 'create') {
+      await createCsvRecord(tx, entity, planned.built, keys)
+      r.imported++
+    } else if (planned.op === 'overwrite') {
+      const ok = await overwriteCsvRecord(tx, entity, planned.built, keys)
+      if (ok) r.overwritten++
+      else r.skipped++
+    } else {
+      r.skipped++
     }
   }
 }
@@ -1106,73 +1446,86 @@ function normalizePayload(payload: unknown): NormalizedPayload {
   throw new AppError(400, 'Formato de archivo no reconocido')
 }
 
-export async function previewImport(payload: unknown, strategy?: ImportStrategy): Promise<MigrationPreview> {
-  // Nota: el preview clasifica registros contra el estado actual de la BD.
-  // El estado puede cambiar entre preview y apply (race condition). El apply
-  // re-clasifica todos los registros contra el estado fresco de la BD.
-  const parsed = normalizePayload(payload)
+interface ImportPlan {
+  kind: 'backup' | 'csv'
+  entity?: string
+  backupOps: PlannedBackupOp[]
+  csvOps: PlannedCsvOp[]
+  summary: PreviewEntitySummary[]
+  totalErrors: number
+}
+
+async function buildImportPlan(
+  parsed: NormalizedPayload,
+  strategy: ImportStrategy
+): Promise<ImportPlan> {
   const keys = await loadExistingKeys()
+  const ctx: PlanContext = { maps: initMaps(), seen: new Map(), seq: 0 }
   const summary: PreviewEntitySummary[] = []
-  const isOverwrite = strategy === 'overwrite'
-
+  const backupOps: PlannedBackupOp[] = []
+  let csvOps: PlannedCsvOp[] = []
   if (parsed.kind === 'backup') {
-    for (const name of BACKUP_ORDER) {
-      const records = parsed.data?.[name]
-      if (!Array.isArray(records) || records.length === 0) continue
-      const s: PreviewEntitySummary = {
-        entity: name,
-        total: records.length,
-        toCreate: 0,
-        toSkip: 0,
-        toOverwrite: 0,
-        errors: []
+    planBackupRecords(parsed.data ?? {}, strategy, keys, ctx, summary, backupOps)
+  } else {
+    csvOps = planCsvRecords(
+      csvParse(parsed.csvText ?? ''),
+      parsed.entity as CsvEntity,
+      strategy,
+      keys,
+      ctx,
+      summary
+    )
+  }
+  const totalErrors = summary.reduce((acc, s) => acc + s.errors.length, 0)
+  return {
+    kind: parsed.kind,
+    entity: parsed.kind === 'csv' ? parsed.entity : undefined,
+    backupOps,
+    csvOps,
+    summary,
+    totalErrors
+  }
+}
+
+export async function previewImport(
+  payload: unknown,
+  strategy?: ImportStrategy
+): Promise<MigrationPreview> {
+  const parsed = normalizePayload(payload)
+  const plan = await buildImportPlan(parsed, strategy ?? 'skip')
+  return {
+    format: plan.kind,
+    entity: plan.entity,
+    summary: plan.summary,
+    totalRecords: plan.summary.reduce((acc, s) => acc + s.total, 0)
+  }
+}
+
+async function logFailure(
+  parsed: NormalizedPayload,
+  strategy: ImportStrategy,
+  userId: string | null,
+  fileName: string | undefined,
+  errorCount: number,
+  details: MigrationEntityErrors[]
+): Promise<void> {
+  try {
+    await prisma.migrationLog.create({
+      data: {
+        kind: parsed.kind,
+        entity: parsed.kind === 'csv' ? (parsed.entity as string) : null,
+        strategy,
+        imported: 0,
+        skipped: 0,
+        errors: errorCount,
+        errorDetail: JSON.stringify(details),
+        fileName: fileName ?? null,
+        createdBy: userId
       }
-      records.forEach((raw, i) => {
-        const rec = raw as Record<string, unknown>
-        const err = validateBackupRecord(name, rec)
-        if (err) {
-          s.errors.push({ row: i + 1, message: err })
-          return
-        }
-        if (classifyBackupRecord(name, rec, keys) === 'conflict') {
-          if (isOverwrite) s.toOverwrite++
-          else s.toSkip++
-        } else s.toCreate++
-      })
-      summary.push(s)
-    }
-    return {
-      format: 'backup',
-      summary,
-      totalRecords: summary.reduce((acc, s) => acc + s.total, 0)
-    }
+    })
+  } catch (logErr) {
+    logger.error('migration', 'Failed to persist migration failure log', logErr)
   }
-
-  const rows = csvParse(parsed.csvText ?? '')
-  const entity = parsed.entity as CsvEntity
-  const s: PreviewEntitySummary = {
-    entity,
-    total: rows.length,
-    toCreate: 0,
-    toSkip: 0,
-    toOverwrite: 0,
-    errors: []
-  }
-  rows.forEach((row, i) => {
-    const built = buildCsvRecord(entity, row)
-    const err = validateCsv(entity, built)
-    if (err) {
-      s.errors.push({ row: i + 2, message: err })
-      return
-    }
-    if (classifyCsvRecord(entity, built, keys)) {
-      if (isOverwrite) s.toOverwrite++
-      else s.toSkip++
-    } else s.toCreate++
-  })
-  summary.push(s)
-
-  return { format: 'csv', entity, summary, totalRecords: rows.length }
 }
 
 export async function applyImport(
@@ -1185,83 +1538,69 @@ export async function applyImport(
     throw new AppError(400, 'Estrategia inválida')
   }
   const parsed = normalizePayload(payload)
-  const keys = await loadExistingKeys()
   const started = Date.now()
+  const plan = await buildImportPlan(parsed, strategy)
 
-  const maps: Record<string, Map<string, string>> = {}
-  for (const e of ['categories', 'suppliers', 'products', 'customers', 'users', 'fiscalControls', 'invoices']) {
-    maps[e] = new Map()
+  if (plan.totalErrors > 0) {
+    const details: MigrationEntityErrors[] = plan.summary
+      .filter((s) => s.errors.length > 0)
+      .map((s) => ({ entity: s.entity, errors: s.errors }))
+    await logFailure(parsed, strategy, userId, fileName, plan.totalErrors, details)
+    throw new AppError(
+      400,
+      `Importación rechazada: ${plan.totalErrors} registro(s) con errores. No se importó nada.`,
+      details
+    )
   }
 
-  const summary: ImportEntityResult[] = []
+  const keys = await loadExistingKeys()
+  const maps = initMaps()
+  const results: ImportEntityResult[] = plan.summary.map((s) => ({
+    entity: s.entity,
+    imported: 0,
+    skipped: 0,
+    overwritten: 0,
+    errors: []
+  }))
 
   try {
     await prisma.$transaction(
       async (tx) => {
-        if (parsed.kind === 'backup') {
-          for (const name of BACKUP_ORDER) {
-            const records = parsed.data?.[name]
-            if (!Array.isArray(records) || records.length === 0) continue
-            const result: ImportEntityResult = {
-              entity: name,
-              imported: 0,
-              skipped: 0,
-              overwritten: 0,
-              errors: []
-            }
-            await applyBackupRecords(tx, name, records as Array<Record<string, unknown>>, strategy, keys, maps, result)
-            summary.push(result)
-          }
+        if (plan.kind === 'backup') {
+          await executeBackupOps(tx, plan.backupOps, keys, maps, results)
         } else {
-          const rows = csvParse(parsed.csvText ?? '')
-          const result: ImportEntityResult = {
-            entity: parsed.entity as string,
-            imported: 0,
-            skipped: 0,
-            overwritten: 0,
-            errors: []
-          }
-          await applyCsvRecords(tx, parsed.entity as CsvEntity, rows, strategy, keys, result)
-          summary.push(result)
+          await executeCsvOps(tx, plan.csvOps, parsed.entity as CsvEntity, keys, results)
         }
       },
       { timeout: 120000 }
     )
   } catch (e) {
     logger.error('migration', 'Import transaction failed', e)
+    await logFailure(parsed, strategy, userId, fileName, 1, [
+      { entity: '_transaction', errors: [{ row: 0, message: msg(e) }] }
+    ])
     throw new AppError(500, `La importación falló y fue revertida: ${msg(e)}`)
   }
 
-  const imported = summary.reduce((acc, s) => acc + s.imported, 0)
-  const skipped = summary.reduce((acc, s) => acc + s.skipped, 0)
-  const errorCount = summary.reduce((acc, s) => acc + s.errors.length, 0)
-
   await prisma.migrationLog.create({
     data: {
-      kind: parsed.kind,
-      entity: parsed.kind === 'csv' ? (parsed.entity as string) : null,
+      kind: plan.kind,
+      entity: plan.kind === 'csv' ? (parsed.entity as string) : null,
       strategy,
-      imported,
-      skipped,
-      errors: errorCount,
-      errorDetail:
-        errorCount > 0
-          ? JSON.stringify(
-              summary
-                .filter((s) => s.errors.length > 0)
-                .map((s) => ({ entity: s.entity, errors: s.errors }))
-            )
-          : null,
+      imported: results.reduce((acc, r) => acc + r.imported, 0),
+      skipped: results.reduce((acc, r) => acc + r.skipped, 0),
+      errors: 0,
+      errorDetail: null,
       fileName: fileName ?? null,
       createdBy: userId
     }
   })
 
   return {
-    format: parsed.kind,
-    entity: parsed.kind === 'csv' ? (parsed.entity as string) : undefined,
+    format: plan.kind,
+    entity: plan.entity,
     strategy,
-    summary,
+    summary: results,
     durationMs: Date.now() - started
   }
 }

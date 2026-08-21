@@ -1,7 +1,9 @@
-import { useState, useEffect, type ChangeEvent, type JSX } from 'react'
+import { useState, useEffect, Fragment, type ChangeEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   api,
+  migrationErrorDetails,
+  type MigrationEntityErrors,
   type MigrationImportResult,
   type MigrationLogEntry,
   type MigrationPreview,
@@ -48,12 +50,22 @@ function Spinner(): JSX.Element {
   return (
     <svg className="animate-spin h-4 w-4 inline-block ml-1" viewBox="0 0 24 24" fill="none">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
     </svg>
   )
 }
 
-function StepIndicator({ currentStep, steps }: { currentStep: number; steps: string[] }): JSX.Element {
+function StepIndicator({
+  currentStep,
+  steps
+}: {
+  currentStep: number
+  steps: string[]
+}): JSX.Element {
   return (
     <div className="flex items-center gap-0 mb-6">
       {steps.map((label, i) => {
@@ -75,7 +87,11 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: str
               </div>
               <span
                 className={`text-xs mt-1 whitespace-nowrap ${
-                  isActive ? 'text-primary font-medium' : isDone ? 'text-green-600' : 'text-gray-400'
+                  isActive
+                    ? 'text-primary font-medium'
+                    : isDone
+                      ? 'text-green-600'
+                      : 'text-gray-400'
                 }`}
               >
                 {label}
@@ -83,9 +99,7 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: str
             </div>
             {i < steps.length - 1 && (
               <div
-                className={`w-12 h-0.5 mx-1 mt-[-14px] ${
-                  isDone ? 'bg-green-500' : 'bg-gray-300'
-                }`}
+                className={`w-12 h-0.5 mx-1 mt-[-14px] ${isDone ? 'bg-green-500' : 'bg-gray-300'}`}
               />
             )}
           </div>
@@ -121,6 +135,8 @@ export default function DataMigrationPage(): JSX.Element {
   const [result, setResult] = useState<MigrationImportResult | null>(null)
   const [importing, setImporting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
+  const [importErrors, setImportErrors] = useState<MigrationEntityErrors[] | null>(null)
+  const [expandedLog, setExpandedLog] = useState<string | null>(null)
 
   const [logs, setLogs] = useState<MigrationLogEntry[]>([])
 
@@ -207,6 +223,7 @@ export default function DataMigrationPage(): JSX.Element {
     setPayload(null)
     setPreview(null)
     setResult(null)
+    setImportErrors(null)
     setError('')
     setSuccess('')
     if (!file) {
@@ -238,6 +255,7 @@ export default function DataMigrationPage(): JSX.Element {
     setError('')
     setPreviewing(true)
     setResult(null)
+    setImportErrors(null)
     try {
       const p = await api.migration.preview(payload, strategy)
       setPreview(p)
@@ -258,6 +276,7 @@ export default function DataMigrationPage(): JSX.Element {
       if (!confirmed) return
     }
     setError('')
+    setImportErrors(null)
     setImporting(true)
     try {
       const res = await api.migration.import(payload, strategy, fileName || undefined)
@@ -266,7 +285,13 @@ export default function DataMigrationPage(): JSX.Element {
       showSuccess('Importación completada exitosamente')
       await loadLogs()
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Error al importar')
+      const details = migrationErrorDetails(err)
+      if (details && details.length > 0) {
+        setImportErrors(details)
+        showError('Importación rechazada: no se importó ningún registro.')
+      } else {
+        showError(err instanceof Error ? err.message : 'Error al importar')
+      }
     } finally {
       setImporting(false)
     }
@@ -277,6 +302,24 @@ export default function DataMigrationPage(): JSX.Element {
         (a, b) => ENTITY_ORDER.indexOf(a.entity) - ENTITY_ORDER.indexOf(b.entity)
       )
     : []
+
+  const previewHasErrors = !!preview && preview.summary.some((s) => s.errors.length > 0)
+
+  const logDetailContent = (detail: string | null): string => {
+    if (!detail) return 'Sin detalles'
+    try {
+      const parsed = JSON.parse(detail) as MigrationEntityErrors[]
+      if (Array.isArray(parsed)) {
+        const lines = parsed.flatMap((g) =>
+          (g.errors || []).map((e) => `${entityLabel(g.entity)} fila ${e.row}: ${e.message}`)
+        )
+        return lines.length > 0 ? lines.join('\n') : detail
+      }
+      return detail
+    } catch {
+      return detail
+    }
+  }
 
   const strategyOptions: Array<{ value: MigrationStrategy; label: string }> = meta
     ? (meta.strategies as Array<{ value: MigrationStrategy; label: string }>)
@@ -313,6 +356,24 @@ export default function DataMigrationPage(): JSX.Element {
       {success && (
         <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700 flex items-center gap-2">
           <span className="text-green-500 font-bold">✓</span> {success}
+        </div>
+      )}
+
+      {importErrors && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          <p className="font-bold mb-1">No se importó ningún registro. Errores encontrados:</p>
+          <div className="max-h-64 overflow-y-auto text-xs space-y-0.5">
+            {importErrors.map((group) =>
+              group.errors.map((e) => (
+                <p key={`${group.entity}-${e.row}-${e.message}`}>
+                  <strong>
+                    {entityLabel(group.entity)} fila {e.row}:
+                  </strong>{' '}
+                  {e.message}
+                </p>
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -419,7 +480,13 @@ export default function DataMigrationPage(): JSX.Element {
                 disabled={exporting || !isRootOrAdmin}
                 className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center gap-1"
               >
-                {exporting ? (<><Spinner /> Exportando datos...</>) : 'Exportar'}
+                {exporting ? (
+                  <>
+                    <Spinner /> Exportando datos...
+                  </>
+                ) : (
+                  'Exportar'
+                )}
               </button>
               {exportFormat === 'csv' && !exporting && (
                 <button
@@ -447,13 +514,25 @@ export default function DataMigrationPage(): JSX.Element {
               />
 
               {/* Step 1: Archivo */}
-              <div className={`mb-4 p-4 rounded-lg border-2 transition-colors ${
-                importStep === 0 ? 'border-primary bg-primary/5' : importStep > 0 ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-              }`}>
+              <div
+                className={`mb-4 p-4 rounded-lg border-2 transition-colors ${
+                  importStep === 0
+                    ? 'border-primary bg-primary/5'
+                    : importStep > 0
+                      ? 'border-green-200 bg-green-50'
+                      : 'border-gray-200 bg-gray-50'
+                }`}
+              >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold ${
-                    importStep > 0 ? 'bg-green-500 text-white' : importStep === 0 ? 'bg-primary text-white' : 'bg-gray-300 text-white'
-                  }`}>
+                  <span
+                    className={`w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold ${
+                      importStep > 0
+                        ? 'bg-green-500 text-white'
+                        : importStep === 0
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-300 text-white'
+                    }`}
+                  >
                     {importStep > 0 ? '✓' : '1'}
                   </span>
                   <span className="font-medium text-sm">Seleccionar archivo</span>
@@ -478,7 +557,11 @@ export default function DataMigrationPage(): JSX.Element {
                       value={csvEntity}
                       onChange={(e) => {
                         setCsvEntity(e.target.value)
-                        setPayload({ format: 'csv', entity: e.target.value, csvText: (payload as { csvText?: string }).csvText })
+                        setPayload({
+                          format: 'csv',
+                          entity: e.target.value,
+                          csvText: (payload as { csvText?: string }).csvText
+                        })
                       }}
                       className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     >
@@ -493,13 +576,25 @@ export default function DataMigrationPage(): JSX.Element {
               </div>
 
               {/* Step 2: Estrategia + Vista previa */}
-              <div className={`mb-4 p-4 rounded-lg border-2 transition-colors ${
-                importStep === 1 ? 'border-primary bg-primary/5' : importStep > 1 ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-              }`}>
+              <div
+                className={`mb-4 p-4 rounded-lg border-2 transition-colors ${
+                  importStep === 1
+                    ? 'border-primary bg-primary/5'
+                    : importStep > 1
+                      ? 'border-green-200 bg-green-50'
+                      : 'border-gray-200 bg-gray-50'
+                }`}
+              >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold ${
-                    importStep > 1 ? 'bg-green-500 text-white' : importStep === 1 ? 'bg-primary text-white' : 'bg-gray-300 text-white'
-                  }`}>
+                  <span
+                    className={`w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold ${
+                      importStep > 1
+                        ? 'bg-green-500 text-white'
+                        : importStep === 1
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-300 text-white'
+                    }`}
+                  >
                     {importStep > 1 ? '✓' : '2'}
                   </span>
                   <span className="font-medium text-sm">Estrategia y análisis</span>
@@ -510,16 +605,16 @@ export default function DataMigrationPage(): JSX.Element {
                 </label>
                 <div className="space-y-1 mb-3">
                   {strategyOptions.map((s) => (
-                    <label
-                      key={s.value}
-                      className="flex items-start gap-2 text-sm cursor-pointer"
-                    >
+                    <label key={s.value} className="flex items-start gap-2 text-sm cursor-pointer">
                       <input
                         type="radio"
                         name="strategy"
                         value={s.value}
                         checked={strategy === s.value}
-                        onChange={() => { setStrategy(s.value); setPreview(null) }}
+                        onChange={() => {
+                          setStrategy(s.value)
+                          setPreview(null)
+                        }}
                         className="mt-0.5"
                       />
                       <span>
@@ -537,55 +632,91 @@ export default function DataMigrationPage(): JSX.Element {
                   disabled={!payload || previewing}
                   className="px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary/5 transition-colors disabled:opacity-50 flex items-center gap-1 text-sm"
                 >
-                  {previewing ? (<><Spinner /> Analizando registros...</>) : 'Analizar archivo'}
+                  {previewing ? (
+                    <>
+                      <Spinner /> Analizando registros...
+                    </>
+                  ) : (
+                    'Analizar archivo'
+                  )}
                 </button>
               </div>
 
               {/* Step 3: Confirmar */}
-              <div className={`mb-4 p-4 rounded-lg border-2 transition-colors ${
-                importStep === 2 ? 'border-primary bg-primary/5' : importStep > 2 ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-              }`}>
+              <div
+                className={`mb-4 p-4 rounded-lg border-2 transition-colors ${
+                  importStep === 2
+                    ? 'border-primary bg-primary/5'
+                    : importStep > 2
+                      ? 'border-green-200 bg-green-50'
+                      : 'border-gray-200 bg-gray-50'
+                }`}
+              >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold ${
-                    importStep > 2 ? 'bg-green-500 text-white' : importStep === 2 ? 'bg-primary text-white' : 'bg-gray-300 text-white'
-                  }`}>
+                  <span
+                    className={`w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold ${
+                      importStep > 2
+                        ? 'bg-green-500 text-white'
+                        : importStep === 2
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-300 text-white'
+                    }`}
+                  >
                     {importStep > 2 ? '✓' : '3'}
                   </span>
                   <span className="font-medium text-sm">Revisar y confirmar</span>
                 </div>
 
                 {!preview && importStep < 2 && (
-                  <p className="text-xs text-gray-400">Completa el paso anterior para ver la vista previa.</p>
+                  <p className="text-xs text-gray-400">
+                    Completa el paso anterior para ver la vista previa.
+                  </p>
                 )}
 
                 {preview && (
                   <>
                     <h3 className="font-semibold text-gray-800 mb-2 text-sm">
-                      {preview.format === 'csv' ? entityLabel(preview.entity || '') : 'Respaldo completo'}
+                      {preview.format === 'csv'
+                        ? entityLabel(preview.entity || '')
+                        : 'Respaldo completo'}
                     </h3>
                     <div className="overflow-x-auto border border-gray-200 rounded-lg mb-3">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 border-b">
                           <tr>
-                            <th className="text-left px-3 py-1.5 font-medium text-gray-600 text-xs">Entidad</th>
-                            <th className="text-center px-3 py-1.5 font-medium text-gray-600 text-xs">Total</th>
-                            <th className="text-center px-3 py-1.5 font-medium text-green-600 text-xs">Nuevos</th>
+                            <th className="text-left px-3 py-1.5 font-medium text-gray-600 text-xs">
+                              Entidad
+                            </th>
+                            <th className="text-center px-3 py-1.5 font-medium text-gray-600 text-xs">
+                              Total
+                            </th>
+                            <th className="text-center px-3 py-1.5 font-medium text-green-600 text-xs">
+                              Nuevos
+                            </th>
                             <th className="text-center px-3 py-1.5 font-medium text-amber-600 text-xs">
                               {strategy === 'overwrite' ? 'A sobrescribir' : 'Existentes'}
                             </th>
-                            <th className="text-center px-3 py-1.5 font-medium text-red-600 text-xs">Errores</th>
+                            <th className="text-center px-3 py-1.5 font-medium text-red-600 text-xs">
+                              Errores
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {orderedSummary.map((s) => (
                             <tr key={s.entity} className="border-b last:border-0">
-                              <td className="px-3 py-1.5 font-medium text-xs">{entityLabel(s.entity)}</td>
+                              <td className="px-3 py-1.5 font-medium text-xs">
+                                {entityLabel(s.entity)}
+                              </td>
                               <td className="px-3 py-1.5 text-center text-xs">{s.total}</td>
-                              <td className="px-3 py-1.5 text-center text-green-600 text-xs">{s.toCreate}</td>
+                              <td className="px-3 py-1.5 text-center text-green-600 text-xs">
+                                {s.toCreate}
+                              </td>
                               <td className="px-3 py-1.5 text-center text-amber-600 text-xs">
                                 {strategy === 'overwrite' ? s.toOverwrite : s.toSkip}
                               </td>
-                              <td className="px-3 py-1.5 text-center text-red-600 text-xs">{s.errors.length}</td>
+                              <td className="px-3 py-1.5 text-center text-red-600 text-xs">
+                                {s.errors.length}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -597,7 +728,10 @@ export default function DataMigrationPage(): JSX.Element {
                         {preview.summary.map((s) =>
                           s.errors.map((err) => (
                             <p key={`${s.entity}-${err.row}`}>
-                              <strong>{entityLabel(s.entity)} fila {err.row}:</strong> {err.message}
+                              <strong>
+                                {entityLabel(s.entity)} fila {err.row}:
+                              </strong>{' '}
+                              {err.message}
                             </p>
                           ))
                         )}
@@ -605,17 +739,31 @@ export default function DataMigrationPage(): JSX.Element {
                     )}
 
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs text-blue-700 mb-3">
-                      Las facturas importadas se registran como <strong>históricas</strong> y no
-                      avanzan la numeración fiscal. Los talonarios fiscales nunca se sobrescriben.
+                      La importación es <strong>todo o nada</strong>: si algún registro tiene
+                      errores, no se importa nada. Las facturas importadas se registran como{' '}
+                      <strong>históricas</strong> y no avanzan la numeración fiscal. Los talonarios
+                      fiscales nunca se sobrescriben.
                     </div>
 
                     <button
                       onClick={handleImport}
-                      disabled={importing}
-                      className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center gap-1 text-sm"
+                      disabled={importing || previewHasErrors}
+                      className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
                     >
-                      {importing ? (<><Spinner /> Importando registros...</>) : 'Confirmar importación'}
+                      {importing ? (
+                        <>
+                          <Spinner /> Importando registros...
+                        </>
+                      ) : (
+                        'Confirmar importación'
+                      )}
                     </button>
+                    {previewHasErrors && !importing && (
+                      <p className="text-xs text-red-600 mt-2">
+                        El archivo tiene errores: corrígelos y vuelve a analizar. No se importará
+                        nada hasta que estén resueltos.
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -624,30 +772,44 @@ export default function DataMigrationPage(): JSX.Element {
               {result && (
                 <div className="p-4 rounded-lg border-2 border-green-200 bg-green-50">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold">✓</span>
-                    <span className="font-medium text-sm text-green-800">Importación completada</span>
+                    <span className="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold">
+                      ✓
+                    </span>
+                    <span className="font-medium text-sm text-green-800">
+                      Importación completada
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
                     <div className="bg-white rounded-lg p-3 text-center border">
-                      <p className="text-2xl font-bold text-green-600">{result.summary.reduce((a, s) => a + s.imported, 0)}</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {result.summary.reduce((a, s) => a + s.imported, 0)}
+                      </p>
                       <p className="text-xs text-gray-500">Importados</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border">
-                      <p className="text-2xl font-bold text-amber-600">{result.summary.reduce((a, s) => a + s.skipped, 0)}</p>
+                      <p className="text-2xl font-bold text-amber-600">
+                        {result.summary.reduce((a, s) => a + s.skipped, 0)}
+                      </p>
                       <p className="text-xs text-gray-500">Omitidos</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border">
-                      <p className="text-2xl font-bold text-blue-600">{result.summary.reduce((a, s) => a + s.overwritten, 0)}</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {result.summary.reduce((a, s) => a + s.overwritten, 0)}
+                      </p>
                       <p className="text-xs text-gray-500">Sobrescritos</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border">
-                      <p className={`text-2xl font-bold ${result.summary.some((s) => s.errors.length > 0) ? 'text-red-600' : 'text-gray-400'}`}>
+                      <p
+                        className={`text-2xl font-bold ${result.summary.some((s) => s.errors.length > 0) ? 'text-red-600' : 'text-gray-400'}`}
+                      >
                         {result.summary.reduce((a, s) => a + s.errors.length, 0)}
                       </p>
                       <p className="text-xs text-gray-500">Errores</p>
                     </div>
                     <div className="bg-white rounded-lg p-3 text-center border">
-                      <p className="text-2xl font-bold text-gray-600">{(result.durationMs / 1000).toFixed(1)}s</p>
+                      <p className="text-2xl font-bold text-gray-600">
+                        {(result.durationMs / 1000).toFixed(1)}s
+                      </p>
                       <p className="text-xs text-gray-500">Duración</p>
                     </div>
                   </div>
@@ -656,7 +818,10 @@ export default function DataMigrationPage(): JSX.Element {
                       {result.summary.map((s) =>
                         s.errors.map((err) => (
                           <p key={`${s.entity}-${err.row}`}>
-                            <strong>{entityLabel(s.entity)} fila {err.row}:</strong> {err.message}
+                            <strong>
+                              {entityLabel(s.entity)} fila {err.row}:
+                            </strong>{' '}
+                            {err.message}
                           </p>
                         ))
                       )}
@@ -689,27 +854,53 @@ export default function DataMigrationPage(): JSX.Element {
                       <th className="text-left px-4 py-2 font-medium text-gray-600">Fecha</th>
                       <th className="text-left px-4 py-2 font-medium text-gray-600">Tipo</th>
                       <th className="text-left px-4 py-2 font-medium text-gray-600">Estrategia</th>
-                      <th className="text-center px-4 py-2 font-medium text-gray-600">Importados</th>
+                      <th className="text-center px-4 py-2 font-medium text-gray-600">
+                        Importados
+                      </th>
                       <th className="text-center px-4 py-2 font-medium text-gray-600">Omitidos</th>
                       <th className="text-center px-4 py-2 font-medium text-gray-600">Errores</th>
                     </tr>
                   </thead>
                   <tbody>
                     {logs.map((l) => (
-                      <tr key={l.id} className="border-b last:border-0 hover:bg-gray-50">
-                        <td className="px-4 py-2 text-gray-500">
-                          {new Date(l.createdAt).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-2 font-medium">
-                          {l.kind === 'csv' ? `CSV · ${entityLabel(l.entity || '')}` : 'Respaldo completo'}
-                        </td>
-                        <td className="px-4 py-2 text-gray-600">
-                          {strategyOptions.find((s) => s.value === l.strategy)?.label || l.strategy}
-                        </td>
-                        <td className="px-4 py-2 text-center text-green-600">{l.imported}</td>
-                        <td className="px-4 py-2 text-center text-amber-600">{l.skipped}</td>
-                        <td className="px-4 py-2 text-center text-red-600">{l.errors}</td>
-                      </tr>
+                      <Fragment key={l.id}>
+                        <tr
+                          className={`border-b last:border-0 hover:bg-gray-50 ${l.errorDetail ? 'cursor-pointer' : ''}`}
+                          onClick={() => setExpandedLog(expandedLog === l.id ? null : l.id)}
+                        >
+                          <td className="px-4 py-2 text-gray-500">
+                            {new Date(l.createdAt).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2 font-medium">
+                            {l.kind === 'csv'
+                              ? `CSV · ${entityLabel(l.entity || '')}`
+                              : 'Respaldo completo'}
+                          </td>
+                          <td className="px-4 py-2 text-gray-600">
+                            {strategyOptions.find((s) => s.value === l.strategy)?.label ||
+                              l.strategy}
+                          </td>
+                          <td className="px-4 py-2 text-center text-green-600">{l.imported}</td>
+                          <td className="px-4 py-2 text-center text-amber-600">{l.skipped}</td>
+                          <td className="px-4 py-2 text-center text-red-600">
+                            {l.errors}
+                            {l.errorDetail && (
+                              <span className="ml-1 text-gray-400 text-xs">
+                                {expandedLog === l.id ? '▲' : '▼'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                        {expandedLog === l.id && (
+                          <tr className="bg-gray-50">
+                            <td colSpan={6} className="px-4 py-2">
+                              <pre className="whitespace-pre-wrap text-xs text-gray-700 max-h-64 overflow-y-auto">
+                                {logDetailContent(l.errorDetail)}
+                              </pre>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
