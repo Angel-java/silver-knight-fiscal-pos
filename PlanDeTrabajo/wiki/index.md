@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-08-16
+updated: 2026-08-21
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -26,13 +26,15 @@ updated: 2026-08-16
 
 ## Conceptos
 - [[architectural-decision-003|ADR-003: Native Dual Currency]] — Decisión formal (stub, ver [[dual-currency]])
-- [[data-migration|Data Migration]] — Export/import CSV + JSON (backup v1), dry-run, estrategias, import root-only
+- [[data-migration|Data Migration]] — Export/import CSV + JSON (backup v1), todo-o-nada con pre-vuelo, estrategias, import root-only
 - [[dual-currency|Dual Currency]] — Manejo de USD/VES: catálogo solo USD, factura dual con tasa congelada
 - [[fiscal-compliance|Fiscal Compliance (SENIAT)]] — Cumplimiento fiscal venezolano
 - [[offline-first|Offline-first]] — Arquitectura sin dependencia de internet
 - [[docker-deployment|Docker Deployment]] — Modelo de deployment offline-capable (v1.1.13, arranque sin internet)
 
 ## Hitos recientes
+- [[log#2026-08-21-fix--importación-todo-o-nada--diagnóstico-de-import-fantasma-v1123|2026-08-21 — Fix importación todo-o-nada (v1.1.23)]] — Pre-vuelo con duplicados/referencias, sin éxito falso; causa raíz del "no importó nada" (imagen stale + cascada 25P02 + log falso)
+- [[log#2026-08-20-release--v1122-publicada--selector-de-directorio-de-exportación|2026-08-20 — Release v1.1.22]] — Selector de directorio de exportación (feature 100% cliente, sin cambios de schema); auditoría pre-release sin riesgo para máquinas productivas
 - [[log#2026-08-16-build--módulo-de-migración-de-datos--exportimport|2026-08-16 — Módulo de Migración de Datos]] — Export/import CSV+JSON, dry-run con estrategias, import root-only, facturas históricas, MigrationLog
 - [[log#2026-08-04-release--v1114-offline-first--catálogo-dolarizado|2026-08-04 — Release v1.1.14]] — Primera release desde v1.1.12; incluye offline-first y catálogo dolarizado (no hubo tag v1.1.13)
 - [[log#2026-08-04-usd-only-catálogo-dolarizado-v1114|2026-08-04 — Catálogo dolarizado (solo precios USD)]] — Eliminados campos VES de Producto/Cliente/Movimiento; VES en vivo y congelado en facturas

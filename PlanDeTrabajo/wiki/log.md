@@ -2,10 +2,29 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-08-16
+updated: 2026-08-21
 ---
 
 # Log de operaciones — Silver Knight
+
+## [2026-08-21] fix | Importación todo-o-nada + diagnóstico de import fantasma (v1.1.23)
+- **Descripción**: el usuario reportó que importar un respaldo JSON (~380 registros) desde otra instalación Silver Knight "no importó nada" pese a que la UI y el `MigrationLog` reportaban éxito (`imported=379`). Diagnóstico con evidencia de BD + contenedor encontró 3 causas encadenadas: (1) imagen Docker stale (construida 2026-08-17T21:04Z, anterior a `bb4749d`): el validador viejo exigía `username && pin` pero el exportador omite `pin` → todos los usuarios fallaban; el clasificador viejo no detectaba conflictos de `settings` → P2002. (2) Bug estructural vigente: transacción gigante única tragando errores por registro; el primer statement fallido abortaba la tx en Postgres (cascada `25P02`), Prisma no lanza al commitear tx abortada, el código continuaba y escribía un log de éxito falso con 0 filas persistidas. (3) El healthcheck del contenedor usaba `localhost` (resolvía a `::1` IPv6 donde Node no escucha) → contenedor `unhealthy` pese a servir bien.
+- **Fix** (commit `64968e0`, tag `v1.1.23`): `importer.ts` reescrito con planificador pre-vuelo (`buildImportPlan`) compartido por preview e import: valida schema por registro, duplicados intra-archivo (usernames, nombres categoría/proveedor, code/barcode producto, RIFs, números factura, keys settings, tipo+prefijo fiscal) y resuelve referencias caminando `BACKUP_ORDER` con mapas simulados; si hay cualquier error → rechazo total `400` con `details: [{entity, errors:[{row,message}]}]`, sin tocar la BD y registrando el intento fallido en `MigrationLog`. Ejecución transaccional sin swallow: cualquier fallo de BD revierte todo (`500`) y también se registra. Referencias a usuarios root omitidos se mapean a `null` (no es error). CSV de productos exige que `category`/`supplier` existan en destino. UI: lista de errores al rechazar, botón bloqueado si el preview tiene errores, visor expandible de `errorDetail` en Historial, `ApiError.details` en `api.ts`. Dockerfile healthcheck → `127.0.0.1`.
+- **Páginas tocadas**: [[data-migration]], [[index]], [[log]]
+- **Verificación**: typecheck node+web PASS; 188/188 tests (14 archivos, +7 nuevos: todo-o-nada, duplicados intra-archivo, referencias rotas, root→null, CSV categoría inexistente, preview dup, ruta 400 estructurada); lint 0 errores en archivos tocados; rebuild `docker compose build server` + `up -d` → ambos contenedores healthy; preview del respaldo real contra la BD viva con el código nuevo → 0 errores (usuario sin pin ya no falla).
+- **Pendiente**: reintentar desde la UI la importación del archivo grande (~380 registros) con credenciales root del usuario y verificar persistencia; confirmar CI quality/release v1.1.23 en verde.
+
+## [2026-08-20] release | v1.1.22 publicada — selector de directorio de exportación
+- **Descripción**: primera release que incluye el selector de carpeta de exportación del módulo de migración (commit `cc8898b`, escrito el 2026-08-19 y quedado local hasta hoy). El usuario elige dónde guardar exportaciones JSON/CSV; se persiste en Settings (`exportDir`), con fallback relativo `silverknight`. Cambio 100% lado cliente (IPC `select-directory` nuevo + parámetro opcional `defaultDir` en `save-file`); único cambio server es constante muerta (`DEFAULT_EXPORT_DIR` en `config.ts`, sin importadores).
+- **Auditoría pre-release** (solicitada para no romper máquinas productivas):
+  - Sin cambios de schema Prisma entre `v1.1.21` y HEAD → no hay `prisma db push` en despliegue → cero riesgo OOM/migración.
+  - Compatibilidad bidireccional verificada: cliente nuevo ↔ imagen server vieja OK (offline-safe: `ensureServerImage` salta rebuild sin internet y la imagen cacheada v1.1.21 es funcionalmente idéntica).
+  - Riesgos menores documentados: default de exportDir es relativo al CWD (NSIS per-user → escribible); guardar `exportDir` requiere permiso `settings` (falla silenciosa → usa default).
+- **Verificación**: typecheck node+web PASS, 181/181 tests (14 archivos), lint con solo los 11 errores preexistentes en archivos no tocados por el commit.
+- **Flujo**: push `cc8898b` → bump `package.json` 1.1.22 (commit `00e702f`) → tag `v1.1.22` → `release.yml` success (~3 min).
+- **Release**: https://github.com/Angel-java/silver-knight-fiscal-pos/releases/tag/v1.1.22 — assets `silver-knight-1.1.22-setup.exe` + `.blockmap` + `latest.yml` (`version: 1.1.22`). `/releases/latest` → v1.1.22.
+- **Nota**: el log no tiene entradas de release para v1.1.15–v1.1.21 (iteración sobre el módulo de migración: permisos import root-only revertido en v1.1.20, `resolvePermissions` merge en v1.1.21); ver `git log --oneline`.
+- **Pendiente**: CI quality y Build Windows Installer siguen rojos en main por lint preexistente (no bloquea releases); limpiar los 11 errores cuando se aborde deuda técnica.
 
 ## [2026-08-16] build | Módulo de Migración de Datos (export/import)
 - **Descripción**: módulo completo para migrar datos dentro del mismo sistema y hacia sistemas diferentes. Formatos CSV (catálogo/maestros) y JSON (`silverknight-backup` v1, respaldo completo/facturas). Import con dry-run (`/preview`), estrategias `skip`/`overwrite`/`create-new`, transacción con rollback y `MigrationLog`. Permisos: export root+admin, import/preview solo root (rate-limit 10/h, body 25MB).
