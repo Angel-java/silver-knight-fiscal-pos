@@ -2,7 +2,7 @@
 type: concept
 tags: [docker, deployment, backend, updater]
 created: 2026-07-31
-updated: 2026-08-02
+updated: 2026-08-23
 sources: [roadmap]
 ---
 
@@ -28,6 +28,15 @@ El backend (Express + Prisma + PostgreSQL) corre en Docker Compose (`silverknigh
 - **Diagnóstico**: ante fallo, el diálogo ofrece "Copiar diagnóstico" (docker ps + compose ps + estado contenedores + logs + tail de `main.log` → portapapeles)
 - **Proyecto Docker**: `COMPOSE_PROJECT_NAME=silverknight` (contenedores con nombre estable `silverknight-db` / `silverknight-server`)
 
+## Resolución del CLI de Docker (v1.1.24)
+
+Toda invocación de docker pasa por el exe resuelto por `src/main/docker-path.ts`:
+
+- `resolveDockerOnce()` prueba `docker` pelado (PATH) y luego rutas absolutas conocidas (`Program Files`, x86, `%LOCALAPPDATA%\Docker\Docker\resources\bin\docker.exe`); el resultado se cachea y `getCachedDockerExe()` es el accesor síncrono usado por spawns/exec en `docker.ts`, `config.ts` y `before-quit`
+- Sondas con timeout 20s + hasta 3 intentos con backoff — evita el falso "Docker no instalado" en máquinas donde AV/lentitud hace que `docker --version` tarde >5s (ver [[diagnostico-docker-not-installed-timeout]])
+- `getChildEnv()` antepone el dir del exe al PATH de procesos hijos
+- El diagnóstico (`gatherDiagnostics`) reporta `where docker`, exe resuelto y existencia de rutas candidatas
+
 ## Historial de la causa raíz
 
 | Versión | Cambio | Resultado |
@@ -39,6 +48,7 @@ El backend (Express + Prisma + PostgreSQL) corre en Docker Compose (`silverknigh
 | v1.1.5 | `up -d` sin `--build`, deps estables `server/package.json`, sentinel version-gated no-fatal | Verificado local E2E; pendiente confirmación en máquina desplegada |
 | v1.1.6 | shutdown graceful (`COMPOSE_PROJECT_NAME` en `before-quit`), cleanup sin tocar la DB, health liveness, detección de crash-loop, `prisma db push` gated por hash, pre-warm de cache post-update | Pendiente confirmación en máquina desplegada |
 | v1.1.13 | offline-first en arranque (`getImageAvailability`, `ensureServerImage` offline-aware con `skippedOffline`, pre-warm db `pullDbImage`, diálogo "Primera configuración requiere internet", `pull_policy: missing` en db, update check offline silencioso + retry por polling) | Verificado con typecheck + 122 tests; pendiente E2E offline en máquina desplegada |
+| v1.1.24 | resolución de CLI docker con caché + rutas absolutas + reintentos, timeouts 5s→20s, PATH hijo aumentado, diálogo con Reintentar, diagnóstico CLI enriquecido | Verificado con typecheck + 194 tests; pendiente confirmación en la máquina afectada |
 
 Causas raíz descubiertas en v1.1.6 (ver [[diagnostico-error-3001-post-update]]):
 - `before-quit` corría `docker compose down` sin `COMPOSE_PROJECT_NAME` → no-op → la DB nunca se apagaba limpio
@@ -57,3 +67,5 @@ Causas raíz descubiertas en v1.1.6 (ver [[diagnostico-error-3001-post-update]])
 - NO volver a meter consultas a la DB dentro de `/api/health` (health es liveness del proceso)
 - NO eliminar `pull_policy: missing` de `db` ni volver a asumir que `up -d` puede hacer pull sin red
 - Cualquier cambio que requiera red en el arranque empaquetado debe pasar por `net.isOnline()` + imágenes en caché (ver [[offline-first]])
+- NO invocar `docker`/`docker compose` pelado en el proceso main: usar `getCachedDockerExe()` / `getComposeCmd()` de `docker-path.ts`
+- NO bajar los timeouts de las sondas docker por debajo de 20s ni diagnosticar "no instalado" sin reintentos (falsos positivos por AV/lentitud)

@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-08-21
+updated: 2026-08-23
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -33,6 +33,7 @@ updated: 2026-08-21
 - [[docker-deployment|Docker Deployment]] — Modelo de deployment offline-capable (v1.1.13, arranque sin internet)
 
 ## Hitos recientes
+- [[diagnostico-docker-not-installed-timeout|2026-08-23 — Fix falso "Docker no instalado" (v1.1.24)]] — Timeout de 5s mataba `docker --version` en máquinas lentas/AV; fix con resolución de exe cacheada + rutas absolutas + reintentos + timeouts 20s
 - [[log#2026-08-21-fix--importación-todo-o-nada--diagnóstico-de-import-fantasma-v1123|2026-08-21 — Fix importación todo-o-nada (v1.1.23)]] — Pre-vuelo con duplicados/referencias, sin éxito falso; causa raíz del "no importó nada" (imagen stale + cascada 25P02 + log falso)
 - [[log#2026-08-20-release--v1122-publicada--selector-de-directorio-de-exportación|2026-08-20 — Release v1.1.22]] — Selector de directorio de exportación (feature 100% cliente, sin cambios de schema); auditoría pre-release sin riesgo para máquinas productivas
 - [[log#2026-08-16-build--módulo-de-migración-de-datos--exportimport|2026-08-16 — Módulo de Migración de Datos]] — Export/import CSV+JSON, dry-run con estrategias, import root-only, facturas históricas, MigrationLog
@@ -56,3 +57,4 @@ updated: 2026-08-21
 - [[auditoria-optimizacion-cuelgues|Auditoría de Optimización — Cuelgues aleatorios]] — Causas de cuelgues al azar durante el uso + fixes anti-hang aplicados (timeouts, logger async, sendSync, ReportsPage)
 - [[diagnostico-server-exit-255-crlf|Diagn�stico - Server exit 255 por CRLF (v1.1.11)]] - El instalador v1.1.11 empaqueta docker-entrypoint.sh con CRLF (checkout CI en Windows sin .gitattributes); el shebang #!/bin/sh\r no existe y el contenedor muere con exit 255 sin logs; fix en v1.1.12 (.gitattributes + sed en Dockerfile)
 - [[diagnostico-offline-startup|Diagnóstico - Arranque offline-first (v1.1.13)]] — La app inicia y es usable sin internet usando la imagen Docker cacheada; solo fallan las funciones de red (auto-update, BCV, sync). Cambios en docker.ts/server-image.ts/index.ts/updater.ts + pull_policy: missing
+- [[diagnostico-docker-not-installed-timeout|Diagnóstico — "Docker no está instalado" con Docker instalado (v1.1.24)]] — Falso negativo por timeout de 5s en `docker --version` (AV/lentitud); firma ≥5.4s = timeout; fix con resolución de exe cacheada + rutas absolutas + reintentos + timeouts 20s

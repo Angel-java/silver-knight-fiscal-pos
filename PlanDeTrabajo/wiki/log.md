@@ -2,10 +2,18 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-08-21
+updated: 2026-08-23
 ---
 
 # Log de operaciones — Silver Knight
+
+## [2026-08-23] fix | Falso "Docker no instalado" por timeout de 5s (v1.1.24)
+- **Descripción**: en una máquina cliente con Docker Desktop correctamente instalado, la app reportaba "Docker Desktop no está instalado" en cada arranque. Evidencia del `main.log` del cliente (2323 líneas): todos los fallos de detección tardaban ≥5.4s (6.2s, 5.5s, 5.7s, 8.1s) = firma exacta del `timeout: 5000` de `checkDockerInstalled()`; la detección OK previa tardó 1.9s. Causa raíz: AV escaneando cada proceso nuevo + PATH lookup lenta hacen que `docker --version` tarde 2–8s → el timeout lo mataba y el catch reportaba `{installed: false}`. El shutdown también mostró `spawnSync cmd.exe ETIMEDOUT` al correr `docker compose down`.
+- **Fix** (commits `fd5bc99` fix + `b0c3362` bump, tag `v1.1.24`): nuevo módulo `src/main/docker-path.ts` con resolución de CLI cacheada (`resolveDockerOnce()` prueba PATH → rutas absolutas conocidas; `getCachedDockerExe()` accesor síncrono usado por todas las invocaciones de `docker.ts`, `config.ts` y `before-quit`), timeouts 5000→20000ms, 3 reintentos con backoff, PATH hijo aumentado en `getChildEnv()`, diálogo con Reintentar/Copiar diagnóstico/Salir, `gatherDiagnostics()` enriquecido (where docker + timing + rutas candidatas + PATH del proceso) y `launchDockerDesktop()` con candidatos LOCALAPPDATA/derivados.
+- **Páginas tocadas**: [[diagnostico-docker-not-installed-timeout]] (nueva), [[docker-deployment]], [[index]], [[log]]
+- **Verificación**: typecheck node+web PASS; 194/194 tests (15 archivos, +6 nuevos en `docker-path.spec.ts`: caché, fallback absoluto, recuperación en reintento, rendición tras N intentos, skips sin probe, output no parseable); lint 0 errores en archivos tocados.
+- **Deuda documentada** (fuera de alcance): log spam stderr duplicado `[compose]`/`[config]`; wizard no lanza Docker Desktop cuando el daemon está parado; loop `.env exists but is missing required fields`.
+- **Pendiente**: confirmar en la máquina afectada que el arranque resuelve; CI quality sigue con los errores lint preexistentes (no bloquea releases).
 
 ## [2026-08-21] fix | Importación todo-o-nada + diagnóstico de import fantasma (v1.1.23)
 - **Descripción**: el usuario reportó que importar un respaldo JSON (~380 registros) desde otra instalación Silver Knight "no importó nada" pese a que la UI y el `MigrationLog` reportaban éxito (`imported=379`). Diagnóstico con evidencia de BD + contenedor encontró 3 causas encadenadas: (1) imagen Docker stale (construida 2026-08-17T21:04Z, anterior a `bb4749d`): el validador viejo exigía `username && pin` pero el exportador omite `pin` → todos los usuarios fallaban; el clasificador viejo no detectaba conflictos de `settings` → P2002. (2) Bug estructural vigente: transacción gigante única tragando errores por registro; el primer statement fallido abortaba la tx en Postgres (cascada `25P02`), Prisma no lanza al commitear tx abortada, el código continuaba y escribía un log de éxito falso con 0 filas persistidas. (3) El healthcheck del contenedor usaba `localhost` (resolvía a `::1` IPv6 donde Node no escucha) → contenedor `unhealthy` pese a servir bien.
