@@ -5,6 +5,12 @@ import { readFileSync } from 'fs'
 import { createHash } from 'crypto'
 import { app } from 'electron'
 import { loadEnvForChild } from './config'
+import {
+  getCachedDockerExe,
+  resolveDockerOnce,
+  resolveDockerWithRetry,
+  DOCKER_CHECK_TIMEOUT_MS
+} from './docker-path'
 import { log } from './logger'
 
 const execAsync = promisify(exec)
@@ -32,33 +38,57 @@ function getComposeDir(): string {
 }
 
 function getComposeCmd(): string {
-  return 'docker compose'
+  return `"${getCachedDockerExe()}" compose`
+}
+
+/** Command line prefix for execAsync strings, safe for paths with spaces. */
+function dockerCmd(args: string): string {
+  return `"${getCachedDockerExe()}" ${args}`
+}
+
+/** Command for spawn() with shell:true — quotes the exe when it has spaces. */
+function dockerSpawnCommand(): string {
+  const exe = getCachedDockerExe()
+  return /\s/.test(exe) ? `"${exe}"` : exe
 }
 
 function getChildEnv(): Record<string, string> {
-  return {
+  const base = {
     ...process.env,
     ...loadEnvForChild(),
     COMPOSE_PROJECT_NAME: 'silverknight'
   } as Record<string, string>
+
+  // When docker was resolved to an absolute path, make sure child processes
+  // (docker compose exec/run, etc.) can find the CLI too.
+  const exe = getCachedDockerExe()
+  if (exe !== 'docker') {
+    const dir = path.dirname(exe)
+    const pathKey = Object.keys(base).find((k) => k.toUpperCase() === 'PATH') ?? 'Path'
+    base[pathKey] = `${dir}${path.delimiter}${base[pathKey] ?? ''}`
+  }
+
+  return base
 }
 
 export async function checkDockerInstalled(): Promise<DockerInfo> {
-  try {
-    const { stdout } = await execAsync('docker --version', { timeout: 5000 })
-    const versionMatch = stdout.match(/Docker version ([\d.]+)/)
-    const version = versionMatch ? versionMatch[1] : 'unknown'
-    log('check', `Docker installed: v${version}`)
-    return { installed: true, running: false, version }
-  } catch {
-    log('check', 'Docker not installed')
+  const start = Date.now()
+  const resolved = await resolveDockerWithRetry((message) => log('check', message))
+  if (!resolved) {
+    log('check', `Docker not installed (checked for ${Date.now() - start}ms)`)
     return { installed: false, running: false }
   }
+  log(
+    'check',
+    `Docker installed: v${resolved.version} (took ${Date.now() - start}ms, exe: ${resolved.exe})`
+  )
+  return { installed: true, running: false, version: resolved.version }
 }
 
 export async function checkDockerRunning(): Promise<boolean> {
+  await resolveDockerOnce()
   try {
-    await execAsync('docker info', { timeout: 5000 })
+    await execAsync(dockerCmd('info'), { timeout: DOCKER_CHECK_TIMEOUT_MS })
     log('check', 'Docker daemon is running')
     return true
   } catch {
@@ -72,6 +102,18 @@ export async function launchDockerDesktop(): Promise<boolean> {
     'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe',
     'C:\\Program Files (x86)\\Docker\\Docker\\Docker Desktop.exe'
   ]
+
+  // Derive the GUI location from the resolved CLI (.../resources/bin/docker.exe
+  // lives next to .../Docker/Docker/Docker Desktop.exe).
+  const exe = getCachedDockerExe()
+  if (exe !== 'docker') {
+    possiblePaths.unshift(path.join(path.dirname(path.dirname(path.dirname(exe))), 'Docker Desktop.exe'))
+  }
+  if (process.env.LOCALAPPDATA) {
+    possiblePaths.push(
+      path.join(process.env.LOCALAPPDATA, 'Docker', 'Docker', 'Docker Desktop.exe')
+    )
+  }
 
   for (const exePath of possiblePaths) {
     try {
@@ -131,7 +173,7 @@ export async function checkComposeStatus(): Promise<ComposeInfo> {
 export async function cleanupStaleContainers(): Promise<void> {
   try {
     const { stdout } = await execAsync(
-      'docker ps -a --filter name=silverknight --format "{{.ID}} {{.Names}}"',
+      dockerCmd('ps -a --filter name=silverknight --format "{{.ID}} {{.Names}}"'),
       { timeout: 10000 }
     )
 
@@ -153,7 +195,7 @@ export async function cleanupStaleContainers(): Promise<void> {
 
     if (toRemove.length > 0) {
       log('cleanup', `Removing stale containers: ${toRemove.join(', ')}`)
-      await execAsync(`docker rm -f ${toRemove.join(' ')}`, { timeout: 20000 })
+      await execAsync(dockerCmd(`rm -f ${toRemove.join(' ')}`), { timeout: 20000 })
       log('cleanup', 'Stale containers removed')
     }
   } catch (err) {
@@ -169,7 +211,7 @@ export async function startCompose(
 
   const run = (): Promise<{ success: boolean; error?: string }> =>
     new Promise((resolve) => {
-      const proc = spawn('docker', ['compose', 'up', '-d'], {
+      const proc = spawn(dockerSpawnCommand(), ['compose', 'up', '-d'], {
         cwd: dir,
         env: getChildEnv(),
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -248,7 +290,7 @@ export async function restartCompose(
   log('compose', 'Restarting docker compose')
 
   return new Promise((resolve) => {
-    const proc = spawn('docker', ['compose', 'down'], {
+    const proc = spawn(dockerSpawnCommand(), ['compose', 'down'], {
       cwd: dir,
       env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -276,7 +318,7 @@ export async function buildCompose(
   log('compose', 'Building docker compose images')
 
   return new Promise((resolve) => {
-    const proc = spawn('docker', ['compose', 'build'], {
+    const proc = spawn(dockerSpawnCommand(), ['compose', 'build'], {
       cwd: dir,
       env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -326,7 +368,7 @@ export async function pullImages(
   log('compose', 'Pulling latest images')
 
   return new Promise((resolve) => {
-    const proc = spawn('docker', ['compose', 'pull'], {
+    const proc = spawn(dockerSpawnCommand(), ['compose', 'pull'], {
       cwd: dir,
       env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -372,7 +414,7 @@ export async function pullImages(
 export async function getComposeContainers(): Promise<string> {
   try {
     const { stdout } = await execAsync(
-      'docker ps -a --format "{{.Names}} | {{.Image}} | {{.Status}}"',
+      dockerCmd('ps -a --format "{{.Names}} | {{.Image}} | {{.Status}}"'),
       { timeout: 8000 }
     )
     return stdout.trim()
@@ -391,7 +433,7 @@ export interface ImageAvailability {
 
 export async function imageExists(name: string): Promise<boolean> {
   try {
-    await execAsync(`docker image inspect "${name}"`, { timeout: 5000 })
+    await execAsync(dockerCmd(`image inspect "${name}"`), { timeout: DOCKER_CHECK_TIMEOUT_MS })
     return true
   } catch {
     return false
@@ -409,7 +451,7 @@ export async function pullDbImage(
 ): Promise<{ success: boolean; error?: string }> {
   log('image', `Ensuring ${DB_IMAGE} is present locally...`)
   return new Promise((resolve) => {
-    const proc = spawn('docker', ['pull', DB_IMAGE], {
+    const proc = spawn(dockerSpawnCommand(), ['pull', DB_IMAGE], {
       env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: true
@@ -454,7 +496,7 @@ export async function pullDbImage(
 export async function getServerContainerLogs(lines = 30): Promise<string> {
   try {
     const { stdout } = await execAsync(
-      `docker logs --tail ${lines} silverknight-server`,
+      dockerCmd(`logs --tail ${lines} silverknight-server`),
       { timeout: 5000 }
     )
     return stdout
@@ -470,7 +512,9 @@ export async function getDbContainerStatus(): Promise<{
 }> {
   try {
     const { stdout } = await execAsync(
-      'docker inspect --format "{{.State.Status}} {{.State.Health.Status}} {{.RestartCount}}" silverknight-db',
+      dockerCmd(
+        'inspect --format "{{.State.Status}} {{.State.Health.Status}} {{.RestartCount}}" silverknight-db'
+      ),
       { timeout: 5000 }
     )
     const [status, health, restartCount] = stdout.trim().split(' ')
@@ -493,7 +537,9 @@ export async function getServerContainerState(): Promise<{
 }> {
   try {
     const { stdout } = await execAsync(
-      'docker inspect --format "{{.State.Status}} {{.RestartCount}} {{.State.OOMKilled}} {{.State.ExitCode}}" silverknight-server',
+      dockerCmd(
+        'inspect --format "{{.State.Status}} {{.RestartCount}} {{.State.OOMKilled}} {{.State.ExitCode}}" silverknight-server'
+      ),
       { timeout: 5000 }
     )
     const [status, restartCount, oomKilled, exitCode] = stdout.trim().split(/\s+/)
@@ -532,7 +578,7 @@ export async function runPrismaPushOnce(): Promise<{
 
   return new Promise((resolve) => {
     const proc = spawn(
-      'docker',
+      dockerSpawnCommand(),
       [
         'compose',
         'run',
@@ -609,7 +655,7 @@ export async function writeSchemaStateHash(hash: string): Promise<boolean> {
   log('push', 'Writing schema hash to schema-state volume...')
   return new Promise((resolve) => {
     const proc = spawn(
-      'docker',
+      getCachedDockerExe(),
       [
         'run',
         '--rm',
@@ -640,7 +686,7 @@ export async function writeSchemaStateHash(hash: string): Promise<boolean> {
 
 export async function restartServerContainer(): Promise<boolean> {
   return new Promise((resolve) => {
-    const proc = spawn('docker', ['compose', 'restart', 'server'], {
+    const proc = spawn(dockerSpawnCommand(), ['compose', 'restart', 'server'], {
       cwd: getComposeDir(),
       env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -656,7 +702,7 @@ export async function restartServerContainer(): Promise<boolean> {
 
 export async function stopServerContainer(): Promise<boolean> {
   return new Promise((resolve) => {
-    const proc = spawn('docker', ['compose', 'stop', 'server'], {
+    const proc = spawn(dockerSpawnCommand(), ['compose', 'stop', 'server'], {
       cwd: getComposeDir(),
       env: getChildEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -672,7 +718,7 @@ export async function stopServerContainer(): Promise<boolean> {
 
 export async function getDockerSystemDf(): Promise<string> {
   try {
-    const { stdout } = await execAsync('docker system df', { timeout: 8000 })
+    const { stdout } = await execAsync(dockerCmd('system df'), { timeout: 15000 })
     return stdout.trim()
   } catch (err) {
     return `docker system df failed: ${err}`
@@ -703,7 +749,7 @@ export async function resetPostgresPassword(newPassword: string): Promise<{
 
   return new Promise((resolve) => {
     const proc = spawn(
-      'docker',
+      dockerSpawnCommand(),
       ['compose', 'exec', '-T', 'db', 'psql', '-w', '-U', pgUser, '-c', sql],
       {
         cwd: dir,

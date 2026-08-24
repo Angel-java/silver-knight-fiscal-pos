@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, chmodSy
 import { join } from 'path'
 import { execSync } from 'child_process'
 import crypto from 'crypto'
+import { getCachedDockerExe, DOCKER_CHECK_TIMEOUT_MS } from './docker-path'
 import { log } from './logger'
 
 const CONFIG_VERSION = '1.0.0'
@@ -121,8 +122,8 @@ export function loadEnvForChild(): Record<string, string> {
 export function detectExistingDockerVolume(): boolean {
   try {
     const output = execSync(
-      'docker volume inspect silverknight-pgdata --format "{{.CreatedAt}}"',
-      { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
+      `"${getCachedDockerExe()}" volume inspect silverknight-pgdata --format "{{.CreatedAt}}"`,
+      { timeout: DOCKER_CHECK_TIMEOUT_MS, stdio: ['pipe', 'pipe', 'pipe'] }
     ).toString().trim()
     const exists = !!output
     log('detect', `Docker volume exists: ${exists}`)

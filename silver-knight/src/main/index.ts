@@ -1,7 +1,8 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, clipboard, net } from 'electron'
 import path from 'path'
 import { join } from 'path'
-import { execSync } from 'child_process'
+import { execSync, exec } from 'child_process'
+import { promisify } from 'util'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -31,6 +32,7 @@ import {
   getImageAvailability,
   pullDbImage
 } from './docker'
+import { getCachedDockerExe, getDockerCandidatePaths } from './docker-path'
 import { appUpdater } from './updater'
 import { ensureServerImage } from './server-image'
 import {
@@ -98,10 +100,32 @@ async function showDockerError(message: string): Promise<void> {
 }
 
 async function gatherDiagnostics(): Promise<string> {
+  const execAsyncDiag = promisify(exec)
   const lines: string[] = []
   lines.push(`Silver Knight diagnostics — app v${app.getVersion()}`)
   lines.push(`Time: ${new Date().toISOString()}`)
   lines.push(`Port: ${process.env['PORT'] || '3001'}`)
+  lines.push('')
+  lines.push('--- docker cli ---')
+  const cliStart = Date.now()
+  try {
+    const { stdout } = await execAsyncDiag('where docker', { timeout: 10000 })
+    const found = stdout
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .join(' | ')
+    lines.push(`where docker (${Date.now() - cliStart}ms): ${found || '(no output)'}`)
+  } catch (err) {
+    lines.push(`where docker failed (${Date.now() - cliStart}ms): ${err}`)
+  }
+  lines.push(`resolved docker exe: ${getCachedDockerExe()}`)
+  for (const candidate of getDockerCandidatePaths()) {
+    lines.push(`${candidate}: ${existsSync(candidate) ? 'exists' : 'missing'}`)
+  }
+  lines.push('')
+  lines.push('--- app process PATH ---')
+  lines.push(process.env['PATH'] ?? '(not set)')
   lines.push('')
   try {
     lines.push('--- docker ps -a ---')
@@ -250,10 +274,26 @@ async function startBackend(): Promise<boolean> {
 
   const dockerInfo = await checkDockerInstalled()
   if (!dockerInfo.installed) {
-    await showDockerError(
-      'Docker Desktop no está instalado en esta máquina.\n\n' +
-        'Por favor instala Docker Desktop desde:\nhttps://www.docker.com/products/docker-desktop/'
-    )
+    const retry = await dialog.showMessageBox({
+      type: 'error',
+      title: 'Docker no detectado',
+      message: 'No se pudo ejecutar Docker en esta máquina',
+      detail:
+        'Silver Knight necesita Docker Desktop.\n\n' +
+        'Si Docker Desktop SÍ está instalado, es posible que el equipo tarde en responderlo ' +
+        '(antivirus o inicio lento): pulsa "Reintentar".\n\n' +
+        'Si no está instalado, descárgalo desde:\nhttps://www.docker.com/products/docker-desktop/',
+      buttons: ['Reintentar', 'Copiar diagnóstico', 'Salir'],
+      defaultId: 0,
+      cancelId: 2
+    })
+    if (retry.response === 0 || retry.response === 1) {
+      if (retry.response === 1) {
+        await copyDiagnostics()
+      }
+      return startBackend()
+    }
+    app.quit()
     return false
   }
 
@@ -870,7 +910,7 @@ app.on('before-quit', () => {
 
   const dir = is.dev ? process.cwd() : process.resourcesPath
   try {
-    execSync('docker compose down', {
+    execSync(`"${getCachedDockerExe()}" compose down`, {
       cwd: dir,
       env: {
         ...process.env,
