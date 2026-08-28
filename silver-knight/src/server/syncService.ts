@@ -1,5 +1,6 @@
 import { prisma } from './database/prisma'
 import { logger } from './utils/logger'
+import { connectionFailureMessage } from './utils/connectionError'
 
 interface SyncConfig {
   url: string
@@ -20,6 +21,9 @@ class SyncService {
   private timer: NodeJS.Timeout | null = null
   private _syncing = false
   private _lastResult: SyncResult | null = null
+  private retryDelays = [60_000, 5 * 60_000, 15 * 60_000]
+  private retryAttempt = 0
+  private intervalMs = 60 * 60 * 1000
 
   get isSyncing(): boolean {
     return this._syncing
@@ -88,24 +92,47 @@ class SyncService {
   async start(intervalMinutes?: number): Promise<void> {
     const config = await this.getConfig()
     const interval = intervalMinutes || config.interval || 60
-    if (this.timer) clearInterval(this.timer)
-    this.timer = setInterval(
-      () => {
-        this.syncNow().catch((err) => logger.error('sync', 'auto-sync error', err))
-      },
-      interval * 60 * 1000
-    )
+    this.intervalMs = interval * 60 * 1000
+    this.stop()
+    this.scheduleNext(0)
     logger.info('sync', `Auto-sync cada ${interval} minuto(s)`)
     if (config.enabled && config.url) {
       this.syncNow().catch(() => {})
     }
   }
 
+  private scheduleNext(delayMs: number): void {
+    if (this.timer) clearTimeout(this.timer)
+    this.timer = setTimeout(() => {
+      this.timer = null
+      this.syncNow()
+        .then((result) => {
+          const delay = this.nextDelay(result)
+          this.scheduleNext(delay)
+        })
+        .catch((err) => {
+          logger.error('sync', 'auto-sync error', err)
+          this.scheduleNext(60_000)
+        })
+    }, delayMs)
+  }
+
+  private nextDelay(result: SyncResult): number {
+    if (result.success) {
+      this.retryAttempt = 0
+      return this.intervalMs
+    }
+    const attempt = Math.min(this.retryAttempt, this.retryDelays.length - 1)
+    this.retryAttempt++
+    return this.retryDelays[attempt]
+  }
+
   stop(): void {
     if (this.timer) {
-      clearInterval(this.timer)
+      clearTimeout(this.timer)
       this.timer = null
     }
+    this.retryAttempt = 0
   }
 
   async syncNow(): Promise<SyncResult> {
@@ -220,7 +247,9 @@ class SyncService {
             })
           }
         } catch (err) {
-          errors.push(`${entity.name}: ${err instanceof Error ? err.message : String(err)}`)
+          const friendly =
+            connectionFailureMessage(err) ?? (err instanceof Error ? err.message : String(err))
+          errors.push(`${entity.name}: ${friendly}`)
           await prisma.syncLog.create({
             data: {
               entity: entity.name,
@@ -233,10 +262,17 @@ class SyncService {
         }
       }
 
-      await prisma.syncConfig.updateMany({
-        where: { enabled: true },
-        data: { lastSyncAt: now }
-      })
+      if (errors.length === 0) {
+        await prisma.syncConfig.updateMany({
+          where: { enabled: true },
+          data: { lastSyncAt: now }
+        })
+      } else {
+        logger.warn(
+          'sync',
+          `Sync finalizó con ${errors.length} error(es); lastSyncAt NO se avanzó para no perder cambios`
+        )
+      }
     } catch (err) {
       errors.push(`General: ${err instanceof Error ? err.message : String(err)}`)
     } finally {

@@ -2,10 +2,29 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-08-23
+updated: 2026-08-27
 ---
 
 # Log de operaciones — Silver Knight
+
+## [2026-08-27] build | Reporte de fallas por problemas de conexión en funciones de red
+- **Descripción**: las funciones que requieren internet ahora reportan con un mensaje claro **"No hay conexión a internet. Verifica tu conexión e inténtalo de nuevo. (causa técnica)"** cuando fallan por conectividad, en lugar de mostrar el error técnico crudo al operador.
+- **Implementación**: nuevo `src/server/utils/connectionError.ts` con `connectionFailureMessage(err)` → clasifica errores de red/timeout (`fetch failed`, `ECONNREFUSED`, `ENOTFOUND`, `ETIMEDOUT`, `network error`, `abort`, etc.) y devuelve el mensaje claro + causa; `null` si no es conectividad. Se aplicó en:
+  - `scheduler.ts` (auto-fetch BCV): guarda el mensaje claro en `bcvLastFetchError` (visible en SettingsPage "Motivo").
+  - `routes/exchangeRates.ts` POST `/bcv` (manual): el error 502 indica "problema de conexión a internet" cuando aplica; `detail` normaliza cada error de red.
+  - `syncService.ts`: sustituye el error técnico por el claro en el listado de errores del sync.
+  - `main/updater.ts`: check/download y evento `error` muestran el mensaje claro solo cuando el probe dice online pero el host final no responde; se mantiene el skip silencioso offline-first.
+- **Páginas tocadas**: [[offline-first]], [[log]]
+- **Verificación**: typecheck node+web PASS; 222/222 tests (19 archivos; +7 `connectionError.test.ts`, +1 caso en `updater.spec.ts`); 0 errores eslint (nuevo módulo LF sin warnings; archivos CRLF conservan los warnings prettier preexistentes del repo).
+
+## [2026-08-27] build | Endurecimiento offline-first (netProbe + vigencia de tasa + sync resiliente)
+- **Descripción**: implementadas las Fases A, B y C del plan de endurecimiento offline (sin internet, con Docker), según decisión de alcance y prioridad documentada en [[offline-first]] y [[docker-deployment]].
+  - **Fase A — probe de conectividad real**: nuevo `src/main/netProbe.ts` con `isReallyOnline()` (si `net.isOnline()` es false → offline seguro sin probe; si true → `fetch` real a un host estable con timeout y reintentos). Integrado en `src/main/index.ts` (decisión de arranque), `server-image.ts` y `updater.ts`. Con imágenes cacheadas el arranque ya no depende del probe (la caché es la garantía); el probe decide solo cuando faltan imágenes.
+  - **Fase C — vigencia de tasa + inserción manual**: regla de negocio fijada (la factura se emite en Bs. y exige tasa SIEMPRE; sin tasa o vencida → bloqueo con inserción manual). Nueva setting `bcvRateVigencyDays` (default 1) gestionada en Ajustes > Vigencia de la tasa. `POST /invoices` devuelve 400 con `details.errorCode` (`RATE_MISSING`/`RATE_EXPIRED`). `PaymentModal` abre `RateModal` (nuevo, offline) que guarda la tasa manual y reintenta. `scheduler` registra estado del fetch BCV (`bcvLastFetchStatus/At/Error`) visible en SettingsPage.
+  - **Fase B — sync resiliente**: `syncService` con retry con backoff (1m→5m→15m, cap) y **`lastSyncAt` solo avanza si el sync termina sin errores** (no se pierden registros al volver online; presupone push idempotente).
+- **Páginas tocadas**: [[offline-first]], [[docker-deployment]], [[dual-currency]], [[index]], [[log]]
+- **Verificación**: typecheck node+web PASS; 215/215 tests (18 archivos; +5 `netProbe.spec.ts`, +9 `rateSettings.test.ts`, +3 `syncService.spec.ts`, +4 casos de vigencia en `invoices.test.ts`); 0 errores eslint nuevos (el único error de lint observable en `PaymentModal.tsx` es preexistente en HEAD).
+- **Pendiente**: release v1.1.25 con estos cambios y E2E offline en máquina desplegada (arranque sin red con imagen cacheada, facturación sin tasa solicitando inserción manual, sync que se recupera al volver online).
 
 ## [2026-08-23] fix | Falso "Docker no instalado" por timeout de 5s (v1.1.24)
 - **Descripción**: en una máquina cliente con Docker Desktop correctamente instalado, la app reportaba "Docker Desktop no está instalado" en cada arranque. Evidencia del `main.log` del cliente (2323 líneas): todos los fallos de detección tardaban ≥5.4s (6.2s, 5.5s, 5.7s, 8.1s) = firma exacta del `timeout: 5000` de `checkDockerInstalled()`; la detección OK previa tardó 1.9s. Causa raíz: AV escaneando cada proceso nuevo + PATH lookup lenta hacen que `docker --version` tarde 2–8s → el timeout lo mataba y el catch reportaba `{installed: false}`. El shutdown también mostró `spawnSync cmd.exe ETIMEDOUT` al correr `docker compose down`.

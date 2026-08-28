@@ -5,6 +5,7 @@ import { validate } from '../middleware/validate'
 import { createExchangeRateSchema } from '../validation/schemas'
 import { asyncHandler } from '../middleware/errorHandler'
 import { DEFAULT_EXCHANGE_RATE_PAGE_SIZE } from '../config'
+import { connectionFailureMessage } from '../utils/connectionError'
 
 const router = Router()
 router.use(authMiddleware)
@@ -67,7 +68,9 @@ router.post('/bcv', asyncHandler(async (_req: Request, res: Response) => {
     }
     errors.push(`DolarAPI: status ${response.status}`)
   } catch (e) {
-    errors.push('DolarAPI: ' + (e instanceof Error ? e.message : 'error'))
+    errors.push(
+      'DolarAPI: ' + (connectionFailureMessage(e) ?? (e instanceof Error ? e.message : 'error'))
+    )
   }
 
   try {
@@ -87,11 +90,16 @@ router.post('/bcv', asyncHandler(async (_req: Request, res: Response) => {
       errors.push(`BCV web: status ${response.status}`)
     }
   } catch (e) {
-    errors.push('BCV web: ' + (e instanceof Error ? e.message : 'error'))
+    errors.push(
+      'BCV web: ' + (connectionFailureMessage(e) ?? (e instanceof Error ? e.message : 'error'))
+    )
   }
 
   res.status(502).json({
-    error: 'No se pudo obtener la tasa del BCV. Intenta ingresarla manualmente.',
+    error:
+      errors.some((err) => err.includes('No hay conexión'))
+        ? 'No se pudo obtener la tasa del BCV por un problema de conexión a internet. Verifica tu conexión o ingresa la tasa manualmente.'
+        : 'No se pudo obtener la tasa del BCV. Intenta ingresarla manualmente.',
     detail: errors.join(' | ')
   })
 }))

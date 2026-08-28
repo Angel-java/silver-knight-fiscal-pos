@@ -1,8 +1,9 @@
-import { app, net } from 'electron'
+import { app } from 'electron'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { buildCompose, imageExists, SERVER_IMAGE } from './docker'
 import { log } from './logger'
+import { isReallyOnline } from './netProbe'
 
 function getSentinelPath(): string {
   return join(app.getPath('userData'), '.server-version')
@@ -50,7 +51,7 @@ export async function ensureServerImage(
 
   const serverImagePresent = await imageExists(SERVER_IMAGE)
 
-  if (!net.isOnline()) {
+  if (!(await isReallyOnline())) {
     if (serverImagePresent) {
       log(
         'server-image',

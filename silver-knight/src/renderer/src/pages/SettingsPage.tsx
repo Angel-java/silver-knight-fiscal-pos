@@ -32,6 +32,10 @@ export default function SettingsPage(): JSX.Element {
   const [bcvAutoFetch, setBcvAutoFetch] = useState(false)
   const [bcvFetchTimes, setBcvFetchTimes] = useState<string[]>([])
   const [newBcvTime, setNewBcvTime] = useState('09:00')
+  const [bcvVigencyDays, setBcvVigencyDays] = useState('1')
+  const [bcvLastFetchStatus, setBcvLastFetchStatus] = useState('')
+  const [bcvLastFetchAt, setBcvLastFetchAt] = useState('')
+  const [bcvLastFetchError, setBcvLastFetchError] = useState('')
 
   const [posEnabled, setPosEnabled] = useState(false)
   const [posPort, setPosPort] = useState('')
@@ -137,6 +141,10 @@ export default function SettingsPage(): JSX.Element {
       if (sett['posTerminalEnabled']) setPosEnabled(sett['posTerminalEnabled'] === 'true')
       if (sett['posTerminalPort']) setPosPort(sett['posTerminalPort'])
       if (sett['posTerminalBaudRate']) setPosBaudRate(sett['posTerminalBaudRate'])
+      if (sett['bcvRateVigencyDays']) setBcvVigencyDays(sett['bcvRateVigencyDays'])
+      if (sett['bcvLastFetchStatus']) setBcvLastFetchStatus(sett['bcvLastFetchStatus'])
+      if (sett['bcvLastFetchAt']) setBcvLastFetchAt(sett['bcvLastFetchAt'])
+      if (sett['bcvLastFetchError']) setBcvLastFetchError(sett['bcvLastFetchError'])
       if (companyRes.company) {
         const c = companyRes.company
         setCompany({
@@ -190,6 +198,10 @@ export default function SettingsPage(): JSX.Element {
         if (sett['posTerminalEnabled']) setPosEnabled(sett['posTerminalEnabled'] === 'true')
         if (sett['posTerminalPort']) setPosPort(sett['posTerminalPort'])
         if (sett['posTerminalBaudRate']) setPosBaudRate(sett['posTerminalBaudRate'])
+        if (sett['bcvRateVigencyDays']) setBcvVigencyDays(sett['bcvRateVigencyDays'])
+        if (sett['bcvLastFetchStatus']) setBcvLastFetchStatus(sett['bcvLastFetchStatus'])
+        if (sett['bcvLastFetchAt']) setBcvLastFetchAt(sett['bcvLastFetchAt'])
+        if (sett['bcvLastFetchError']) setBcvLastFetchError(sett['bcvLastFetchError'])
         if (companyRes.company) {
           const c = companyRes.company
           setCompany({
@@ -457,6 +469,17 @@ export default function SettingsPage(): JSX.Element {
       showSuccess(`Hora ${time} eliminada`)
     } catch (err) {
       setBcvFetchTimes(bcvFetchTimes)
+      showError(err instanceof Error ? err.message : 'Error al guardar')
+    }
+  }
+
+  const handleVigencySubmit = async (): Promise<void> => {
+    const days = Math.max(1, Math.floor(Number(bcvVigencyDays) || 1))
+    setBcvVigencyDays(String(days))
+    try {
+      await api.settings.set('bcvRateVigencyDays', String(days))
+      showSuccess(`Vigencia de la tasa: ${days} día(s)`)
+    } catch (err) {
       showError(err instanceof Error ? err.message : 'Error al guardar')
     }
   }
@@ -755,6 +778,57 @@ export default function SettingsPage(): JSX.Element {
               </div>
             </div>
           )}
+
+          {bcvLastFetchStatus && (
+            <div
+              className={`rounded-lg p-3 mt-4 text-sm ${
+                bcvLastFetchStatus === 'ok'
+                  ? 'bg-green-50 text-green-700'
+                  : 'bg-yellow-50 text-yellow-700'
+              }`}
+            >
+              <p className="font-medium">
+                Última consulta automática:{' '}
+                {bcvLastFetchStatus === 'ok' ? 'exitosa' : 'no se pudo obtener'}
+              </p>
+              {bcvLastFetchAt && (
+                <p className="text-xs opacity-80">{new Date(bcvLastFetchAt).toLocaleString()}</p>
+              )}
+              {bcvLastFetchStatus !== 'ok' && bcvLastFetchError && (
+                <p className="text-xs mt-1 opacity-90">
+                  Motivo: {bcvLastFetchError} — verifica la conexión a internet. La tasa debe
+                  ingresarse manualmente.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Vigencia de la tasa */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-bold mb-4">Vigencia de la tasa</h2>
+          <p className="text-sm text-gray-500 mb-3">
+            La factura se emite en bolívares. Si la tasa registrada supera esta vigencia, el POS
+            solicitará ingresar una nueva tasa manualmente antes de emitir.
+          </p>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 w-40">
+              Días de vigencia
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={bcvVigencyDays}
+              onChange={(e) => setBcvVigencyDays(e.target.value)}
+              className="w-24 px-3 py-2 border border-gray-300 rounded-md text-sm"
+            />
+            <button
+              onClick={handleVigencySubmit}
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors text-sm"
+            >
+              Guardar
+            </button>
+          </div>
         </div>
 
         {/* 1.9.5 — Datos de la Empresa */}

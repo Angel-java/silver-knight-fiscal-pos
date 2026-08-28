@@ -2,7 +2,7 @@
 type: concept
 tags: [docker, deployment, backend, updater]
 created: 2026-07-31
-updated: 2026-08-23
+updated: 2026-08-27
 sources: [roadmap]
 ---
 
@@ -49,6 +49,7 @@ Toda invocación de docker pasa por el exe resuelto por `src/main/docker-path.ts
 | v1.1.6 | shutdown graceful (`COMPOSE_PROJECT_NAME` en `before-quit`), cleanup sin tocar la DB, health liveness, detección de crash-loop, `prisma db push` gated por hash, pre-warm de cache post-update | Pendiente confirmación en máquina desplegada |
 | v1.1.13 | offline-first en arranque (`getImageAvailability`, `ensureServerImage` offline-aware con `skippedOffline`, pre-warm db `pullDbImage`, diálogo "Primera configuración requiere internet", `pull_policy: missing` en db, update check offline silencioso + retry por polling) | Verificado con typecheck + 122 tests; pendiente E2E offline en máquina desplegada |
 | v1.1.24 | resolución de CLI docker con caché + rutas absolutas + reintentos, timeouts 5s→20s, PATH hijo aumentado, diálogo con Reintentar, diagnóstico CLI enriquecido | Verificado con typecheck + 194 tests; pendiente confirmación en la máquina afectada |
+| v1.1.25 | **probe de conectividad real** (`netProbe.isReallyOnline`) en `index.ts`/`server-image.ts`/`updater.ts`; con imágenes cacheadas el arranque **no depende del probe** (la caché es la garantía); sync resiliente con backoff + `lastSyncAt` condicional; vigencia de tasa + inserción manual en POS + degradación BCV visible | Verificado con typecheck + 215 tests; pendiente E2E offline en máquina desplegada |
 
 Causas raíz descubiertas en v1.1.6 (ver [[diagnostico-error-3001-post-update]]):
 - `before-quit` corría `docker compose down` sin `COMPOSE_PROJECT_NAME` → no-op → la DB nunca se apagaba limpio
@@ -66,6 +67,6 @@ Causas raíz descubiertas en v1.1.6 (ver [[diagnostico-error-3001-post-update]])
 - NO volver a hacer `rm -f` del contenedor `silverknight-db` (crash recovery)
 - NO volver a meter consultas a la DB dentro de `/api/health` (health es liveness del proceso)
 - NO eliminar `pull_policy: missing` de `db` ni volver a asumir que `up -d` puede hacer pull sin red
-- Cualquier cambio que requiera red en el arranque empaquetado debe pasar por `net.isOnline()` + imágenes en caché (ver [[offline-first]])
+- Cualquier cambio que requiera red en el arranque empaquetado debe pasar por `isReallyOnline()` (probe real, no solo `net.isOnline()`) + imágenes en caché (ver [[offline-first]])
 - NO invocar `docker`/`docker compose` pelado en el proceso main: usar `getCachedDockerExe()` / `getComposeCmd()` de `docker-path.ts`
 - NO bajar los timeouts de las sondas docker por debajo de 20s ni diagnosticar "no instalado" sin reintentos (falsos positivos por AV/lentitud)

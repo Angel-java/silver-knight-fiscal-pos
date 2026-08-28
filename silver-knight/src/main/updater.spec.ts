@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const { mockAutoUpdater, mockNet } = vi.hoisted(() => ({
+const { mockAutoUpdater, mockNet, mockIsReallyOnline } = vi.hoisted(() => ({
   mockAutoUpdater: {
     autoDownload: true,
     autoInstallOnAppQuit: false,
@@ -12,7 +12,8 @@ const { mockAutoUpdater, mockNet } = vi.hoisted(() => ({
   },
   mockNet: {
     isOnline: vi.fn(() => true)
-  }
+  },
+  mockIsReallyOnline: vi.fn(async () => true)
 }))
 
 vi.mock('electron', () => ({
@@ -33,6 +34,10 @@ vi.mock('./docker', () => ({
   stopCompose: vi.fn().mockResolvedValue(undefined)
 }))
 
+vi.mock('./netProbe', () => ({
+  isReallyOnline: () => mockIsReallyOnline()
+}))
+
 import { AppUpdater } from './updater'
 import { stopCompose } from './docker'
 
@@ -44,6 +49,7 @@ describe('AppUpdater', () => {
     vi.clearAllMocks()
     eventHandlers = {}
     mockNet.isOnline.mockReturnValue(true)
+    mockIsReallyOnline.mockResolvedValue(true)
     mockAutoUpdater.on.mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
       eventHandlers[event] = handler
     })
@@ -91,7 +97,13 @@ describe('AppUpdater', () => {
     mockAutoUpdater.checkForUpdates.mockRejectedValue(new Error('network error'))
     await updater.checkForUpdates()
     expect(updater.getStatus().status).toBe('error')
-    expect(updater.getStatus().error).toBe('network error')
+    expect(updater.getStatus().error).toContain('No hay conexión')
+  })
+
+  it('keeps the technical message when the error is not a connection failure', async () => {
+    mockAutoUpdater.checkForUpdates.mockRejectedValue(new Error('release asset not found'))
+    await updater.checkForUpdates()
+    expect(updater.getStatus().error).toBe('release asset not found')
   })
 
   it('ignores checkForUpdates when downloading', async () => {
@@ -170,39 +182,39 @@ describe('AppUpdater', () => {
     }).not.toThrow()
   })
 
-  it('startAutoCheck sets interval', () => {
+  it('startAutoCheck sets interval', async () => {
     vi.useFakeTimers()
     updater.startAutoCheck(1000)
     mockAutoUpdater.checkForUpdates.mockResolvedValue(undefined)
-    vi.advanceTimersByTime(1000)
+    await vi.advanceTimersByTimeAsync(1000)
     expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled()
     vi.useRealTimers()
   })
 
-  it('stopAutoCheck clears interval', () => {
+  it('stopAutoCheck clears interval', async () => {
     vi.useFakeTimers()
     updater.startAutoCheck(1000)
     updater.stopAutoCheck()
     mockAutoUpdater.checkForUpdates.mockResolvedValue(undefined)
-    vi.advanceTimersByTime(2000)
+    await vi.advanceTimersByTimeAsync(2000)
     expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
     vi.useRealTimers()
   })
 
-  it('startAutoCheck replaces previous interval', () => {
+  it('startAutoCheck replaces previous interval', async () => {
     vi.useFakeTimers()
     updater.startAutoCheck(1000)
     updater.startAutoCheck(2000)
     mockAutoUpdater.checkForUpdates.mockResolvedValue(undefined)
-    vi.advanceTimersByTime(1500)
+    await vi.advanceTimersByTimeAsync(1500)
     expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(1000)
+    await vi.advanceTimersByTimeAsync(1000)
     expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled()
     vi.useRealTimers()
   })
 
   it('skips checkForUpdates when offline (no error status)', async () => {
-    mockNet.isOnline.mockReturnValue(false)
+    mockIsReallyOnline.mockResolvedValue(false)
     await updater.checkForUpdates()
     expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
     expect(updater.getStatus().status).toBe('idle')
@@ -210,13 +222,13 @@ describe('AppUpdater', () => {
 
   it('runs pending update check when connection is restored', async () => {
     vi.useFakeTimers()
-    mockNet.isOnline.mockReturnValue(false)
+    mockIsReallyOnline.mockResolvedValue(false)
     await updater.checkForUpdates()
     expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled()
 
-    mockNet.isOnline.mockReturnValue(true)
+    mockIsReallyOnline.mockResolvedValue(true)
     mockAutoUpdater.checkForUpdates.mockResolvedValue(undefined)
-    vi.advanceTimersByTime(30_000)
+    await vi.advanceTimersByTimeAsync(30_000)
     expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled()
     expect(updater.getStatus().status).toBe('checking')
     vi.useRealTimers()

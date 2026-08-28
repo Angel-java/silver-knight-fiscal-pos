@@ -152,6 +152,133 @@ describe('POST /api/invoices', () => {
     )
   })
 
+  it('uses the latest rate when no exchangeRate is provided and it is still vigent', async () => {
+    const mockTx = mockTransaction()
+    vi.mocked(prisma.exchangeRate.findFirst).mockResolvedValue({
+      id: 'er-1',
+      rate: 36.5,
+      source: 'bcv-auto',
+      date: new Date('2026-07-04T09:00:00Z')
+    } as any)
+    vi.mocked(prisma.setting.findMany).mockResolvedValue([])
+    vi.mocked(prisma.fiscalControl.findFirst).mockResolvedValue({
+      id: 'fc-1',
+      documentType: 'FACT',
+      prefix: '0F',
+      currentNumber: 5,
+      endNumber: 999999,
+      resolution: 'R001',
+      isActive: true
+    } as any)
+    vi.mocked(mockTx.fiscalControl.findFirst).mockResolvedValue({
+      id: 'fc-1',
+      documentType: 'FACT',
+      prefix: '0F',
+      currentNumber: 5,
+      endNumber: 999999,
+      resolution: 'R001',
+      isActive: true
+    } as any)
+    vi.mocked(mockTx.invoice.create).mockResolvedValue({
+      id: 'inv-1',
+      items: [],
+      customer: null,
+      fiscalControl: { id: 'fc-1' }
+    } as any)
+
+    const res = await request(createApp())
+      .post('/api/invoices')
+      .send({
+        items: [{ productName: 'A', quantity: 1, unitPriceUsd: 10, ivaRate: 16 }],
+        currency: 'USD'
+      })
+
+    expect(res.status).toBe(201)
+    expect(mockTx.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ exchangeRate: 36.5 }) })
+    )
+  })
+
+  it('returns RATE_MISSING when no exchangeRate and no rate exists', async () => {
+    vi.mocked(prisma.exchangeRate.findFirst).mockResolvedValue(null)
+    vi.mocked(prisma.setting.findMany).mockResolvedValue([])
+
+    const res = await request(createApp())
+      .post('/api/invoices')
+      .send({ items: [{ productName: 'A', quantity: 1, unitPriceUsd: 10, ivaRate: 16 }] })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('No hay una tasa de cambio configurada')
+    expect(res.body.details).toEqual({ errorCode: 'RATE_MISSING' })
+  })
+
+  it('returns RATE_EXPIRED when the stored rate is older than the vigency window', async () => {
+    vi.mocked(prisma.exchangeRate.findFirst).mockResolvedValue({
+      id: 'er-1',
+      rate: 36.5,
+      source: 'manual',
+      date: new Date('2026-06-30T09:00:00Z')
+    } as any)
+    vi.mocked(prisma.setting.findMany).mockResolvedValue([]) // default vigency = 1 day
+
+    const res = await request(createApp())
+      .post('/api/invoices')
+      .send({ items: [{ productName: 'A', quantity: 1, unitPriceUsd: 10, ivaRate: 16 }] })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('ya no está en vigencia')
+    expect(res.body.details).toEqual({ errorCode: 'RATE_EXPIRED' })
+  })
+
+  it('accepts a rate older than the default when a longer vigency is configured', async () => {
+    const mockTx = mockTransaction()
+    vi.mocked(prisma.exchangeRate.findFirst).mockResolvedValue({
+      id: 'er-1',
+      rate: 36.5,
+      source: 'manual',
+      date: new Date('2026-07-01T09:00:00Z') // 3 days before the fixed "now"
+    } as any)
+    vi.mocked(prisma.setting.findMany).mockResolvedValue([
+      { key: 'bcvRateVigencyDays', value: '5', createdAt: new Date(), updatedAt: new Date() }
+    ] as any)
+    vi.mocked(prisma.fiscalControl.findFirst).mockResolvedValue({
+      id: 'fc-1',
+      documentType: 'FACT',
+      prefix: '0F',
+      currentNumber: 5,
+      endNumber: 999999,
+      resolution: 'R001',
+      isActive: true
+    } as any)
+    vi.mocked(mockTx.fiscalControl.findFirst).mockResolvedValue({
+      id: 'fc-1',
+      documentType: 'FACT',
+      prefix: '0F',
+      currentNumber: 5,
+      endNumber: 999999,
+      resolution: 'R001',
+      isActive: true
+    } as any)
+    vi.mocked(mockTx.invoice.create).mockResolvedValue({
+      id: 'inv-1',
+      items: [],
+      customer: null,
+      fiscalControl: { id: 'fc-1' }
+    } as any)
+
+    const res = await request(createApp())
+      .post('/api/invoices')
+      .send({
+        items: [{ productName: 'A', quantity: 1, unitPriceUsd: 10, ivaRate: 16 }],
+        currency: 'USD'
+      })
+
+    expect(res.status).toBe(201)
+    expect(mockTx.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ exchangeRate: 36.5 }) })
+    )
+  })
+
   it('returns 400 when no items provided', async () => {
     const res = await request(createApp())
       .post('/api/invoices')

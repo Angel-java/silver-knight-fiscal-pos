@@ -1,10 +1,35 @@
 import { schedule, type ScheduledTask } from 'node-cron'
 import { prisma } from './database/prisma'
 import { logger } from './utils/logger'
+import { connectionFailureMessage } from './utils/connectionError'
 
 const DOLARAPI_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
 
 const jobs: ScheduledTask[] = []
+
+async function recordBcvStatus(status: string, error?: string): Promise<void> {
+  try {
+    await prisma.setting.upsert({
+      where: { key: 'bcvLastFetchStatus' },
+      update: { value: status },
+      create: { key: 'bcvLastFetchStatus', value: status }
+    })
+    await prisma.setting.upsert({
+      where: { key: 'bcvLastFetchAt' },
+      update: { value: new Date().toISOString() },
+      create: { key: 'bcvLastFetchAt', value: new Date().toISOString() }
+    })
+    if (error !== undefined) {
+      await prisma.setting.upsert({
+        where: { key: 'bcvLastFetchError' },
+        update: { value: error },
+        create: { key: 'bcvLastFetchError', value: error }
+      })
+    }
+  } catch {
+    /* status recording must not break the scheduler */
+  }
+}
 
 async function fetchBcvRate(): Promise<void> {
   try {
@@ -12,7 +37,10 @@ async function fetchBcvRate(): Promise<void> {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       signal: AbortSignal.timeout(10000)
     })
-    if (!res.ok) return
+    if (!res.ok) {
+      await recordBcvStatus('error', `HTTP ${res.status}`)
+      return
+    }
     const data = (await res.json()) as {
       promedio?: number
       promedio_real?: number
@@ -23,10 +51,16 @@ async function fetchBcvRate(): Promise<void> {
       await prisma.exchangeRate.create({
         data: { rate: parseFloat(rate.toFixed(2)), source: 'bcv-auto', date: new Date() }
       })
+      await recordBcvStatus('ok')
       logger.info('scheduler', `BCV auto-fetch: Bs. ${rate.toFixed(2)}`)
+    } else {
+      await recordBcvStatus('error', 'Respuesta del BCV sin tasa válida')
     }
-  } catch {
-    /* auto-fetch failures are silent */
+  } catch (err) {
+    const message =
+      connectionFailureMessage(err) ?? (err instanceof Error ? err.message : 'sin conexión')
+    await recordBcvStatus('error', message)
+    logger.warn('scheduler', `BCV auto-fetch failed (offline?): ${message}`)
   }
 }
 

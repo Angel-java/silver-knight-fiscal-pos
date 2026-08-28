@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-08-23
+updated: 2026-08-27
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -33,6 +33,8 @@ updated: 2026-08-23
 - [[docker-deployment|Docker Deployment]] — Modelo de deployment offline-capable (v1.1.13, arranque sin internet)
 
 ## Hitos recientes
+- [[log#2026-08-27-build--reporte-de-fallas-por-problemas-de-conexión-en-funciones-de-red|2026-08-27 — Build: Reporte de fallas por conexión]] — Las funciones de red (BCV, sync, auto-update) informan "No hay conexión a internet" con causa técnica cuando fallan por conectividad
+- [[log#2026-08-27-build--endurecimiento-offline-first-netprobe--vigencia-de-tasa--sync-resiliente|2026-08-27 — Build: Endurecimiento offline-first]] — Probe de conectividad real (netProbe), vigencia de tasa configurable + inserción manual en POS, sync resiliente con backoff (Fases A/B/C)
 - [[diagnostico-docker-not-installed-timeout|2026-08-23 — Fix falso "Docker no instalado" (v1.1.24)]] — Timeout de 5s mataba `docker --version` en máquinas lentas/AV; fix con resolución de exe cacheada + rutas absolutas + reintentos + timeouts 20s
 - [[log#2026-08-21-fix--importación-todo-o-nada--diagnóstico-de-import-fantasma-v1123|2026-08-21 — Fix importación todo-o-nada (v1.1.23)]] — Pre-vuelo con duplicados/referencias, sin éxito falso; causa raíz del "no importó nada" (imagen stale + cascada 25P02 + log falso)
 - [[log#2026-08-20-release--v1122-publicada--selector-de-directorio-de-exportación|2026-08-20 — Release v1.1.22]] — Selector de directorio de exportación (feature 100% cliente, sin cambios de schema); auditoría pre-release sin riesgo para máquinas productivas

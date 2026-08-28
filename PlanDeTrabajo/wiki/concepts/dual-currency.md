@@ -2,7 +2,7 @@
 type: concept
 tags: [currency, usd, ves, exchange-rate, architecture]
 created: 2026-06-30
-updated: 2026-08-04
+updated: 2026-08-27
 sources: [adr-003, db-schema]
 ---
 
@@ -14,7 +14,15 @@ Mecanismo nativo de doble moneda (USD/VES) en Silver Knight. Fuentes: [[architec
 
 - **Catálogo dolarizado**: [[product|Product]], [[customer|Customer]] e [[inventory-movement|InventoryMovement]] guardan **solo USD**. Los montos VES del catálogo se calculan en vivo (precio/costo USD × tasa vigente) al registrar/editar y en la lista de productos; no se persisten.
 - **Factura fiscal dual**: la [[invoice|Invoice]] congela los montos VES (`unitPriceVes`, `totalVes`, `ivaVes`) y la `exchangeRate` usada al momento de la transacción (ver [[exchange-rate]]). Esto es requisito SENIAT y no se recalcula nunca.
-- La tasa se toma del body `exchangeRate` al facturar; si no se envía, el servidor usa la última registrada en BD; si no hay ninguna → error 400 "No hay una tasa de cambio configurada. Regístrala en Ajustes > Tasa BCV."
+- La tasa se toma del body `exchangeRate` al facturar; si no se envía, el servidor usa la última registrada en BD **y si aún está en vigencia**; si no hay ninguna (o está vencida) → error 400 con `errorCode` (`RATE_MISSING` / `RATE_EXPIRED`).
+
+## Regla de vigencia de la tasa y flujo de inserción (v1.1.25)
+
+- **La factura se emite en bolívares y exige tasa SIEMPRE**: la regla de negocio no permite emitir una factura sin tasa (ni siquiera 100% USD) — el sistema bloquea y pide registrar una.
+- **Vigencia configurable**: la setting `bcvRateVigencyDays` (default 1 día, editable en Ajustes > Vigencia de la tasa) define cuántos días es considerada válida la última tasa registrada.
+- **Backend** (`POST /invoices`): al no venir `exchangeRate` en el body, obtiene la última tasa; si su antigüedad supera la vigencia → 400 `RATE_EXPIRED`; si no existe tasa → 400 `RATE_MISSING`. Ambos incluyen `details.errorCode`.
+- **Renderer (POS)**: al recibir `RATE_MISSING`/`RATE_EXPIRED`, el `PaymentModal` abre un **modal de inserción manual** (`RateModal`, funciona offline, guarda vía `POST /exchange-rates` con `source: 'manual'`). Al guardar, reintenta automáticamente la emisión con la nueva tasa. No cae en un error genérico.
+- El auto-fetch BCV funciona complementariamente: si está habilitado y hay red, refresca la tasa automáticamente; si no, el operador la ingresa manualmente.
 
 ## ¿Qué entidades implementan esto?
 

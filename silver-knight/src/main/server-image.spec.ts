@@ -3,10 +3,11 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from 'fs
 import { join } from 'path'
 import { tmpdir } from 'os'
 
-const { mockBuildCompose, mockImageExists, mockIsOnline } = vi.hoisted(() => ({
+const { mockBuildCompose, mockImageExists, mockIsOnline, mockIsReallyOnline } = vi.hoisted(() => ({
   mockBuildCompose: vi.fn(),
   mockImageExists: vi.fn(),
-  mockIsOnline: vi.fn(() => true)
+  mockIsOnline: vi.fn(() => true),
+  mockIsReallyOnline: vi.fn(async () => true)
 }))
 
 const userDataDir = mkdtempSync(join(tmpdir(), 'sk-server-image-'))
@@ -31,6 +32,10 @@ vi.mock('./logger', () => ({
   log: vi.fn()
 }))
 
+vi.mock('./netProbe', () => ({
+  isReallyOnline: () => mockIsReallyOnline()
+}))
+
 import { ensureServerImage } from './server-image'
 
 function sentinelPath(): string {
@@ -53,7 +58,7 @@ describe('ensureServerImage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     removeSentinel()
-    mockIsOnline.mockReturnValue(true)
+    mockIsReallyOnline.mockResolvedValue(true)
     mockImageExists.mockResolvedValue(true)
     mockBuildCompose.mockResolvedValue({ success: true })
   })
@@ -82,7 +87,7 @@ describe('ensureServerImage', () => {
 
   it('skips rebuild when offline with cached image (skippedOffline)', async () => {
     writeSentinel('1.0.9')
-    mockIsOnline.mockReturnValue(false)
+    mockIsReallyOnline.mockResolvedValue(false)
     mockImageExists.mockResolvedValue(true)
     const result = await ensureServerImage()
     expect(result).toEqual({ rebuilt: false, skippedOffline: true })
@@ -91,7 +96,7 @@ describe('ensureServerImage', () => {
 
   it('returns error when offline without cached image', async () => {
     writeSentinel('1.0.9')
-    mockIsOnline.mockReturnValue(false)
+    mockIsReallyOnline.mockResolvedValue(false)
     mockImageExists.mockResolvedValue(false)
     const result = await ensureServerImage()
     expect(result.rebuilt).toBe(false)

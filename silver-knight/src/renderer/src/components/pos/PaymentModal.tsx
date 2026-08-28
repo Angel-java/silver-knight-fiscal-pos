@@ -1,5 +1,6 @@
 import { useState, useEffect, type JSX } from 'react'
-import { api, type Invoice } from '../../lib/api'
+import { api, type ApiError, type Invoice } from '../../lib/api'
+import RateModal from './RateModal'
 
 interface PaymentModalProps {
   open: boolean
@@ -42,6 +43,8 @@ export default function PaymentModal({
     cardNumber?: string
     message?: string
   } | null>(null)
+  const [rateReason, setRateReason] = useState<'missing' | 'expired' | null>(null)
+  const [rateOverride, setRateOverride] = useState(0)
 
   useEffect(() => {
     if (open) {
@@ -111,14 +114,20 @@ export default function PaymentModal({
     }
   }
 
-  const handleSubmit = async (): Promise<void> => {
+  const handleSubmit = async (rateHint?: number): Promise<void> => {
     if (cart.length === 0 || totalPaid < roundedDisplay) return
     setSubmitting(true)
     try {
+      const effectiveRate =
+        typeof rateHint === 'number' && rateHint > 0
+          ? rateHint
+          : rateOverride > 0
+            ? rateOverride
+            : exchangeRate
       const res = await api.invoices.create({
         customerId: customer?.id || null,
         currency,
-        exchangeRate,
+        exchangeRate: effectiveRate,
         items: cart.map((i) => ({
           productId: i.productId,
           productName: i.productName,
@@ -136,11 +145,27 @@ export default function PaymentModal({
       onSubmit(res.invoice)
       onClose()
       setPosResult(null)
+      setRateReason(null)
     } catch (err) {
+      const errorCode = (err as ApiError)?.details as { errorCode?: string } | undefined
+      if (errorCode?.errorCode === 'RATE_MISSING') {
+        setRateReason('missing')
+        return
+      }
+      if (errorCode?.errorCode === 'RATE_EXPIRED') {
+        setRateReason('expired')
+        return
+      }
       onError(err instanceof Error ? err.message : 'Error al crear factura')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleRateSaved = (rate: number): void => {
+    setRateOverride(rate)
+    setRateReason(null)
+    void handleSubmit(rate)
   }
 
   if (!open) return null
@@ -272,7 +297,7 @@ export default function PaymentModal({
             Cancelar
           </button>
           <button
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={submitting || totalPaid < roundedDisplay}
             className="flex-1 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 transition-colors font-bold"
           >
@@ -282,6 +307,16 @@ export default function PaymentModal({
           </button>
         </div>
       </div>
+
+      {rateReason !== null && (
+        <RateModal
+          open={true}
+          reason={rateReason}
+          initialRate={exchangeRate}
+          onClose={() => setRateReason(null)}
+          onSave={handleRateSaved}
+        />
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, clipboard, net } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, clipboard } from 'electron'
 import path from 'path'
 import { join } from 'path'
 import { execSync, exec } from 'child_process'
@@ -35,6 +35,7 @@ import {
 import { getCachedDockerExe, getDockerCandidatePaths } from './docker-path'
 import { appUpdater } from './updater'
 import { ensureServerImage } from './server-image'
+import { isReallyOnline } from './netProbe'
 import {
   ensureConfig,
   readConfig,
@@ -336,7 +337,7 @@ async function startBackend(): Promise<boolean> {
 
   if (app.isPackaged) {
     const images = await getImageAvailability()
-    const online = net.isOnline()
+    const online = await isReallyOnline()
     log('startup', `Image availability — db: ${images.db}, server: ${images.server}; online: ${online}`)
 
     if (!images.db || !images.server) {

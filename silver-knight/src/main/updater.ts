@@ -1,7 +1,9 @@
-import { app, BrowserWindow, ipcMain, net } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater, type UpdateInfo } from 'electron-updater'
 import { stopCompose } from './docker'
 import { log } from './logger'
+import { isReallyOnline } from './netProbe'
+import { connectionFailureMessage } from '../server/utils/connectionError'
 
 const RETRY_POLL_MS = 30_000
 
@@ -57,8 +59,8 @@ export class AppUpdater {
     autoUpdater.on('error', (err: Error) => {
       log('error', `Update error: ${err.message}`)
       this.status = 'error'
-      this.lastError = err.message
-      this.send('update-error', err.message)
+      this.lastError = connectionFailureMessage(err) ?? err.message
+      this.send('update-error', this.lastError)
     })
 
     ipcMain.on('check-for-updates', () => {
@@ -94,8 +96,8 @@ export class AppUpdater {
 
   async checkForUpdates(): Promise<void> {
     if (this.status === 'downloading') return
-    if (!net.isOnline()) {
-      log('check', 'Offline, update check skipped (will retry when connection is back)')
+    if (!(await isReallyOnline())) {
+      log('check', 'Offline/*, update check skipped (will retry when connection is back)')
       this.pendingCheck = true
       this.startRetryPoll()
       return
@@ -108,9 +110,10 @@ export class AppUpdater {
     try {
       await autoUpdater.checkForUpdates()
     } catch (err) {
+      const friendly = connectionFailureMessage(err)
       log('error', `Check failed: ${err}`)
       this.status = 'error'
-      this.lastError = err instanceof Error ? err.message : String(err)
+      this.lastError = friendly ?? (err instanceof Error ? err.message : String(err))
       this.send('update-error', this.lastError)
     }
   }
@@ -134,7 +137,7 @@ export class AppUpdater {
       this.stopRetryPoll()
       return
     }
-    if (net.isOnline()) {
+    if (await isReallyOnline()) {
       log('scheduler', 'Connection restored, running pending update check')
       await this.checkForUpdates()
     }
@@ -147,9 +150,10 @@ export class AppUpdater {
     try {
       await autoUpdater.downloadUpdate()
     } catch (err) {
+      const friendly = connectionFailureMessage(err)
       log('error', `Download failed: ${err}`)
       this.status = 'error'
-      this.lastError = err instanceof Error ? err.message : String(err)
+      this.lastError = friendly ?? (err instanceof Error ? err.message : String(err))
       this.send('update-error', this.lastError)
     }
   }
