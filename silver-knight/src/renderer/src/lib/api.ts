@@ -96,7 +96,8 @@ export const PERMISSION_MODULES = [
   'iva-books',
   'fiscal-control',
   'users',
-  'data-migration'
+  'data-migration',
+  'apartados'
 ] as const
 
 export type PermissionModule = (typeof PERMISSION_MODULES)[number]
@@ -185,6 +186,7 @@ export interface Customer {
   email: string | null
   creditLimitUsd: number | null
   invoices?: Invoice[]
+  reservations?: Reservation[]
   createdAt: string
 }
 
@@ -249,6 +251,73 @@ export interface InvoiceInput {
   exchangeRate: number
   documentType?: string
   payments?: Array<{ method: string; amount: number; currency: string }>
+}
+
+export interface ReservationItem {
+  id: string
+  productId: string | null
+  productName: string
+  quantity: number
+  unitPriceUsd: number
+  unitPriceVes: number
+  ivaRate: number
+  totalUsd: number
+  totalVes: number
+}
+
+export interface ReservationPayment {
+  id: string
+  amountUsd: number
+  amountVes: number
+  method: string
+  detail: string | null
+  userId: string | null
+  createdAt: string
+}
+
+export interface Reservation {
+  id: string
+  number: string
+  customerId: string | null
+  customer: Customer | null
+  userId: string | null
+  user: { id: string; username: string; fullName: string | null } | null
+  status: string
+  totalUsd: number
+  totalVes: number
+  exchangeRate: number
+  currency: string
+  amountPaidUsd: number
+  depositUsd: number
+  dueDate: string | null
+  notes: string | null
+  cancelledAt: string | null
+  cancelledBy: string | null
+  cancelReason: string | null
+  finalizedAt: string | null
+  invoiceId: string | null
+  invoice: Invoice | null
+  items?: ReservationItem[]
+  payments?: ReservationPayment[]
+  createdAt: string
+}
+
+export interface ReservationInput {
+  customerId?: string | null
+  items: Array<{
+    productId?: string
+    productName: string
+    quantity: number
+    unitPriceUsd: number
+    ivaRate: number
+  }>
+  currency: string
+  exchangeRate: number
+  depositUsd: number
+  depositVes?: number
+  depositMethod?: string
+  dueDate?: string | null
+  notes?: string | null
 }
 
 export type MigrationStrategy = 'skip' | 'overwrite'
@@ -935,6 +1004,52 @@ export const api = {
       }),
 
     logs: () => request<{ logs: MigrationLogEntry[] }>('/migration/logs')
+  },
+
+  reservations: {
+    list: (params?: { status?: string; search?: string; page?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.status) q.set('status', params.status)
+      if (params?.search) q.set('search', params.search)
+      if (params?.page) q.set('page', String(params.page))
+      const qs = q.toString()
+      return request<{ reservations: Reservation[]; total: number; page: number; pages: number }>(
+        `/reservations${qs ? '?' + qs : ''}`
+      )
+    },
+
+    get: (id: string) =>
+      request<{ reservation: Reservation }>(`/reservations/${id}`),
+
+    create: (data: ReservationInput) =>
+      request<{ reservation: Reservation }>('/reservations', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    addPayment: (id: string, data: { amountUsd?: number; amountVes?: number; method?: string; detail?: string | null }) =>
+      request<{ payment: ReservationPayment; remaining: number; finalized: boolean }>(
+        `/reservations/${id}/payments`,
+        {
+          method: 'POST',
+          body: JSON.stringify(data)
+        }
+      ),
+
+    finalize: (
+      id: string,
+      data?: { payments?: Array<{ method: string; amount: number; currency: string }> }
+    ) =>
+      request<{ reservation: Reservation; invoice: Invoice }>(`/reservations/${id}/finalize`, {
+        method: 'POST',
+        body: JSON.stringify(data || {})
+      }),
+
+    cancel: (id: string, reason: string) =>
+      request<{ reservation: Reservation }>(`/reservations/${id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      })
   },
 
   getApiBase,

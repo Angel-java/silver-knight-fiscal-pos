@@ -4,7 +4,7 @@ import { authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { createInvoiceSchema, cancelInvoiceSchema } from '../validation/schemas'
 import { asyncHandler, AppError } from '../middleware/errorHandler'
-import { ensureDefaultControl } from './fiscalControl'
+import { nextControlNumber, buildInvoiceNumber } from '../utils/controlNumbers'
 import { DEFAULT_INVOICE_PAGE_SIZE } from '../config'
 import { parseVigencyDays } from '../utils/rateSettings'
 
@@ -12,39 +12,72 @@ const router = Router()
 router.use(authMiddleware)
 router.use(requirePermission('invoices'))
 
-async function nextControlNumber(
-  documentType: string
-): Promise<{ number: string; fiscalControlId: string }> {
-  await ensureDefaultControl()
+export interface CreateInvoiceLine {
+  productId?: string | null
+  productName: string
+  quantity: number
+  unitPriceUsd: number
+  ivaRate: number
+}
 
-  return prisma.$transaction(async (tx) => {
-    const control = await tx.fiscalControl.findFirst({
-      where: { documentType, isActive: true }
-    })
-    if (!control) {
-      throw new AppError(
-        400,
-        `No hay un control fiscal activo para ${documentType}. Configúralo en Ajustes > Control Fiscal.`
-      )
+export function computeInvoiceTotals(
+  items: CreateInvoiceLine[],
+  rate: number
+): {
+  invoiceItems: Array<{
+    productId: string | null
+    productName: string
+    quantity: number
+    unitPriceUsd: number
+    unitPriceVes: number
+    ivaRate: number
+    totalUsd: number
+    totalVes: number
+  }>
+  totalUsd: number
+  totalVes: number
+  ivaUsd: number
+  ivaVes: number
+} {
+  let totalUsd = 0
+  let totalVes = 0
+  let ivaUsd = 0
+  let ivaVes = 0
+
+  const round2 = (n: number): number => Math.round(n * 100) / 100
+
+  const invoiceItems = items.map((item) => {
+    const qty = Number(item.quantity) || 1
+    const unitPriceUsd = Number(item.unitPriceUsd) || 0
+    const unitPriceVes = round2(unitPriceUsd * rate)
+    const lineUsd = unitPriceUsd * qty
+    const lineVes = unitPriceVes * qty
+    const ivaRate = Number(item.ivaRate) || 0
+    const lineIvaUsd = lineUsd * (ivaRate / 100)
+    const lineIvaVes = lineVes * (ivaRate / 100)
+    totalUsd += lineUsd
+    totalVes += lineVes
+    ivaUsd += lineIvaUsd
+    ivaVes += lineIvaVes
+    return {
+      productId: item.productId || null,
+      productName: item.productName,
+      quantity: qty,
+      unitPriceUsd,
+      unitPriceVes,
+      ivaRate,
+      totalUsd: lineUsd,
+      totalVes: lineVes
     }
-
-    const nextNum = control.currentNumber + 1
-    if (nextNum > control.endNumber) {
-      throw new AppError(
-        400,
-        `Rango de numeración agotado para ${documentType} (resolución ${control.resolution})`
-      )
-    }
-
-    const cfNumber = `${control.prefix}${String(nextNum).padStart(10, '0')}`
-
-    await tx.fiscalControl.update({
-      where: { id: control.id },
-      data: { currentNumber: nextNum }
-    })
-
-    return { number: cfNumber, fiscalControlId: control.id }
   })
+
+  return {
+    invoiceItems,
+    totalUsd: Math.round(totalUsd * 100) / 100,
+    totalVes: Math.round(totalVes * 100) / 100,
+    ivaUsd: Math.round(ivaUsd * 100) / 100,
+    ivaVes: Math.round(ivaVes * 100) / 100
+  }
 }
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -134,51 +167,9 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
 
   const docType = documentType || 'FACT'
   const { number: controlNumber, fiscalControlId } = await nextControlNumber(docType)
+  const number = buildInvoiceNumber(docType, controlNumber)
 
-  const now = new Date()
-  const seqPrefix = `F${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-`
-  const docLabel = docType === 'FACT' ? 'F' : docType === 'NCR' ? 'NC' : 'ND'
-  const number = `${docLabel}-${seqPrefix}${controlNumber.slice(-4)}`
-
-  let totalUsd = 0
-  let totalVes = 0
-  let ivaUsd = 0
-  let ivaVes = 0
-
-  const round2 = (n: number): number => Math.round(n * 100) / 100
-
-  const invoiceItems = items.map(
-    (item: {
-      productId?: string
-      productName: string
-      quantity: number
-      unitPriceUsd: number
-      ivaRate: number
-    }) => {
-      const qty = Number(item.quantity) || 1
-      const unitPriceUsd = Number(item.unitPriceUsd) || 0
-      const unitPriceVes = round2(unitPriceUsd * rate)
-      const lineUsd = unitPriceUsd * qty
-      const lineVes = unitPriceVes * qty
-      const ivaRate = Number(item.ivaRate) || 0
-      const lineIvaUsd = lineUsd * (ivaRate / 100)
-      const lineIvaVes = lineVes * (ivaRate / 100)
-      totalUsd += lineUsd
-      totalVes += lineVes
-      ivaUsd += lineIvaUsd
-      ivaVes += lineIvaVes
-      return {
-        productId: item.productId || null,
-        productName: item.productName,
-        quantity: qty,
-        unitPriceUsd,
-        unitPriceVes,
-        ivaRate,
-        totalUsd: lineUsd,
-        totalVes: lineVes
-      }
-    }
-  )
+  const totals = computeInvoiceTotals(items, rate)
 
   const invoice = await prisma.$transaction(async (tx) => {
     for (const item of items) {
@@ -203,12 +194,12 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
         userId: req.user?.userId || null,
         currency: currency || 'USD',
         exchangeRate: rate,
-        totalUsd: Math.round(totalUsd * 100) / 100,
-        totalVes: Math.round(totalVes * 100) / 100,
-        ivaUsd: Math.round(ivaUsd * 100) / 100,
-        ivaVes: Math.round(ivaVes * 100) / 100,
+        totalUsd: totals.totalUsd,
+        totalVes: totals.totalVes,
+        ivaUsd: totals.ivaUsd,
+        ivaVes: totals.ivaVes,
         payments: payments ? JSON.stringify(payments) : null,
-        items: { create: invoiceItems }
+        items: { create: totals.invoiceItems }
       },
       include: { items: true, customer: true, fiscalControl: true }
     })
@@ -237,6 +228,49 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
 
   res.status(201).json({ invoice })
 }))
+
+export interface FinalizeInvoiceInput {
+  customerId?: string | null
+  items: CreateInvoiceLine[]
+  currency?: string
+  exchangeRate: number
+  payments?: Array<{ method: string; amount: number; currency: string; approvalCode?: string | null }> | null
+  userId?: string | null
+}
+
+// Crea una factura fiscal SIN volver a decrementar stock ni crear movimientos de
+// venta. Se usa cuando el stock ya fue reservado por un apartado (reservation).
+export async function createFiscalInvoiceFromReservation(
+  input: FinalizeInvoiceInput
+): Promise<Awaited<ReturnType<typeof prisma.invoice.create>>> {
+  const docType = 'FACT'
+  const { number: controlNumber, fiscalControlId } = await nextControlNumber(docType)
+  const number = buildInvoiceNumber(docType, controlNumber)
+
+  const totals = computeInvoiceTotals(input.items, input.exchangeRate)
+
+  return prisma.$transaction(async (tx) => {
+    return tx.invoice.create({
+      data: {
+        number,
+        documentType: docType,
+        controlNumber,
+        fiscalControlId,
+        customerId: input.customerId || null,
+        userId: input.userId || null,
+        currency: input.currency || 'USD',
+        exchangeRate: input.exchangeRate,
+        totalUsd: totals.totalUsd,
+        totalVes: totals.totalVes,
+        ivaUsd: totals.ivaUsd,
+        ivaVes: totals.ivaVes,
+        payments: input.payments ? JSON.stringify(input.payments) : null,
+        items: { create: totals.invoiceItems }
+      },
+      include: { items: true, customer: true, fiscalControl: true }
+    })
+  })
+}
 
 router.patch('/:id/cancel', validate(cancelInvoiceSchema), asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string

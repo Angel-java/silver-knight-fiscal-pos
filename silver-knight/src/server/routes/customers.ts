@@ -47,6 +47,11 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
         orderBy: { createdAt: 'desc' },
         take: 50,
         include: { items: true }
+      },
+      reservations: {
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        include: { items: true }
       }
     }
   })

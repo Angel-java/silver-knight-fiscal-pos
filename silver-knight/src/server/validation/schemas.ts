@@ -134,7 +134,7 @@ const PERMISSION_MODULES = [
   'dashboard', 'pos', 'products', 'categories', 'inventory',
   'inventory-entries', 'customers', 'invoices', 'reports',
   'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users',
-  'data-migration'
+  'data-migration', 'apartados'
 ] as const
 
 export const permissionModules = PERMISSION_MODULES
@@ -169,4 +169,49 @@ export const createInventoryEntrySchema = z.object({
   unitCostUsd: z.number().min(0).optional().nullable(),
   reference: z.string().optional().nullable(),
   notes: z.string().optional().nullable()
+})
+
+const reservationItemSchema = z.object({
+  productId: z.string().optional().nullable(),
+  productName: z.string().min(1, 'Nombre de producto requerido'),
+  quantity: z.number().positive('Cantidad debe ser positiva'),
+  unitPriceUsd: z.number().min(0),
+  ivaRate: z.number().min(0).max(100).default(DEFAULT_IVA_RATE)
+})
+
+export const createReservationSchema = z.object({
+  customerId: z.string().optional().nullable(),
+  items: z.array(reservationItemSchema).min(1, 'El apartado debe tener al menos un item'),
+  currency: z.enum(['USD', 'VES']).default('USD'),
+  exchangeRate: z.number().min(0).optional().default(0),
+  depositUsd: z.number().min(0, 'El apartado debe ser mayor o igual a 0'),
+  depositVes: z.number().min(0).optional().default(0),
+  depositMethod: z.string().optional().default('cash'),
+  dueDate: z.string().optional().nullable(),
+  notes: z.string().optional().nullable()
+})
+
+export const addReservationPaymentSchema = z.object({
+  amountUsd: z.number().min(0).optional().default(0),
+  amountVes: z.number().min(0).optional().default(0),
+  method: z.string().optional().default('cash'),
+  detail: z.string().optional().nullable()
+})
+
+export const finalizeReservationSchema = z.object({
+  payments: z
+    .array(
+      z.object({
+        method: z.string(),
+        amount: z.number().min(0),
+        currency: z.string(),
+        approvalCode: z.string().optional().nullable()
+      })
+    )
+    .optional()
+    .nullable()
+})
+
+export const cancelReservationSchema = z.object({
+  reason: z.string().min(1, 'Motivo de cancelación requerido')
 })

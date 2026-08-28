@@ -126,6 +126,7 @@ async function loadAndSchedule(): Promise<void> {
 
 export async function startBcvScheduler(): Promise<void> {
   await loadAndSchedule()
+  scheduleExpiredReservations()
   logger.info('scheduler', 'BCV auto-fetch scheduler started')
 }
 
@@ -133,4 +134,55 @@ export function stopBcvScheduler(): void {
   for (const job of jobs) job.stop()
   jobs.length = 0
   logger.info('scheduler', 'BCV auto-fetch scheduler stopped')
+}
+
+async function expireDueReservations(): Promise<void> {
+  try {
+    const overdue = await prisma.reservation.findMany({
+      where: { status: 'active', dueDate: { lt: new Date() } },
+      include: { items: true }
+    })
+    for (const reservation of overdue) {
+      await prisma.$transaction(async (tx) => {
+        for (const item of reservation.items) {
+          if (item.productId) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { increment: item.quantity } }
+            })
+            await tx.inventoryMovement.create({
+              data: {
+                productId: item.productId,
+                type: 'unreserved',
+                quantity: item.quantity,
+                reference: reservation.number,
+                notes: 'Apartado vencido',
+                userId: null
+              }
+            })
+          }
+        }
+        await tx.reservation.update({
+          where: { id: reservation.id },
+          data: {
+            status: 'expired',
+            cancelledAt: new Date(),
+            cancelReason: 'Vencimiento automático de apartado'
+          }
+        })
+      })
+      logger.info('scheduler', `Apartado ${reservation.number} expirado por vencimiento`)
+    }
+  } catch (err) {
+    logger.warn('scheduler', `Reservation expiry sweep failed: ${String(err)}`)
+  }
+}
+
+function scheduleExpiredReservations(): void {
+  const job = schedule('0 0 * * *', () => {
+    expireDueReservations()
+  })
+  job.start()
+  jobs.push(job)
+  logger.info('scheduler', 'Scheduled reservation expiry sweep (daily 00:00)')
 }

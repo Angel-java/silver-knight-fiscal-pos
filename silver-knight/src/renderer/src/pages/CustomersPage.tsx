@@ -1,6 +1,13 @@
 import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, type Customer, type Invoice } from '../lib/api'
+import { api, type Customer, type Invoice, type Reservation } from '../lib/api'
+
+const RES_STATUS: Record<string, { label: string; cls: string }> = {
+  active: { label: 'Activo', cls: 'bg-green-100 text-green-700' },
+  finalized: { label: 'Finalizado', cls: 'bg-blue-100 text-blue-700' },
+  cancelled: { label: 'Cancelado', cls: 'bg-red-100 text-red-700' },
+  expired: { label: 'Vencido', cls: 'bg-amber-100 text-amber-700' }
+}
 
 export default function CustomersPage(): JSX.Element {
   const navigate = useNavigate()
@@ -259,12 +266,12 @@ export default function CustomersPage(): JSX.Element {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">RIF</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">RIF / Cédula</label>
                   <input
                     type="text"
                     value={rif}
                     onChange={(e) => setRif(e.target.value)}
-                    placeholder="J-12345678-9"
+                    placeholder="J-12345678-9 / V-12345678"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
@@ -400,6 +407,50 @@ export default function CustomersPage(): JSX.Element {
             ) : (
               <p className="text-gray-400 text-sm text-center py-4">
                 Este cliente no tiene facturas
+              </p>
+            )}
+
+            <h3 className="font-bold text-gray-700 mb-3 mt-6">Apartados</h3>
+            {detail.reservations && detail.reservations.length > 0 ? (
+              <div className="space-y-2">
+                {detail.reservations.map((res: Reservation) => {
+                  const st = RES_STATUS[res.status] ?? {
+                    label: res.status,
+                    cls: 'bg-gray-100 text-gray-700'
+                  }
+                  const remaining = Math.max(res.totalUsd - res.amountPaidUsd, 0)
+                  return (
+                    <div
+                      key={res.id}
+                      onClick={() => navigate('/apartados')}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{res.number}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(res.createdAt).toLocaleDateString('es-VE')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-sm">
+                          ${res.totalUsd.toFixed(2)}
+                          <span className="text-xs text-gray-400 font-normal">
+                            {' '}· saldo ${remaining.toFixed(2)}
+                          </span>
+                        </p>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${st.cls}`}
+                        >
+                          {st.label}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm text-center py-4">
+                Este cliente no tiene apartados
               </p>
             )}
 

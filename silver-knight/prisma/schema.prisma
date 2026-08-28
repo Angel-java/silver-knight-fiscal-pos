@@ -27,6 +27,8 @@ model User {
   permissions String?
   isActive    Boolean   @default(true)
   invoices    Invoice[]
+  reservations Reservation[]
+  reservationPayments ReservationPayment[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -78,6 +80,7 @@ model Product {
   supplier      Supplier?           @relation(fields: [supplierId], references: [id])
   movements     InventoryMovement[]
   invoiceItems  InvoiceItem[]
+  reservationItems ReservationItem[]
   isActive      Boolean             @default(true)
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
@@ -92,6 +95,7 @@ model Customer {
   email         String?
   creditLimitUsd Float?
   invoices      Invoice[]
+  reservations  Reservation[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -146,6 +150,8 @@ model Invoice {
   @@index([customerId])
   @@index([fiscalControlId])
   @@index([userId])
+
+  reservationFrom Reservation[]
 }
 
 model InvoiceItem {
@@ -229,4 +235,70 @@ model MigrationLog {
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
+}
+
+model Reservation {
+  id            String               @id @default(cuid())
+  number        String               @unique // ej: AP-20260828-0001
+  customerId    String?
+  customer      Customer?            @relation(fields: [customerId], references: [id])
+  userId        String?
+  user          User?                @relation(fields: [userId], references: [id])
+  status        String               @default("active") // active | finalized | cancelled | expired
+  totalUsd      Float
+  totalVes      Float
+  exchangeRate  Float                // tasa congelada al crear
+  currency      String               @default("USD")
+  amountPaidUsd Float                @default(0)
+  depositUsd    Float                // abono inicial
+  dueDate       DateTime?
+  notes         String?
+  cancelledAt   DateTime?
+  cancelledBy   String?
+  cancelReason  String?
+  finalizedAt   DateTime?
+  invoiceId     String?              // factura fiscal final generada
+  invoice       Invoice?             @relation(fields: [invoiceId], references: [id])
+  items         ReservationItem[]
+  payments      ReservationPayment[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([status])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model ReservationItem {
+  id            String      @id @default(cuid())
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product?    @relation(fields: [productId], references: [id])
+  productName   String
+  quantity      Float
+  unitPriceUsd  Float
+  unitPriceVes  Float
+  ivaRate       Float
+  totalUsd      Float
+  totalVes      Float
+  createdAt     DateTime    @default(now())
+
+  @@index([reservationId])
+  @@index([productId])
+}
+
+model ReservationPayment {
+  id            String      @id @default(cuid())
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  amountUsd     Float
+  amountVes     Float
+  method        String      // cash_usd | cash_ves | transfer | pos | mixed
+  detail        String?
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@index([reservationId])
 }

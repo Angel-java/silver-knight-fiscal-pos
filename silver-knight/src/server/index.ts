@@ -24,6 +24,7 @@ import syncRoutes from './routes/sync'
 import inventoryEntriesRoutes from './routes/inventoryEntries'
 import suppliersRoutes from './routes/suppliers'
 import migrationRoutes from './routes/migration'
+import reservationsRoutes from './routes/reservations'
 import { startBcvScheduler } from './scheduler'
 import { syncService } from './syncService'
 import { autoCreateRoot } from './auth/autoAdmin'
@@ -110,6 +111,7 @@ export async function createServer(): Promise<ReturnType<typeof express>> {
   app.use('/api/inventory-entries', inventoryEntriesRoutes)
   app.use('/api/suppliers', suppliersRoutes)
   app.use('/api/sync', syncRoutes)
+  app.use('/api/reservations', reservationsRoutes)
 
   app.use(errorHandler)
 

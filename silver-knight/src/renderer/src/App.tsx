@@ -20,6 +20,7 @@ import POSPage from './pages/POSPage'
 import InvoiceViewPage from './pages/InvoiceViewPage'
 import SuppliersPage from './pages/SuppliersPage'
 import DataMigrationPage from './pages/DataMigrationPage'
+import ApartadosPage from './pages/ApartadosPage'
 
 const rlog = (tag: string, msg: string): void => {
   try { window.electron?.send('renderer-log', 'INFO', tag, msg) } catch {}
@@ -145,6 +146,14 @@ function App(): React.JSX.Element {
           element={
             <ProtectedRoute module="customers">
               <CustomersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/apartados"
+          element={
+            <ProtectedRoute module="apartados">
+              <ApartadosPage />
             </ProtectedRoute>
           }
         />

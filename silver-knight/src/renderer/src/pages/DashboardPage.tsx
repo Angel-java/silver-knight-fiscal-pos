@@ -71,6 +71,22 @@ const icons: Record<string, ReactElement> = {
       <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   ),
+  apartados: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-8 h-8"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+  ),
   users: (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -133,6 +149,7 @@ const allMenuItems: MenuItem[] = [
   { label: 'POS', key: 'pos', path: '/pos', module: 'pos' },
   { label: 'Inventario', key: 'products', path: '/inventory', module: 'inventory' },
   { label: 'Clientes', key: 'customers', path: '/customers', module: 'customers' },
+  { label: 'Apartados', key: 'apartados', path: '/apartados', module: 'apartados' },
   { label: 'Reportes', key: 'reports', path: '/reports', module: 'reports' },
   { label: 'Usuarios', key: 'users', path: '/users', module: 'users' },
   { label: 'Configuración', key: 'settings', path: '/settings', module: 'settings' }

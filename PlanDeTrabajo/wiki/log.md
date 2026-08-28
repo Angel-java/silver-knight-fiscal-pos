@@ -2,10 +2,25 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Log de operaciones — Silver Knight
+
+## [2026-08-28] build | Sistema de Apartado de Productos (Layaway)
+- **Descripción**: nuevo módulo **Apartados** (permiso `apartados`, ítem propio en el Dashboard, ruta `/api/reservations`). Permite apartar mercancía con un abono inicial y abonos parciales (USD o VES), reservando stock; al liquidar el saldo se emite la factura fiscal FACT. Frontera fiscal: el apartado y los abonos NO son documentos fiscales (no NCF, no Libros IVA); solo la factura final lo es. Recibo impreso únicamente al liquidar (la factura final vía `printInvoice`).
+- **Páginas creadas**: [[reservation]], [[reservation-item]], [[reservation-payment]], [[layaway]]
+- **Páginas actualizadas**: [[index]], [[log]], [[inventory-movement]] (nuevos tipos `reserved`/`unreserved`)
+- **Cambios**:
+  - `prisma/schema.prisma`: nuevos modelos `Reservation`, `ReservationItem`, `ReservationPayment`; relaciones con `Customer`/`User`/`Product`/`Invoice`; campo `currency` en cabecera.
+  - `src/server/utils/controlNumbers.ts`: extraído `nextControlNumber`, `ensureDefaultControl`, `buildInvoiceNumber` (antes locales en `routes/invoices.ts`).
+  - `src/server/routes/invoices.ts`: refactor a `computeInvoiceTotals` + `createFiscalInvoiceFromReservation` (crea la FACT **sin** volver a decrementar stock, ya que este ya está reservado).
+  - `src/server/routes/reservations.ts`: `POST /` (crear: decrementa stock + mov `reserved`, totales duales, deposit < total; el apartado inicial `depositUsd`/`depositVes` acepta USD o VES con la tasa), `GET /`, `GET /:id`, `POST /:id/payments` (abono USD/VES con tasa congelada de cabecera; si viene solo `amountVes` lo convierte a USD con `amountVes/rate`), `POST /:id/finalize` (emite FACT, vincula `invoiceId`, mov queda en `sale`), `POST /:id/cancel` (devuelve stock + mov `unreserved`).
+  - `src/server/scheduler.ts`: job diario (00:00) que expira apartados activos con `dueDate` vencida (devuelve stock, status `expired`).
+  - `src/server/validation/schemas.ts`: `'apartados'` en `PERMISSION_MODULES` + schemas `createReservationSchema`, `addReservationPaymentSchema`, `finalizeReservationSchema`, `cancelReservationSchema`.
+  - `src/server/index.ts`: monta `/api/reservations`.
+  - Renderer: permiso `'apartados'` en `lib/api.ts` (+ tipos y bloque `reservations`), ruta `/apartados` en `App.tsx`, ítem+icono en DashboardPage, nueva `ApartadosPage.tsx` (lista con tabs por estado, modal de creación con selector de productos, cliente existente o nuevo, apartado USD/VES, detalle con historial de abonos, abono con selector de moneda USD/Bs. y equivalente según tasa congelada, liquidar y cancelar). Vista de apartados por cliente integrada en la ficha de `CustomersPage.tsx` (`GET /api/customers/:id` ahora incluye `reservations`, sección "Apartados" con número, estado, total y saldo → enlaza al módulo Apartados).
+- **Verificación**: typecheck node+web PASS; 232/232 tests (20 archivos; +10 `reservations.test.ts`); 0 errores eslint nuevos en archivos tocados (solo warnings CRLF prettier preexistentes del repo).
 
 ## [2026-08-27] build | Reporte de fallas por problemas de conexión en funciones de red
 - **Descripción**: las funciones que requieren internet ahora reportan con un mensaje claro **"No hay conexión a internet. Verifica tu conexión e inténtalo de nuevo. (causa técnica)"** cuando fallan por conectividad, en lugar de mostrar el error técnico crudo al operador.

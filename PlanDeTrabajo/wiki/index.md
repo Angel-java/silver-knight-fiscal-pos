@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Índice de la Wiki — Silver Knight
@@ -21,6 +21,9 @@ updated: 2026-08-27
 - [[invoice-item|Invoice Item]] — Línea de factura
 - [[cash-register|Cash Register]] — Apertura/cierre de caja
 - [[product|Product]] — Producto del inventario
+- [[reservation|Reservation (Apartado)]] — Compromiso de venta con abonos
+- [[reservation-item|Reservation Item]] — Línea de apartado
+- [[reservation-payment|Reservation Payment]] — Abono parcial de apartado
 - [[setting|Setting]] — Configuración clave-valor
 - [[user|User]] — Operador del sistema
 
@@ -29,10 +32,12 @@ updated: 2026-08-27
 - [[data-migration|Data Migration]] — Export/import CSV + JSON (backup v1), todo-o-nada con pre-vuelo, estrategias, import root-only
 - [[dual-currency|Dual Currency]] — Manejo de USD/VES: catálogo solo USD, factura dual con tasa congelada
 - [[fiscal-compliance|Fiscal Compliance (SENIAT)]] — Cumplimiento fiscal venezolano
+- [[layaway|Apartado de Productos (Layaway)]] — Reserva de stock con abonos; factura fiscal solo al liquidar
 - [[offline-first|Offline-first]] — Arquitectura sin dependencia de internet
 - [[docker-deployment|Docker Deployment]] — Modelo de deployment offline-capable (v1.1.13, arranque sin internet)
 
 ## Hitos recientes
+- [[log#2026-08-28-build--sistema-de-apartado-de-productos-layaway|2026-08-28 — Build: Sistema de Apartado de Productos (Layaway)]] — Reserva de stock con abonos (USD/VES), factura fiscal solo al liquidar; modelos Reservation/Item/Payment, ruta `/api/reservations`, módulo `apartados`, vista por cliente, scheduler de vencimiento
 - [[log#2026-08-27-build--reporte-de-fallas-por-problemas-de-conexión-en-funciones-de-red|2026-08-27 — Build: Reporte de fallas por conexión]] — Las funciones de red (BCV, sync, auto-update) informan "No hay conexión a internet" con causa técnica cuando fallan por conectividad
 - [[log#2026-08-27-build--endurecimiento-offline-first-netprobe--vigencia-de-tasa--sync-resiliente|2026-08-27 — Build: Endurecimiento offline-first]] — Probe de conectividad real (netProbe), vigencia de tasa configurable + inserción manual en POS, sync resiliente con backoff (Fases A/B/C)
 - [[diagnostico-docker-not-installed-timeout|2026-08-23 — Fix falso "Docker no instalado" (v1.1.24)]] — Timeout de 5s mataba `docker --version` en máquinas lentas/AV; fix con resolución de exe cacheada + rutas absolutas + reintentos + timeouts 20s
