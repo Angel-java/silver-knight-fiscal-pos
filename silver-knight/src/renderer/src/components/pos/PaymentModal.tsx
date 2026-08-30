@@ -1,6 +1,5 @@
 import { useState, useEffect, type JSX } from 'react'
-import { api, type ApiError, type Invoice } from '../../lib/api'
-import RateModal from './RateModal'
+import { api, type Invoice } from '../../lib/api'
 
 interface PaymentModalProps {
   open: boolean
@@ -31,6 +30,7 @@ export default function PaymentModal({
   onSubmit,
   onError
 }: PaymentModalProps): JSX.Element | null {
+  const [payCurrency, setPayCurrency] = useState<'USD' | 'VES'>(currency)
   const [payments, setPayments] = useState<
     Array<{ method: string; amount: string; currency: string; approvalCode?: string }>
   >([{ method: 'cash', amount: String(Math.round(totalDisplay * 100) / 100), currency }])
@@ -43,11 +43,10 @@ export default function PaymentModal({
     cardNumber?: string
     message?: string
   } | null>(null)
-  const [rateReason, setRateReason] = useState<'missing' | 'expired' | null>(null)
-  const [rateOverride, setRateOverride] = useState(0)
 
   useEffect(() => {
     if (open) {
+      setPayCurrency(currency)
       setPayments([
         { method: 'cash', amount: String(Math.round(totalDisplay * 100) / 100), currency }
       ])
@@ -59,12 +58,18 @@ export default function PaymentModal({
     }
   }, [open])
 
+  const displayTotal = payCurrency === 'USD' ? totalDisplay : totalDisplay * exchangeRate
   const totalPaid = Math.round(payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) * 100) / 100
-  const roundedDisplay = Math.round(totalDisplay * 100) / 100
+  const roundedDisplay = Math.round(displayTotal * 100) / 100
   const change = Math.round((totalPaid - roundedDisplay) * 100) / 100
 
   const addPayment = (): void => {
-    setPayments((prev) => [...prev, { method: 'transfer', amount: '', currency }])
+    setPayments((prev) => [...prev, { method: 'transfer', amount: '', currency: payCurrency }])
+  }
+
+  const changeCurrency = (next: 'USD' | 'VES'): void => {
+    setPayCurrency(next)
+    setPayments((prev) => prev.map((p) => ({ ...p, currency: next })))
   }
 
   const updatePayment = (i: number, field: string, value: string): void => {
@@ -114,20 +119,14 @@ export default function PaymentModal({
     }
   }
 
-  const handleSubmit = async (rateHint?: number): Promise<void> => {
+  const handleSubmit = async (): Promise<void> => {
     if (cart.length === 0 || totalPaid < roundedDisplay) return
     setSubmitting(true)
     try {
-      const effectiveRate =
-        typeof rateHint === 'number' && rateHint > 0
-          ? rateHint
-          : rateOverride > 0
-            ? rateOverride
-            : exchangeRate
       const res = await api.invoices.create({
         customerId: customer?.id || null,
-        currency,
-        exchangeRate: effectiveRate,
+        currency: payCurrency,
+        exchangeRate,
         items: cart.map((i) => ({
           productId: i.productId,
           productName: i.productName,
@@ -145,27 +144,11 @@ export default function PaymentModal({
       onSubmit(res.invoice)
       onClose()
       setPosResult(null)
-      setRateReason(null)
     } catch (err) {
-      const errorCode = (err as ApiError)?.details as { errorCode?: string } | undefined
-      if (errorCode?.errorCode === 'RATE_MISSING') {
-        setRateReason('missing')
-        return
-      }
-      if (errorCode?.errorCode === 'RATE_EXPIRED') {
-        setRateReason('expired')
-        return
-      }
       onError(err instanceof Error ? err.message : 'Error al crear factura')
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const handleRateSaved = (rate: number): void => {
-    setRateOverride(rate)
-    setRateReason(null)
-    void handleSubmit(rate)
   }
 
   if (!open) return null
@@ -178,8 +161,38 @@ export default function PaymentModal({
         <div className="bg-gray-50 rounded-lg p-4 mb-4 text-center">
           <p className="text-sm text-gray-500">Total a cobrar</p>
           <p className="text-3xl font-bold text-gray-800">
-            {currency === 'USD' ? `$${totalDisplay.toFixed(2)}` : `Bs.${totalDisplay.toFixed(2)}`}
+            {payCurrency === 'USD'
+              ? `$${displayTotal.toFixed(2)}`
+              : `Bs.${displayTotal.toFixed(2)}`}
           </p>
+          <p className="text-xs text-gray-400 mt-1">
+            {payCurrency === 'USD'
+              ? `Bs. ${(displayTotal * exchangeRate).toFixed(2)}`
+              : `$ ${(displayTotal / (exchangeRate || 1)).toFixed(2)}`}
+          </p>
+        </div>
+
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-4">
+          <button
+            onClick={() => changeCurrency('USD')}
+            className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              payCurrency === 'USD'
+                ? 'bg-primary text-white'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            USD
+          </button>
+          <button
+            onClick={() => changeCurrency('VES')}
+            className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              payCurrency === 'VES'
+                ? 'bg-primary text-white'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Bs.
+          </button>
         </div>
 
         <div className="space-y-3 mb-4">
@@ -272,19 +285,25 @@ export default function PaymentModal({
             <div className="flex justify-between">
               <span>Recibido</span>
               <span>
-                {currency === 'USD' ? `$${totalPaid.toFixed(2)}` : `Bs.${totalPaid.toFixed(2)}`}
+                {payCurrency === 'USD'
+                  ? `$${totalPaid.toFixed(2)}`
+                  : `Bs.${totalPaid.toFixed(2)}`}
               </span>
             </div>
             {change >= 0 && (
               <div className="flex justify-between text-green-600 font-bold">
                 <span>Vuelto</span>
                 <span>
-                  {currency === 'USD' ? `$${change.toFixed(2)}` : `Bs.${change.toFixed(2)}`}
+                  {payCurrency === 'USD'
+                    ? `$${change.toFixed(2)}`
+                    : `Bs.${change.toFixed(2)}`}
                 </span>
               </div>
             )}
             {change < 0 && (
-              <p className="text-red-500 text-xs">Faltan {(totalDisplay - totalPaid).toFixed(2)}</p>
+              <p className="text-red-500 text-xs">
+                Faltan {(displayTotal - totalPaid).toFixed(2)}
+              </p>
             )}
           </div>
         )}
@@ -303,20 +322,10 @@ export default function PaymentModal({
           >
             {submitting
               ? 'Procesando...'
-              : `Cobrar ${currency === 'USD' ? `$${totalDisplay.toFixed(2)}` : `Bs.${totalDisplay.toFixed(2)}`}`}
+              : `Cobrar ${payCurrency === 'USD' ? `$${displayTotal.toFixed(2)}` : `Bs.${displayTotal.toFixed(2)}`}`}
           </button>
         </div>
       </div>
-
-      {rateReason !== null && (
-        <RateModal
-          open={true}
-          reason={rateReason}
-          initialRate={exchangeRate}
-          onClose={() => setRateReason(null)}
-          onSave={handleRateSaved}
-        />
-      )}
     </div>
   )
 }

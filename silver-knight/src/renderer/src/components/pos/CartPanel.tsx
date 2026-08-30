@@ -3,13 +3,11 @@ import type { CartItem } from './types'
 
 interface CartPanelProps {
   cart: CartItem[]
-  currency: 'USD' | 'VES'
   exchangeRate: number
   subtotalUsd: number
   subtotalVes: number
   ivaUsd: number
   ivaVes: number
-  totalDisplay: number
   customer: { id: string; name: string; rif?: string | null } | null
   onUpdateQty: (productId: string, qty: number) => void
   onOpenCustomerModal: () => void
@@ -18,19 +16,19 @@ interface CartPanelProps {
 
 export default function CartPanel({
   cart,
-  currency,
   exchangeRate,
   subtotalUsd,
   subtotalVes,
   ivaUsd,
   ivaVes,
-  totalDisplay,
   customer,
   onUpdateQty,
   onOpenCustomerModal,
   onOpenPayment
 }: CartPanelProps): JSX.Element {
   const unitPriceVes = (item: CartItem): number => item.unitPriceUsd * exchangeRate
+  const formatVes = (value: number): string =>
+    exchangeRate > 0 ? value.toFixed(2) : '—'
   return (
     <div className="w-full lg:w-80 xl:w-96 bg-white shadow-lg flex flex-col lg:border-l max-h-[45vh] lg:max-h-none border-t lg:border-t-0">
       <div className="p-3 sm:p-4 border-b shrink-0">
@@ -53,11 +51,9 @@ export default function CartPanel({
           <div key={item.productId} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-800 line-clamp-2">{item.productName}</p>
-              <p className="text-xs text-gray-400">
-                {currency === 'USD'
-                  ? `$${item.unitPriceUsd.toFixed(2)}`
-                  : `Bs.${unitPriceVes(item).toFixed(2)}`}{' '}
-                c/u
+              <p className="text-xs text-gray-500">
+                ${item.unitPriceUsd.toFixed(2)}{' '}
+                <span className="text-gray-400">/ Bs.{formatVes(unitPriceVes(item))} c/u</span>
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -75,30 +71,44 @@ export default function CartPanel({
                 +
               </button>
             </div>
-            <p className="w-16 text-right text-sm font-bold text-gray-800">
-              {currency === 'USD'
-                ? `$${(item.unitPriceUsd * item.quantity).toFixed(2)}`
-                : `Bs.${(unitPriceVes(item) * item.quantity).toFixed(2)}`}
-            </p>
+            <div className="text-right text-sm font-bold text-gray-800 shrink-0">
+              <p>${(item.unitPriceUsd * item.quantity).toFixed(2)}</p>
+              <p className="text-xs font-medium text-gray-500">
+                Bs.{formatVes(unitPriceVes(item) * item.quantity)}
+              </p>
+            </div>
           </div>
         ))}
       </div>
 
       <div className="border-t p-3 sm:p-4 space-y-2 shrink-0">
+        <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded px-2 py-1">
+          <span className="font-medium">Tasa (Bs./USD)</span>
+          {exchangeRate > 0 ? (
+            <span className="font-bold text-gray-700">Bs. {exchangeRate.toFixed(2)}</span>
+          ) : (
+            <span className="text-yellow-600 font-semibold">Sin tasa registrada</span>
+          )}
+        </div>
         <div className="flex justify-between text-sm text-gray-500">
           <span>Subtotal</span>
-          <span>
-            {currency === 'USD' ? `$${subtotalUsd.toFixed(2)}` : `Bs.${subtotalVes.toFixed(2)}`}
+          <span className="text-right">
+            ${subtotalUsd.toFixed(2)}
+            <span className="text-gray-400"> · Bs.{formatVes(subtotalVes)}</span>
           </span>
         </div>
         <div className="flex justify-between text-sm text-gray-500">
           <span>IVA</span>
-          <span>{currency === 'USD' ? `$${ivaUsd.toFixed(2)}` : `Bs.${ivaVes.toFixed(2)}`}</span>
+          <span className="text-right">
+            ${ivaUsd.toFixed(2)}
+            <span className="text-gray-400"> · Bs.{formatVes(ivaVes)}</span>
+          </span>
         </div>
-        <div className="flex justify-between text-lg font-bold text-gray-800 border-t pt-2">
+        <div className="flex flex-col items-end text-lg font-bold text-gray-800 border-t pt-2">
           <span>Total</span>
-          <span>
-            {currency === 'USD' ? `$${totalDisplay.toFixed(2)}` : `Bs.${totalDisplay.toFixed(2)}`}
+          <span className="text-right">
+            ${(subtotalUsd + ivaUsd).toFixed(2)} · Bs.
+            {formatVes(subtotalVes + ivaVes)}
           </span>
         </div>
         <button

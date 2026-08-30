@@ -16,7 +16,7 @@ export default function POSPage(): JSX.Element {
   const [search, setSearch] = useState('')
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
-  const [currency, setCurrency] = useState<'USD' | 'VES'>('USD')
+  const currency = 'USD' as const
   const [exchangeRate, setExchangeRate] = useState(0)
   const [customer, setCustomer] = useState<{
     id: string
@@ -121,20 +121,6 @@ export default function POSPage(): JSX.Element {
           <span className="font-bold text-gray-800">POS</span>
         </div>
         <div className="flex items-center gap-4 text-sm">
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setCurrency('USD')}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${currency === 'USD' ? 'bg-primary text-white' : 'text-gray-600 hover:text-gray-800'}`}
-            >
-              USD
-            </button>
-            <button
-              onClick={() => setCurrency('VES')}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${currency === 'VES' ? 'bg-primary text-white' : 'text-gray-600 hover:text-gray-800'}`}
-            >
-              VES
-            </button>
-          </div>
           {lastInvoice && (
             <button
               onClick={() => navigate(`/invoices/${lastInvoice.id}`)}
@@ -176,13 +162,11 @@ export default function POSPage(): JSX.Element {
         />
         <CartPanel
           cart={cart}
-          currency={currency}
           exchangeRate={exchangeRate}
           subtotalUsd={subtotalUsd}
           subtotalVes={subtotalVes}
           ivaUsd={ivaUsd}
           ivaVes={ivaVes}
-          totalDisplay={totalDisplay}
           customer={customer}
           onUpdateQty={updateQty}
           onOpenCustomerModal={() => setShowCustomerModal(true)}
