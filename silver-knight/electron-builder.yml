@@ -40,6 +40,8 @@ extraResources:
     to: tsconfig.json
   - from: tsconfig.node.json
     to: tsconfig.node.json
+  - from: ../opencode-tools/reset-root/reset-root.js
+    to: reset-root/reset-root.js
 win:
   executableName: SilverKnight
   target:
