@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth'
 import { api } from '../lib/api'
+import PasswordInput from '../components/PasswordInput'
 
 export default function SettingsPage(): JSX.Element {
   const navigate = useNavigate()
@@ -110,6 +111,7 @@ export default function SettingsPage(): JSX.Element {
   >('idle')
   const [updateVersion, setUpdateVersion] = useState('')
   const [updateProgress, setUpdateProgress] = useState(0)
+  const [repairMsg, setRepairMsg] = useState('')
 
   const load = async (): Promise<void> => {
     try {
@@ -587,6 +589,39 @@ export default function SettingsPage(): JSX.Element {
               )}
             </div>
           </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">
+              Reparación y auto-recuperación
+            </h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Las actualizaciones se descargan automáticamente. Si una actualización impide que la
+              app arranque, Silver Knight la revierte automáticamente a la última versión en caché o
+              instala un paquete de actualización desde{' '}
+              <span className="font-mono">C:\SilverKnightUpdates</span>.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={async () => {
+                  setRepairMsg('')
+                  try {
+                    const res = await window.api.recovery.installCached()
+                    setRepairMsg(
+                      res.ok
+                        ? `Instalando v${res.version}...`
+                        : res.error || 'No hay versión en caché válida para reinstalar'
+                    )
+                  } catch (err) {
+                    setRepairMsg(err instanceof Error ? err.message : 'Error al reinstalar')
+                  }
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
+              >
+                Reinstalar última versión en caché
+              </button>
+              {repairMsg && <span className="text-sm text-gray-600">{repairMsg}</span>}
+            </div>
+          </div>
         </div>
 
         {/* Sistema y Docker */}
@@ -812,9 +847,7 @@ export default function SettingsPage(): JSX.Element {
             solicitará ingresar una nueva tasa manualmente antes de emitir.
           </p>
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 w-40">
-              Días de vigencia
-            </label>
+            <label className="text-sm font-medium text-gray-700 w-40">Días de vigencia</label>
             <input
               type="number"
               min={1}
@@ -1325,8 +1358,7 @@ export default function SettingsPage(): JSX.Element {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={syncApiKey}
                     onChange={(e) => setSyncApiKey(e.target.value)}
                     onBlur={async () => {
@@ -1495,11 +1527,10 @@ export default function SettingsPage(): JSX.Element {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-bold mb-4">Conexión al Servidor</h2>
             <p className="text-sm text-gray-500 mb-4">
-              URL base de la API del backend. Por defecto es{' '}
-              <code>http://localhost:3001/api</code> (perfil Small, backend Docker local). Para
-              perfil Medium, usa la IP del servidor en la LAN (ej.{' '}
-              <code>http://192.168.1.10:3001/api</code>). Para perfil Big, usa la URL cloud (ej.{' '}
-              <code>https://api.miapp.com/api</code>).
+              URL base de la API del backend. Por defecto es <code>http://localhost:3001/api</code>{' '}
+              (perfil Small, backend Docker local). Para perfil Medium, usa la IP del servidor en la
+              LAN (ej. <code>http://192.168.1.10:3001/api</code>). Para perfil Big, usa la URL cloud
+              (ej. <code>https://api.miapp.com/api</code>).
             </p>
             <div className="flex gap-2">
               <input
@@ -1546,20 +1577,20 @@ export default function SettingsPage(): JSX.Element {
         </div>
 
         {canMigrate && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold">Migración de Datos</h2>
-            <button
-              onClick={() => navigate('/settings/data-migration')}
-              className="text-sm text-primary hover:text-primary-dark font-medium"
-            >
-              Exportar / Importar →
-            </button>
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Migración de Datos</h2>
+              <button
+                onClick={() => navigate('/settings/data-migration')}
+                className="text-sm text-primary hover:text-primary-dark font-medium"
+              >
+                Exportar / Importar →
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">
+              Exporta respaldos o migra datos entre sistemas Silver Knight.
+            </p>
           </div>
-          <p className="text-sm text-gray-500">
-            Exporta respaldos o migra datos entre sistemas Silver Knight.
-          </p>
-        </div>
         )}
 
         <div className="bg-white rounded-lg shadow p-6">

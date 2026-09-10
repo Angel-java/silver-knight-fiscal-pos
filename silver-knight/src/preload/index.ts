@@ -19,6 +19,20 @@ const api = {
     ipcRenderer.invoke('get-update-status') as Promise<{ status: string; version: string; error: string }>,
   getVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version') as Promise<string>,
   getVersionAsync: (): Promise<string> => ipcRenderer.invoke('get-app-version') as Promise<string>,
+  recovery: {
+    getInfo: (): Promise<Record<string, unknown>> =>
+      ipcRenderer.invoke('recovery:get-info') as Promise<Record<string, unknown>>,
+    copyDiagnostics: (): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('recovery:copy-diagnostics') as Promise<{ ok: boolean; error?: string }>,
+    applyUpdate: (): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('recovery:apply-update') as Promise<{ ok: boolean; error?: string }>,
+    installCached: (): Promise<{ ok: boolean; version?: string; error?: string }> =>
+      ipcRenderer.invoke('recovery:install-cached') as Promise<{ ok: boolean; version?: string; error?: string }>,
+    installOffline: (): Promise<{ ok: boolean; version?: string; error?: string }> =>
+      ipcRenderer.invoke('recovery:install-offline') as Promise<{ ok: boolean; version?: string; error?: string }>,
+    relaunch: (): void => ipcRenderer.invoke('recovery:relaunch') as unknown as void,
+    quit: (): void => ipcRenderer.send('recovery:quit')
+  },
   onUpdateAvailable: (callback: (version: string) => void): (() => void) => {
     const handler = (_event: unknown, version: string): void => callback(version)
     ipcRenderer.on('update-available', handler)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { JSX } from 'react'
+import PasswordInput from '../components/PasswordInput'
 
 type Step = 'loading' | 'pin' | 'existing-db' | 'review' | 'saving' | 'done' | 'error'
 
@@ -112,7 +113,8 @@ export default function EnvSetupPage(): JSX.Element {
   }
 
   const cardClass = 'bg-white rounded-lg shadow-lg p-8 w-full max-w-md'
-  const logoClass = 'w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4'
+  const logoClass =
+    'w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4'
   const inputClass =
     'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary'
 
@@ -134,9 +136,13 @@ export default function EnvSetupPage(): JSX.Element {
           <div className={logoClass}>
             <span className="text-white text-2xl font-bold">SK</span>
           </div>
-          <h1 className="text-xl font-bold text-center text-gray-800">Configuración de Seguridad</h1>
+          <h1 className="text-xl font-bold text-center text-gray-800">
+            Configuración de Seguridad
+          </h1>
           <p className="text-sm text-gray-500 text-center mb-6">
-            {hasExistingDb ? 'Paso 1 de 3: Define el PIN del administrador' : 'Paso 1 de 2: Define el PIN del administrador'}
+            {hasExistingDb
+              ? 'Paso 1 de 3: Define el PIN del administrador'
+              : 'Paso 1 de 2: Define el PIN del administrador'}
           </p>
 
           <p className="text-sm text-gray-600 mb-4">
@@ -148,23 +154,23 @@ export default function EnvSetupPage(): JSX.Element {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 PIN del administrador *
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 className={inputClass}
                 placeholder="Mínimo 4 caracteres"
                 autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && document.getElementById('confirm-pin')?.focus()}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && document.getElementById('confirm-pin')?.focus()
+                }
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Confirmar PIN *
               </label>
-              <input
+              <PasswordInput
                 id="confirm-pin"
-                type="password"
                 value={confirmPin}
                 onChange={(e) => setConfirmPin(e.target.value)}
                 className={inputClass}
@@ -194,15 +200,17 @@ export default function EnvSetupPage(): JSX.Element {
             <span className="text-white text-2xl font-bold">SK</span>
           </div>
           <h1 className="text-xl font-bold text-center text-gray-800">Base de Datos Existente</h1>
-          <p className="text-sm text-gray-500 text-center mb-6">Paso 2 de 3: Contraseña de la base de datos</p>
+          <p className="text-sm text-gray-500 text-center mb-6">
+            Paso 2 de 3: Contraseña de la base de datos
+          </p>
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
             <p className="text-sm text-yellow-800 font-medium">
               Se detectó una base de datos existente.
             </p>
             <p className="text-xs text-yellow-700 mt-1">
-              Ingresa la contraseña de PostgreSQL que se usó originalmente.
-              Si no la recuerdas, la contraseña se generó automáticamente con la instalación anterior.
+              Ingresa la contraseña de PostgreSQL que se usó originalmente. Si no la recuerdas, la
+              contraseña se generó automáticamente con la instalación anterior.
             </p>
           </div>
 
@@ -211,8 +219,7 @@ export default function EnvSetupPage(): JSX.Element {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Contraseña de PostgreSQL *
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 value={existingPassword}
                 onChange={(e) => setExistingPassword(e.target.value)}
                 className={inputClass}
@@ -253,7 +260,9 @@ export default function EnvSetupPage(): JSX.Element {
           <div className={logoClass}>
             <span className="text-white text-2xl font-bold">SK</span>
           </div>
-          <h1 className="text-xl font-bold text-center text-gray-800">Configuración de Seguridad</h1>
+          <h1 className="text-xl font-bold text-center text-gray-800">
+            Configuración de Seguridad
+          </h1>
           <p className="text-sm text-gray-500 text-center mb-4">
             Paso {currentStep} de {totalSteps}: Revisa las credenciales generadas
           </p>
@@ -334,7 +343,9 @@ export default function EnvSetupPage(): JSX.Element {
           <div className={logoClass}>
             <span className="text-white text-2xl font-bold">SK</span>
           </div>
-          <h1 className="text-xl font-bold text-center text-gray-800">Configuración de Seguridad</h1>
+          <h1 className="text-xl font-bold text-center text-gray-800">
+            Configuración de Seguridad
+          </h1>
           <p className="text-sm text-gray-500 text-center mb-6">{statusMsg}</p>
 
           {step === 'saving' && (
@@ -391,9 +402,11 @@ export default function EnvSetupPage(): JSX.Element {
             <span className="text-white text-2xl font-bold">SK</span>
           </div>
           <h1 className="text-xl font-bold text-center text-gray-800">
-            {backendError.code === 'auth-failure' ? 'Error de autenticación' :
-             backendError.code === 'docker-not-running' ? 'Docker no disponible' :
-             'Error al iniciar servidor'}
+            {backendError.code === 'auth-failure'
+              ? 'Error de autenticación'
+              : backendError.code === 'docker-not-running'
+                ? 'Docker no disponible'
+                : 'Error al iniciar servidor'}
           </h1>
 
           <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
@@ -403,8 +416,8 @@ export default function EnvSetupPage(): JSX.Element {
           {backendError.code === 'auth-failure' && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
               <p className="text-xs text-yellow-800">
-                Si no recuerdas la contraseña, puedes generar credenciales nuevas.
-                Esto creará una nueva base de datos y borrarás los datos anteriores.
+                Si no recuerdas la contraseña, puedes generar credenciales nuevas. Esto creará una
+                nueva base de datos y borrarás los datos anteriores.
               </p>
             </div>
           )}

@@ -55,6 +55,17 @@ module.exports = function afterPack(context) {
     console.warn(`[afterPack] splash.html not found, skipping`)
   }
 
+  const recoverySrc = join(projectDir, 'src', 'renderer', 'recovery.html')
+  const recoveryDir = join(appOutDir, 'resources')
+  const recoveryDst = join(recoveryDir, 'recovery.html')
+  if (existsSync(recoverySrc)) {
+    mkdirSync(recoveryDir, { recursive: true })
+    copyFileSync(recoverySrc, recoveryDst)
+    console.log(`[afterPack] Copied recovery.html -> ${recoveryDst}`)
+  } else {
+    console.warn(`[afterPack] recovery.html not found, skipping`)
+  }
+
   const pkgSrc = join(projectDir, 'package.json')
   const pkgDst = join(
     existsSync(join(appOutDir, 'resources', 'app.asar'))

@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-08-30
+updated: 2026-09-09
 ---
 
 # Ãndice de la Wiki â€” Silver Knight
@@ -36,8 +36,10 @@ updated: 2026-08-30
 - [[offline-first|Offline-first]] â€” Arquitectura sin dependencia de internet
 - [[docker-deployment|Docker Deployment]] â€” Modelo de deployment offline-capable (v1.1.13, arranque sin internet)
 - [[reset-root-user|Reset / cambio de credenciales del root]] â€” OperaciÃ³n de mantenimiento para cambiar username/PIN del root vÃ­a psql (inmutable por API)
+- [[update-resilience|Update Resilience]] â€” Sistema en 5 capas para descargar/aplicar updates aunque la app estÃ© rota (auto-descarga, boot state, recuperaciÃ³n, cachÃ© de instaladores, watchdog y paquete offline/USB)
 
 ## Hitos recientes
+- [[log#2026-09-09-build--sistema-de-resiliencia-de-actualizaciones-v12x-en-desarrollo|2026-09-09 — Sistema de resiliencia de actualizaciones]] — 5 capas implementadas y verificadas (280 tests): auto-descarga, boot state, ventana de recuperación, caché de instaladores verificado por sha512, watchdog fuera-de-banda y paquete offline/USB. Detalle en [[update-resilience]].
 - [[diagnostico-login-root-drift|2026-08-30 — v1.1.25: E2E máquina desplegada + empaquetado reset-root]] — Validado end-to-end el flujo de máquina desplegada (editar `.env` + reiniciar → self-heal del root). `reset-root.js` empaquetado como `extraResource`; guard `ROOT_PIN` vacío (no-op); bump a 1.1.25 (sin publicar).
 - [[log#2026-08-30-fix--login-root--auto-reconciliaci-c2-b3n-de-credenciales--rotaci-c3-b3n-de-pin|2026-08-30 — Fix: Login root + rotación de PIN]] — `autoCreateRoot()` ahora reconcilia las credenciales del root desde el `.env` en cada arranque (elimina el drift). PIN root rotado a uno seguro. Ver [reset-root-user]
 - [[log#2026-08-28-tool--script-independiente-de-reset-de-credenciales-del-root|2026-08-28 â€” Tool: Script de cambio de credenciales del root]] â€” Script independiente (`opencode-tools/reset-root`) que cambia username/PIN del root editando Postgres vÃ­a `docker exec psql` (root es inmutable por API)

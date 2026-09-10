@@ -2,10 +2,26 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-08-30
+updated: 2026-09-09
 ---
 
 # Log de operaciones â€” Silver Knight
+## [2026-09-09] build | Sistema de resiliencia de actualizaciones (v1.2.x en desarrollo)
+- **Descripción**: implementación completa del plan de **update resilience** en 5 capas para que la app siga descargando/aplicando updates aunque esté rota (UI inutilizable, backend caído o update malo). Concepto documentado en [[update-resilience]].
+- **Páginas creadas/actualizadas**: [[update-resilience]] (creada), [[index]], [[log]].
+- **Cambios**:
+  - **Capa 0 — auto-descarga**: `updater.ts` con `autoDownload = true` (conservando `autoInstallOnAppQuit`); al completarse descarga, el instalador se cachea (Capa 3) y se marca `pendingUpgrade` en el boot state. Nuevos `hasDownloadedUpdate()`, `getPendingUpgradeVersion()`, `onDownloaded(cb)`, `downloadAndInstall()`.
+  - **Capa 1 — boot state**: nuevo `bootState.ts` (`boot-state.json` en `userData`) con `initBootState`, `markBootReady`, `markCrash`, `markBootFailed`, contadores `consecutiveFailures`/`failuresAfterUpdate`, `pendingUpgrade`. `markCrash` enganchado a `uncaughtException` y `render-process-gone`.
+  - **Capa 2 — recuperación**: nuevo `recovery.ts` con `handleUnrecoverableStartup` (cierra para instalar si hay update pendiente; si no, abre ventana de recuperación), `maybeAutoRepair` (rollback silencioso si `failuresAfterUpdate >= 2`) e IPC `recovery:*` registrados **al arranque** (no solo al abrir la ventana). Nueva UI `src/renderer/recovery.html` (empaquetada a `resources/` vía `afterPack.js`).
+  - **Capa 3 — caché de instaladores**: nuevo `installerCache.ts` (sidecar sha512 + header MZ + tamaño mínimo en `verifyInstallerFile`, máx. 2 instaladores, `launchInstallerDetached` / `installInstallerBlocking`).
+  - **Capa 4 — watchdog**: nuevo `watchdog.ts` — `ensureWatchdogRegistration()` registra `HKCU\...\Run\SilverKnightWatchdog` -> `<exe> --watchdog` (solo empaquetado); `runWatchdog()` repara sin UI (offline -> `latest.yml` GitHub con sha512 -> reinstalación silenciosa); reusa el single-instance lock. `build/installer.nsh` borra la clave Run al desinstalar (`customUnInstall`).
+  - **Capa 5 — paquete offline**: nuevo `offlineUpdate.ts` — paquete en `C:\SilverKnightUpdates` (env `OFFLINE_UPDATES_DIR`) con `manifest.json`; solo instala versiones más nuevas verificadas.
+  - **Wiring**: `index.ts` con branch `--watchdog` al inicio de `whenReady` (exit tras advertir en `main.log`), bloque packaged con `initBootState()` + `ensureWatchdogRegistration()` + `registerRecoveryIpc()` + check temprano de updates, `maybeAutoRepair()` antes de `startBackend()`, `handleUnrecoverableStartup` en vez de `quit` cuando el backend falla, y `markBootReady()` en los 5 caminos de ventana.
+  - **SettingsPage**: nuevo panel "Reparación y auto-recuperación" dentro de Actualizaciones (botón "Reinstalar última versión en caché" vía `recovery:install-cached`); el estado `available` muestra "Descargando actualización..." (auto-download).
+- **Tests**: nuevos `bootState.spec.ts` (10), `installerCache.spec.ts` (10), `offlineUpdate.spec.ts` (12), `watchdog.spec.ts` (5), `recovery.ts` cubierto vía integración; `updater.spec.ts` ampliado (autoDownload, cache+pendingUpgrade, `onDownloaded`, `downloadAndInstall`). Total **280 tests (25 archivos)** en verde.
+- **Verificación**: `npm run typecheck:node` y `typecheck:web` limpios; `npm test` 280/280; eslint **0 errores** en todos los archivos tocados (se normalizó `index.ts`/`watchdog.spec.ts` del CRLF legacy a LF para salir del prettier-warning).
+- **Pendiente**: decidir bump de versión y release; confirmar el E2E del watchdog/rollback en máquina desplegada (fuera de alcance en esta iteración).
+
 ## [2026-08-30] release-prep | v1.1.25 - E2E máquina desplegada + empaquetado reset-root + bump
 - **Descripción**: cierre del fix [[diagnostico-login-root-drift]]. Se validó **end-to-end** en esta máquina el flujo de máquina desplegada: editar `ROOT_PIN` en `%APPDATA%\silver-knight\config\.env` -> reiniciar/reconstruir el server -> `autoCreateRoot()` **reconcilia el root desde el `.env` en arranque** -> login con el PIN nuevo funciona sin tocar la BD (confirmado también por hash bcrypt en BD). Se revertió a `7vThdmg3StSm` (login OK de nuevo). El drift ya **no se replica** y la remediación está en la propia máquina.
 - **Páginas creadas/actualizadas**: [[diagnostico-login-root-drift]] (creada), [[reset-root-user]], [[index]], [[log]].

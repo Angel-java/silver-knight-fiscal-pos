@@ -4,6 +4,8 @@ import { stopCompose } from './docker'
 import { log } from './logger'
 import { isReallyOnline } from './netProbe'
 import { connectionFailureMessage } from '../server/utils/connectionError'
+import { cacheDownloadedInstaller } from './installerCache'
+import { setPendingUpgrade } from './bootState'
 
 const RETRY_POLL_MS = 30_000
 
@@ -17,9 +19,11 @@ export class AppUpdater {
   private retryTimer: ReturnType<typeof setInterval> | null = null
   private mainWindow: BrowserWindow | null = null
   private pendingCheck = false
+  private downloadedVersion: string | null = null
+  private downloadedCallbacks: Array<(version: string) => void> = []
 
   constructor() {
-    autoUpdater.autoDownload = false
+    autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.forceDevUpdateConfig = false
 
@@ -50,10 +54,20 @@ export class AppUpdater {
       this.send('update-download-progress', progress.percent)
     })
 
-    autoUpdater.on('update-downloaded', () => {
-      log('event', 'Update downloaded, ready to install')
+    autoUpdater.on('update-downloaded', (info?: UpdateInfo) => {
+      const version = info?.version ?? 'unknown'
+      log('event', `Update downloaded: v${version}`)
       this.status = 'downloaded'
+      this.downloadedVersion = version
       this.send('update-downloaded')
+      this.cacheDownloadedInstallerAndPending(version)
+      this.downloadedCallbacks.forEach((cb) => {
+        try {
+          cb(version)
+        } catch (err) {
+          log('event', `Downloaded callback failed: ${err}`)
+        }
+      })
     })
 
     autoUpdater.on('error', (err: Error) => {
@@ -193,6 +207,64 @@ export class AppUpdater {
       version: this.availableVersion,
       error: this.lastError
     }
+  }
+
+  /** True when an update is already downloaded and ready to install. */
+  hasDownloadedUpdate(): boolean {
+    return this.status === 'downloaded' && !!this.downloadedVersion
+  }
+
+  /** Version downloaded and pending installation, or null. */
+  getPendingUpgradeVersion(): string | null {
+    return this.hasDownloadedUpdate() ? this.downloadedVersion : null
+  }
+
+  /** Registers a callback invoked whenever an update finishes downloading. */
+  onDownloaded(cb: (version: string) => void): void {
+    this.downloadedCallbacks.push(cb)
+    if (this.hasDownloadedUpdate() && this.downloadedVersion) {
+      try {
+        cb(this.downloadedVersion)
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  /**
+   * Downloads and installs immediately. Used by the recovery window when a
+   * broken boot left a pending upgrade that never got applied.
+   */
+  async downloadAndInstall(): Promise<void> {
+    if (this.hasDownloadedUpdate()) {
+      await this.installUpdate()
+      return
+    }
+    if (this.status !== 'available') {
+      try {
+        await this.checkForUpdates()
+      } catch {
+        // swallow: the download/install stage below re-checks the status
+      }
+    }
+    if (this.status === 'available') {
+      try {
+        await autoUpdater.downloadUpdate()
+      } catch (err) {
+        log('error', `downloadAndInstall download failed: ${err}`)
+      }
+    }
+    if (this.hasDownloadedUpdate()) {
+      await this.installUpdate()
+    }
+  }
+
+  private cacheDownloadedInstallerAndPending(version: string): void {
+    const cached = cacheDownloadedInstaller(version)
+    if (cached) {
+      log('cache', `Downloaded installer v${version} cached: ${cached.filePath}`)
+    }
+    setPendingUpgrade(version)
   }
 }
 

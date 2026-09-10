@@ -34,6 +34,9 @@ import {
 } from './docker'
 import { getCachedDockerExe, getDockerCandidatePaths } from './docker-path'
 import { appUpdater } from './updater'
+import { markBootReady, markCrash, initBootState } from './bootState'
+import { maybeAutoRepair, handleUnrecoverableStartup, registerRecoveryIpc } from './recovery'
+import { ensureWatchdogRegistration } from './watchdog'
 import { ensureServerImage } from './server-image'
 import { isReallyOnline } from './netProbe'
 import {
@@ -51,6 +54,7 @@ import { writeLog, log, flushLogsSync } from './logger'
 
 process.on('uncaughtException', (err) => {
   writeLog('FATAL', 'crash', `Uncaught exception: ${err.message}\n${err.stack}`)
+  markCrash(`uncaught-exception: ${err.message}`)
 })
 
 process.on('unhandledRejection', (reason) => {
@@ -111,11 +115,7 @@ async function gatherDiagnostics(): Promise<string> {
   const cliStart = Date.now()
   try {
     const { stdout } = await execAsyncDiag('where docker', { timeout: 10000 })
-    const found = stdout
-      .trim()
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .join(' | ')
+    const found = stdout.trim().split(/\r?\n/).filter(Boolean).join(' | ')
     lines.push(`where docker (${Date.now() - cliStart}ms): ${found || '(no output)'}`)
   } catch (err) {
     lines.push(`where docker failed (${Date.now() - cliStart}ms): ${err}`)
@@ -139,9 +139,13 @@ async function gatherDiagnostics(): Promise<string> {
   lines.push(await getComposePsText())
   lines.push('')
   const dbStatus = await getDbContainerStatus()
-  lines.push(`DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
+  lines.push(
+    `DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`
+  )
   const serverState = await getServerContainerState()
-  lines.push(`Server container: running=${serverState.running}, status=${serverState.status}, restarts=${serverState.restarts}, oomKilled=${serverState.oomKilled}, exitCode=${serverState.exitCode}`)
+  lines.push(
+    `Server container: running=${serverState.running}, status=${serverState.status}, restarts=${serverState.restarts}, oomKilled=${serverState.oomKilled}, exitCode=${serverState.exitCode}`
+  )
   lines.push('')
   lines.push('--- docker system df ---')
   lines.push(await getDockerSystemDf())
@@ -152,10 +156,7 @@ async function gatherDiagnostics(): Promise<string> {
   try {
     const logPath = join(app.getPath('userData'), 'logs', 'main.log')
     if (existsSync(logPath)) {
-      const tail = readFileSync(logPath, 'utf-8')
-        .split(/\r?\n/)
-        .slice(-100)
-        .join('\n')
+      const tail = readFileSync(logPath, 'utf-8').split(/\r?\n/).slice(-100).join('\n')
       lines.push('--- main.log tail (last 100) ---')
       lines.push(tail)
     }
@@ -174,8 +175,7 @@ async function copyDiagnostics(): Promise<void> {
       type: 'info',
       title: 'Diagnóstico copiado',
       message: 'El diagnóstico fue copiado al portapapeles.',
-      detail:
-        'Pégalo en el chat/WhatsApp al soporte técnico para poder ver la causa del error.',
+      detail: 'Pégalo en el chat/WhatsApp al soporte técnico para poder ver la causa del error.',
       buttons: ['OK']
     })
   } catch (err) {
@@ -226,7 +226,8 @@ async function runSelfHeal(): Promise<{ ok: boolean; message: string }> {
   if (!restarted) {
     return {
       ok: false,
-      message: 'El esquema se aplicó correctamente, pero no se pudo reiniciar el contenedor del servidor.'
+      message:
+        'El esquema se aplicó correctamente, pero no se pudo reiniciar el contenedor del servidor.'
     }
   }
 
@@ -244,7 +245,10 @@ async function runSelfHeal(): Promise<{ ok: boolean; message: string }> {
 }
 
 async function runResetPassword(): Promise<boolean> {
-  sendSplash('splash-status', 'Restableciendo contraseña de la base de datos (conserva tus datos)...')
+  sendSplash(
+    'splash-status',
+    'Restableciendo contraseña de la base de datos (conserva tus datos)...'
+  )
   log('startup', 'Resetting postgres password...')
 
   const newPassword = generatePassword()
@@ -338,7 +342,10 @@ async function startBackend(): Promise<boolean> {
   if (app.isPackaged) {
     const images = await getImageAvailability()
     const online = await isReallyOnline()
-    log('startup', `Image availability — db: ${images.db}, server: ${images.server}; online: ${online}`)
+    log(
+      'startup',
+      `Image availability — db: ${images.db}, server: ${images.server}; online: ${online}`
+    )
 
     if (!images.db || !images.server) {
       if (!online) {
@@ -594,6 +601,9 @@ function createMainWindow(): BrowserWindow {
 
   win.webContents.on('render-process-gone', (_event, details) => {
     log('renderer', `RENDER PROCESS GONE: ${details.reason} (${details.exitCode})`)
+    if (details.reason === 'crashed' || details.reason === 'oom') {
+      markCrash(`renderer-${details.reason}`)
+    }
   })
 
   win.on('unresponsive', () => {
@@ -625,280 +635,331 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.silverknight.pos')
 
-  if (!is.dev) {
-    // CSP now handled via webSecurity: false in BrowserWindow
-  }
-
-  ipcMain.on('renderer-log', (_event, level: string, tag: string, msg: string) => {
-    writeLog(level, `renderer:${tag}`, msg)
-  })
-
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
-
-  ipcMain.on('ping', () => log('ipc', 'pong'))
-
-  ipcMain.handle(
-    'save-file',
-    async (
-      _event,
-      data: { buffer: ArrayBuffer; defaultName: string; defaultDir?: string }
-    ) => {
+    if (process.argv.includes('--watchdog')) {
+      log('watchdog', 'Watchdog mode, running self-repair...')
       try {
-        const defaultPath =
-          data.defaultDir && data.defaultDir.trim()
-            ? path.join(data.defaultDir.trim(), data.defaultName)
-            : data.defaultName
+        const { runWatchdog } = await import('./watchdog')
+        await runWatchdog()
+      } catch (err) {
+        log('watchdog', `Watchdog failed: ${err}`)
+      }
+      app.exit(0)
+      return
+    }
 
-        if (data.defaultDir && data.defaultDir.trim()) {
-          const { mkdirSync } = await import('fs')
-          mkdirSync(data.defaultDir.trim(), { recursive: true })
+    if (app.isPackaged) {
+      initBootState()
+      ensureWatchdogRegistration()
+      registerRecoveryIpc()
+      appUpdater.checkForUpdates().catch((err) => {
+        log('updater', `Early checkForUpdates threw: ${err}`)
+      })
+    }
+
+    if (!is.dev) {
+      // CSP now handled via webSecurity: false in BrowserWindow
+    }
+
+    ipcMain.on('renderer-log', (_event, level: string, tag: string, msg: string) => {
+      writeLog(level, `renderer:${tag}`, msg)
+    })
+
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
+
+    ipcMain.on('ping', () => log('ipc', 'pong'))
+
+    ipcMain.handle(
+      'save-file',
+      async (_event, data: { buffer: ArrayBuffer; defaultName: string; defaultDir?: string }) => {
+        try {
+          const defaultPath =
+            data.defaultDir && data.defaultDir.trim()
+              ? path.join(data.defaultDir.trim(), data.defaultName)
+              : data.defaultName
+
+          if (data.defaultDir && data.defaultDir.trim()) {
+            const { mkdirSync } = await import('fs')
+            mkdirSync(data.defaultDir.trim(), { recursive: true })
+          }
+
+          const result = await dialog.showSaveDialog({
+            defaultPath,
+            filters: [
+              { name: 'Todos los archivos', extensions: ['*'] },
+              { name: 'JSON', extensions: ['json'] },
+              { name: 'CSV', extensions: ['csv'] }
+            ]
+          })
+          if (result.canceled || !result.filePath) return { canceled: true }
+          writeFileSync(result.filePath, Buffer.from(data.buffer))
+          return { canceled: false, filePath: result.filePath }
+        } catch (e) {
+          log('ipc', `save-file error: ${e instanceof Error ? e.message : String(e)}`)
+          return { canceled: true, error: e instanceof Error ? e.message : String(e) }
+        }
+      }
+    )
+
+    ipcMain.handle('select-directory', async () => {
+      try {
+        const result = await dialog.showOpenDialog({
+          properties: ['openDirectory']
+        })
+        if (result.canceled || !result.filePaths[0]) return { canceled: true }
+        return { canceled: false, path: result.filePaths[0] }
+      } catch (e) {
+        log('ipc', `select-directory error: ${e instanceof Error ? e.message : String(e)}`)
+        return { canceled: true }
+      }
+    })
+
+    ipcMain.handle('config:exists', () => {
+      return ensureConfig()
+    })
+
+    ipcMain.handle('config:read', () => {
+      return readConfig()
+    })
+
+    ipcMain.handle(
+      'config:save',
+      (_event, data: { rootPin: string; postgresPassword?: string }) => {
+        return saveConfigFromWizard(data)
+      }
+    )
+
+    ipcMain.handle('config:migrate', () => {
+      const legacy = migrateFromLegacy()
+      if (legacy) return true
+      return migrateConfig()
+    })
+
+    ipcMain.handle('config:has-existing-db', () => {
+      return detectExistingDockerVolume()
+    })
+
+    ipcMain.handle('config:start-backend', async () => {
+      log('config', 'Starting backend after wizard config')
+
+      const dockerRunning = await checkDockerRunning()
+      if (!dockerRunning) {
+        log('config', 'Docker is not running')
+        return {
+          success: false,
+          error: 'docker-not-running',
+          message: 'Docker no está corriendo. Abre Docker Desktop y vuelve a intentar.'
+        }
+      }
+
+      const result = await startCompose((line) => {
+        log('config', line)
+      })
+      if (!result.success) {
+        return {
+          success: false,
+          error: 'compose-failed',
+          message: result.error || 'Error al iniciar Docker Compose'
+        }
+      }
+
+      const envVars = loadEnvForChild()
+      const port = envVars['PORT'] || '3001'
+      const healthUrl = `http://localhost:${port}/api/health`
+      log('config', `Waiting for backend at ${healthUrl}`)
+
+      const backendStatus = await waitForBackend(healthUrl, 180000)
+      if (backendStatus === 'error') {
+        log('config', 'Backend failed to respond, checking container status...')
+
+        const dbStatus = await getDbContainerStatus()
+        log(
+          'config',
+          `DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`
+        )
+
+        const serverLogs = await getServerContainerLogs(20)
+        log('config', `Server logs:\n${serverLogs}`)
+
+        if (
+          dbStatus.restarting ||
+          (dbStatus.health !== 'healthy' && dbStatus.health !== 'unknown')
+        ) {
+          const isAuthFailure =
+            serverLogs.includes('password authentication failed') ||
+            serverLogs.includes('FATAL: password authentication failed') ||
+            serverLogs.includes('role "silverknight" does not exist') ||
+            serverLogs.includes('SCRAM authentication')
+
+          if (isAuthFailure) {
+            return {
+              success: false,
+              error: 'auth-failure',
+              message:
+                'La contraseña de PostgreSQL no coincide con la base de datos existente. Verifica la contraseña e intenta de nuevo.'
+            }
+          }
         }
 
-        const result = await dialog.showSaveDialog({
-          defaultPath,
-          filters: [
-            { name: 'Todos los archivos', extensions: ['*'] },
-            { name: 'JSON', extensions: ['json'] },
-            { name: 'CSV', extensions: ['csv'] }
-          ]
-        })
-        if (result.canceled || !result.filePath) return { canceled: true }
-        writeFileSync(result.filePath, Buffer.from(data.buffer))
-        return { canceled: false, filePath: result.filePath }
-      } catch (e) {
-        log('ipc', `save-file error: ${e instanceof Error ? e.message : String(e)}`)
-        return { canceled: true, error: e instanceof Error ? e.message : String(e) }
+        return {
+          success: false,
+          error: 'timeout',
+          message:
+            'El servidor tardó demasiado en responder. Verifica que Docker esté funcionando correctamente.',
+          logs: serverLogs.substring(0, 500)
+        }
       }
-    }
-  )
 
-  ipcMain.handle('select-directory', async () => {
-    try {
-      const result = await dialog.showOpenDialog({
-        properties: ['openDirectory']
-      })
-      if (result.canceled || !result.filePaths[0]) return { canceled: true }
-      return { canceled: false, path: result.filePaths[0] }
-    } catch (e) {
-      log('ipc', `select-directory error: ${e instanceof Error ? e.message : String(e)}`)
-      return { canceled: true }
-    }
-  })
-
-  ipcMain.handle('config:exists', () => {
-    return ensureConfig()
-  })
-
-  ipcMain.handle('config:read', () => {
-    return readConfig()
-  })
-
-  ipcMain.handle('config:save', (_event, data: { rootPin: string; postgresPassword?: string }) => {
-    return saveConfigFromWizard(data)
-  })
-
-  ipcMain.handle('config:migrate', () => {
-    const legacy = migrateFromLegacy()
-    if (legacy) return true
-    return migrateConfig()
-  })
-
-  ipcMain.handle('config:has-existing-db', () => {
-    return detectExistingDockerVolume()
-  })
-
-  ipcMain.handle('config:start-backend', async () => {
-    log('config', 'Starting backend after wizard config')
-
-    const dockerRunning = await checkDockerRunning()
-    if (!dockerRunning) {
-      log('config', 'Docker is not running')
-      return { success: false, error: 'docker-not-running', message: 'Docker no está corriendo. Abre Docker Desktop y vuelve a intentar.' }
-    }
-
-    const result = await startCompose((line) => {
-      log('config', line)
+      return { success: true }
     })
-    if (!result.success) {
-      return { success: false, error: 'compose-failed', message: result.error || 'Error al iniciar Docker Compose' }
-    }
 
-    const envVars = loadEnvForChild()
-    const port = envVars['PORT'] || '3001'
-    const healthUrl = `http://localhost:${port}/api/health`
-    log('config', `Waiting for backend at ${healthUrl}`)
-
-    const backendStatus = await waitForBackend(healthUrl, 180000)
-    if (backendStatus === 'error') {
-      log('config', 'Backend failed to respond, checking container status...')
-
-      const dbStatus = await getDbContainerStatus()
-      log('config', `DB status: running=${dbStatus.running}, restarting=${dbStatus.restarting}, health=${dbStatus.health}`)
-
-      const serverLogs = await getServerContainerLogs(20)
-      log('config', `Server logs:\n${serverLogs}`)
-
-      if (dbStatus.restarting || (dbStatus.health !== 'healthy' && dbStatus.health !== 'unknown')) {
-        const isAuthFailure = serverLogs.includes('password authentication failed') ||
-          serverLogs.includes('FATAL: password authentication failed') ||
-          serverLogs.includes('role "silverknight" does not exist') ||
-          serverLogs.includes('SCRAM authentication')
-
-        if (isAuthFailure) {
-          return {
-            success: false,
-            error: 'auth-failure',
-            message: 'La contraseña de PostgreSQL no coincide con la base de datos existente. Verifica la contraseña e intenta de nuevo.'
+    ipcMain.on('splash-retry', async () => {
+      sendSplash('splash-status', 'Reintentando...')
+      const ok = await startBackend()
+      if (ok) {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+          splashWindow.close()
+        }
+        mainWindow = createMainWindow()
+        appUpdater.setMainWindow(mainWindow)
+        markBootReady()
+        if (app.isPackaged) {
+          try {
+            appUpdater.startAutoCheck()
+            setTimeout(() => {
+              try {
+                appUpdater.checkForUpdates().catch((err) => {
+                  log('updater', `checkForUpdates rejected: ${err}`)
+                })
+              } catch (err) {
+                log('updater', `checkForUpdates threw: ${err}`)
+              }
+            }, 15000)
+          } catch (err) {
+            log('updater', `updater init failed: ${err}`)
           }
         }
       }
+    })
 
-      return {
-        success: false,
-        error: 'timeout',
-        message: 'El servidor tardó demasiado en responder. Verifica que Docker esté funcionando correctamente.',
-        logs: serverLogs.substring(0, 500)
+    if (app.isPackaged) {
+      splashWindow = createSplashWindow()
+
+      ipcMain.handle('docker:status', async () => {
+        try {
+          const installed = await checkDockerInstalled()
+          const running = installed.installed ? await checkDockerRunning() : false
+          return { installed: installed.installed, running, version: installed.version }
+        } catch {
+          return { installed: false, running: false, version: undefined }
+        }
+      })
+
+      ipcMain.handle('docker:restart', async () => {
+        log('docker', 'Manual restart requested')
+        const result = await restartCompose()
+        return result
+      })
+
+      ipcMain.handle('docker:rebuild', async () => {
+        log('docker', 'Manual rebuild requested')
+        const result = await buildCompose()
+        if (result.success) {
+          await stopCompose()
+          return await startCompose()
+        }
+        return result
+      })
+
+      let needsEnvWizard = false
+
+      if (!ensureConfig()) {
+        log('startup', 'No config found, trying legacy migration...')
+        if (!migrateFromLegacy()) {
+          log('startup', 'No legacy config found, will show env wizard')
+          needsEnvWizard = true
+        } else {
+          log('startup', 'Legacy config migrated successfully')
+        }
+      } else {
+        log('startup', 'Config found')
+        migrateConfig()
       }
-    }
 
-    return { success: true }
-  })
+      if (needsEnvWizard) {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+          splashWindow.close()
+          splashWindow = null
+        }
 
-  ipcMain.on('splash-retry', async () => {
-    sendSplash('splash-status', 'Reintentando...')
-    const ok = await startBackend()
-    if (ok) {
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.close()
-      }
-      mainWindow = createMainWindow()
-      appUpdater.setMainWindow(mainWindow)
-      if (app.isPackaged) {
+        mainWindow = createMainWindow()
+        appUpdater.setMainWindow(mainWindow)
+        markBootReady()
+      } else {
+        const repair = await maybeAutoRepair()
+        log('startup', `Auto-repair check: ${repair.detail}`)
+        if (repair.repaired) {
+          app.quit()
+          return
+        }
+
+        const backendReady = await startBackend()
+
+        if (splashWindow && !splashWindow.isDestroyed()) {
+          splashWindow.close()
+          splashWindow = null
+        }
+
+        if (!backendReady) {
+          await handleUnrecoverableStartup('backend-start-failed', appUpdater)
+          return
+        }
+
+        mainWindow = createMainWindow()
+
+        appUpdater.setMainWindow(mainWindow)
+        markBootReady()
         try {
           appUpdater.startAutoCheck()
-          setTimeout(() => {
-            try {
-              appUpdater.checkForUpdates().catch((err) => {
-                log('updater', `checkForUpdates rejected: ${err}`)
-              })
-            } catch (err) {
-              log('updater', `checkForUpdates threw: ${err}`)
-            }
-          }, 15000)
         } catch (err) {
-          log('updater', `updater init failed: ${err}`)
+          log('updater', `startAutoCheck failed: ${err}`)
         }
-      }
-    }
-  })
-
-  if (app.isPackaged) {
-    splashWindow = createSplashWindow()
-
-    ipcMain.handle('docker:status', async () => {
-      try {
-        const installed = await checkDockerInstalled()
-        const running = installed.installed ? await checkDockerRunning() : false
-        return { installed: installed.installed, running, version: installed.version }
-      } catch {
-        return { installed: false, running: false, version: undefined }
-      }
-    })
-
-    ipcMain.handle('docker:restart', async () => {
-      log('docker', 'Manual restart requested')
-      const result = await restartCompose()
-      return result
-    })
-
-    ipcMain.handle('docker:rebuild', async () => {
-      log('docker', 'Manual rebuild requested')
-      const result = await buildCompose()
-      if (result.success) {
-        await stopCompose()
-        return await startCompose()
-      }
-      return result
-    })
-
-    let needsEnvWizard = false
-
-    if (!ensureConfig()) {
-      log('startup', 'No config found, trying legacy migration...')
-      if (!migrateFromLegacy()) {
-        log('startup', 'No legacy config found, will show env wizard')
-        needsEnvWizard = true
-      } else {
-        log('startup', 'Legacy config migrated successfully')
+        setTimeout(() => {
+          try {
+            appUpdater.checkForUpdates().catch((err) => {
+              log('updater', `checkForUpdates rejected: ${err}`)
+            })
+          } catch (err) {
+            log('updater', `checkForUpdates threw: ${err}`)
+          }
+        }, 15000)
       }
     } else {
-      log('startup', 'Config found')
-      migrateConfig()
-    }
+      ipcMain.handle('docker:status', async () => {
+        return { installed: true, running: true, version: 'dev' }
+      })
 
-    if (needsEnvWizard) {
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.close()
-        splashWindow = null
-      }
+      ipcMain.handle('docker:restart', async () => {
+        return { success: true }
+      })
 
-      mainWindow = createMainWindow()
-    } else {
-      const backendReady = await startBackend()
+      ipcMain.handle('docker:rebuild', async () => {
+        return { success: true }
+      })
 
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.close()
-        splashWindow = null
-      }
-
-      if (!backendReady) {
-        app.quit()
-        return
-      }
-
-      mainWindow = createMainWindow()
-
-      appUpdater.setMainWindow(mainWindow)
-      try {
-        appUpdater.startAutoCheck()
-      } catch (err) {
-        log('updater', `startAutoCheck failed: ${err}`)
-      }
-      setTimeout(() => {
-        try {
-          appUpdater.checkForUpdates().catch((err) => {
-            log('updater', `checkForUpdates rejected: ${err}`)
-          })
-        } catch (err) {
-          log('updater', `checkForUpdates threw: ${err}`)
-        }
-      }, 15000)
-    }
-  } else {
-    ipcMain.handle('docker:status', async () => {
-      return { installed: true, running: true, version: 'dev' }
-    })
-
-    ipcMain.handle('docker:restart', async () => {
-      return { success: true }
-    })
-
-    ipcMain.handle('docker:rebuild', async () => {
-      return { success: true }
-    })
-
-    mainWindow = createMainWindow()
-    appUpdater.setMainWindow(mainWindow)
-  }
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow()
       appUpdater.setMainWindow(mainWindow)
+      markBootReady()
     }
-  })
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        mainWindow = createMainWindow()
+        appUpdater.setMainWindow(mainWindow)
+        markBootReady()
+      }
+    })
   })
 }
 

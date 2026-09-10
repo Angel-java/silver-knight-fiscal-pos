@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent, type JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth'
 import { api, PERMISSION_MODULES, type User } from '../lib/api'
+import PasswordInput from '../components/PasswordInput'
 
 const roleLabels: Record<string, string> = {
   root: 'Root',
@@ -311,8 +312,7 @@ export default function UsersPage(): JSX.Element {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   PIN {editing && '(dejar vacío para no cambiar)'}
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={form.pin}
                   maxLength={6}
                   onChange={(e) => setForm({ ...form, pin: e.target.value })}

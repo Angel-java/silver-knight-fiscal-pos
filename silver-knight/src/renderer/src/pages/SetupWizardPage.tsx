@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import type { JSX } from 'react'
 import { useAuth } from '../contexts/useAuth'
 import { api } from '../lib/api'
+import PasswordInput from '../components/PasswordInput'
 
 type Profile = 'small' | 'medium' | 'big'
 
@@ -34,11 +35,7 @@ export default function SetupWizardPage(): JSX.Element {
 
   const handleProfileSubmit = (): void => {
     setError('')
-    if (profile === 'small') {
-      setStep(2)
-    } else {
-      setStep(1)
-    }
+    setStep(1)
   }
 
   const handleUrlSubmit = async (): Promise<void> => {
@@ -147,13 +144,13 @@ export default function SetupWizardPage(): JSX.Element {
     if (profile === 'small') {
       if (n === 0) return 'Paso 1: Perfil del sistema'
       if (n === 1) return 'Paso 2: Datos de la empresa'
-      if (n === 2) return 'Paso 3: Usuario gerente'
+      if (n === 2) return 'Paso 3: Usuario administrador'
       return 'Paso 4: Despliegue'
     }
     if (n === 0) return 'Paso 1: Perfil del sistema'
     if (n === 1) return 'Paso 2: Conexión al servidor'
     if (n === 2) return 'Paso 3: Datos de la empresa'
-    if (n === 3) return 'Paso 4: Usuario gerente'
+    if (n === 3) return 'Paso 4: Usuario administrador'
     return ''
   }
 
@@ -164,7 +161,9 @@ export default function SetupWizardPage(): JSX.Element {
           <span className="text-white text-2xl font-bold">SK</span>
         </div>
         <h1 className="text-xl font-bold text-center text-gray-800">Configuración Inicial</h1>
-        <p className="text-sm text-gray-500 text-center mb-6">{stepLabel(profile === 'small' ? 1 : 2)}</p>
+        <p className="text-sm text-gray-500 text-center mb-6">
+          {stepLabel(profile === 'small' ? 1 : 2)}
+        </p>
 
         <form onSubmit={handleCompanySubmit} className="space-y-4">
           <div>
@@ -256,7 +255,11 @@ export default function SetupWizardPage(): JSX.Element {
 
           <div className="flex gap-3 mb-4">
             {PROFILES.map((p) => (
-              <div key={p.value} className={cardClass(profile === p.value)} onClick={() => setProfile(p.value)}>
+              <div
+                key={p.value}
+                className={cardClass(profile === p.value)}
+                onClick={() => setProfile(p.value)}
+              >
                 <p className="font-bold text-lg">{p.label}</p>
                 <p className="text-xs text-gray-500 mt-1">{p.desc}</p>
                 <p className="text-xs text-gray-400 mt-1">{p.detail}</p>
@@ -349,7 +352,12 @@ export default function SetupWizardPage(): JSX.Element {
             <span className="text-white text-2xl font-bold">SK</span>
           </div>
           <h1 className="text-xl font-bold text-center text-gray-800">Configuración Inicial</h1>
-          <p className="text-sm text-gray-500 text-center mb-6">{stepLabel(profile === 'small' ? 2 : 3)}</p>
+          <p className="text-sm text-gray-500 text-center mb-2">
+            {stepLabel(profile === 'small' ? 2 : 3)}
+          </p>
+          <p className="text-xs text-gray-400 text-center mb-6">
+            Este usuario tendrá acceso de administrador completo al sistema.
+          </p>
 
           <form onSubmit={handleAdminSubmit} className="space-y-4">
             <div>
@@ -378,8 +386,7 @@ export default function SetupWizardPage(): JSX.Element {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">PIN *</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={admin.pin}
                 onChange={(e) => setAdmin({ ...admin, pin: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -388,9 +395,10 @@ export default function SetupWizardPage(): JSX.Element {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar PIN *</label>
-              <input
-                type="password"
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Confirmar PIN *
+              </label>
+              <PasswordInput
                 value={admin.confirmPin}
                 onChange={(e) => setAdmin({ ...admin, confirmPin: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"

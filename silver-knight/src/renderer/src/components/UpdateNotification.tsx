@@ -101,7 +101,7 @@ export default function UpdateNotification(): React.ReactElement | null {
         <div className="flex-1 min-w-0">
           {state.status === 'available' && (
             <>
-              <p className="text-sm font-medium text-gray-900">Actualización disponible</p>
+              <p className="text-sm font-medium text-gray-900">Descargando actualización...</p>
               <p className="text-xs text-gray-500 mt-0.5">Silver Knight v{state.version}</p>
             </>
           )}

@@ -19,6 +19,16 @@ interface ConfigAPI {
   startBackend: () => Promise<{ success: boolean; error?: string; message?: string; logs?: string }>
 }
 
+interface RecoveryAPI {
+  getInfo: () => Promise<Record<string, unknown>>
+  copyDiagnostics: () => Promise<{ ok: boolean; error?: string }>
+  applyUpdate: () => Promise<{ ok: boolean; error?: string }>
+  installCached: () => Promise<{ ok: boolean; version?: string; error?: string }>
+  installOffline: () => Promise<{ ok: boolean; version?: string; error?: string }>
+  relaunch: () => void
+  quit: () => void
+}
+
 interface SilverKnightAPI {
   checkForUpdates: () => void
   downloadUpdate: () => void
@@ -27,6 +37,7 @@ interface SilverKnightAPI {
   getUpdateStatusAsync: () => Promise<{ status: string; version: string; error: string }>
   getVersion: () => Promise<string>
   getVersionAsync: () => Promise<string>
+  recovery: RecoveryAPI
   onUpdateAvailable: (callback: (version: string) => void) => (() => void)
   onUpdateNotAvailable: (callback: () => void) => (() => void)
   onUpdateProgress: (callback: (percent: number) => void) => (() => void)

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const { mockAutoUpdater, mockNet, mockIsReallyOnline } = vi.hoisted(() => ({
+const { mockAutoUpdater, mockNet, mockIsReallyOnline, mockCache, mockBootState } = vi.hoisted(() => ({
   mockAutoUpdater: {
     autoDownload: true,
     autoInstallOnAppQuit: false,
@@ -13,11 +13,20 @@ const { mockAutoUpdater, mockNet, mockIsReallyOnline } = vi.hoisted(() => ({
   mockNet: {
     isOnline: vi.fn(() => true)
   },
-  mockIsReallyOnline: vi.fn(async () => true)
+  mockIsReallyOnline: vi.fn(async () => true),
+  mockCache: {
+    cacheDownloadedInstaller: vi.fn(() => ({ version: 'x', filePath: 'C:\\installers\\x.exe' }))
+  },
+  mockBootState: {
+    setPendingUpgrade: vi.fn()
+  }
 }))
 
 vi.mock('electron', () => ({
-  app: { getVersion: vi.fn(() => '1.0.0') },
+  app: {
+    getVersion: vi.fn(() => '1.0.0'),
+    getPath: vi.fn(() => 'C:\\tmp\\userData')
+  },
   BrowserWindow: vi.fn(),
   ipcMain: {
     on: vi.fn(),
@@ -38,8 +47,18 @@ vi.mock('./netProbe', () => ({
   isReallyOnline: () => mockIsReallyOnline()
 }))
 
+vi.mock('./installerCache', () => ({
+  cacheDownloadedInstaller: mockCache.cacheDownloadedInstaller
+}))
+
+vi.mock('./bootState', () => ({
+  setPendingUpgrade: mockBootState.setPendingUpgrade
+}))
+
 import { AppUpdater } from './updater'
 import { stopCompose } from './docker'
+import { cacheDownloadedInstaller } from './installerCache'
+import { setPendingUpgrade } from './bootState'
 
 describe('AppUpdater', () => {
   let updater: AppUpdater
@@ -61,7 +80,7 @@ describe('AppUpdater', () => {
   })
 
   it('configures autoUpdater correctly on construction', () => {
-    expect(mockAutoUpdater.autoDownload).toBe(false)
+    expect(mockAutoUpdater.autoDownload).toBe(true)
     expect(mockAutoUpdater.autoInstallOnAppQuit).toBe(true)
     expect(mockAutoUpdater.forceDevUpdateConfig).toBe(false)
   })
@@ -256,5 +275,55 @@ describe('AppUpdater', () => {
 
     eventHandlers['update-available']({ version: '2.0.0' })
     expect(mockSend).not.toHaveBeenCalled()
+  })
+
+  it('caches installer and marks pending upgrade when update is downloaded', () => {
+    eventHandlers['update-downloaded']({ version: '2.1.0' })
+    expect(cacheDownloadedInstaller).toHaveBeenCalledWith('2.1.0')
+    expect(setPendingUpgrade).toHaveBeenCalledWith('2.1.0')
+    expect(updater.hasDownloadedUpdate()).toBe(true)
+    expect(updater.getPendingUpgradeVersion()).toBe('2.1.0')
+  })
+
+  it('hasDownloadedUpdate is false before any download', () => {
+    expect(updater.hasDownloadedUpdate()).toBe(false)
+    expect(updater.getPendingUpgradeVersion()).toBeNull()
+  })
+
+  it('onDownloaded fires immediately when update already downloaded', () => {
+    eventHandlers['update-downloaded']({ version: '3.0.0' })
+    const cb = vi.fn()
+    updater.onDownloaded(cb)
+    expect(cb).toHaveBeenCalledWith('3.0.0')
+  })
+
+  it('onDownloaded fires when an update finishes downloading later', () => {
+    const cb = vi.fn()
+    updater.onDownloaded(cb)
+    eventHandlers['update-downloaded']({ version: '3.1.0' })
+    expect(cb).toHaveBeenCalledWith('3.1.0')
+  })
+
+  it('downloadAndInstall downloads and installs when an update is available', async () => {
+    mockAutoUpdater.downloadUpdate.mockImplementation(async () => {
+      eventHandlers['update-downloaded']({ version: '4.0.0' })
+    })
+    eventHandlers['update-available']({ version: '4.0.0' })
+    await updater.downloadAndInstall()
+    expect(mockAutoUpdater.downloadUpdate).toHaveBeenCalled()
+    expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true)
+  })
+
+  it('downloadAndInstall checks for updates first when idle', async () => {
+    mockAutoUpdater.checkForUpdates.mockResolvedValue(undefined)
+    await updater.downloadAndInstall()
+    expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled()
+  })
+
+  it('downloadAndInstall installs immediately when already downloaded', async () => {
+    eventHandlers['update-downloaded']({ version: '4.1.0' })
+    await updater.downloadAndInstall()
+    expect(mockAutoUpdater.downloadUpdate).not.toHaveBeenCalled()
+    expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalledWith(false, true)
   })
 })
