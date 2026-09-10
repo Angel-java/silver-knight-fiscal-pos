@@ -65,4 +65,4 @@ En Ajustes > Actualizaciones > **Reparación y auto-recuperación** (SettingsPag
 ## Estado del mecanismo (2026-09-09)
 
 - Implementado y probado: Capas 0–5 completas sobre el código real, 280 tests (25 archivos) en verde, typecheck node+web limpio, y SettingsPage con panel de auto-recuperación.
-- Falta publicar: ninguna release nuevas de esta iteración (los cambios son de desarrollo).
+- **Publicado**: v1.2.0 (tag `v1.2.0`, GitHub Release con `latest.yml` + instalador). Es la primera versión en la que la auto-descarga/caché/watchdog están operativos. Pendiente: confirmar el E2E del watchdog/rollback en máquina desplegada (fuera de alcance).

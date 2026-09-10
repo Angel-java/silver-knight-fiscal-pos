@@ -6,6 +6,12 @@ updated: 2026-09-09
 ---
 
 # Log de operaciones â€” Silver Knight
+## [2026-09-09] release | v1.2.0 publicada — Update Resilience (5 capas) + bootstrap
+- **Descripción**: publicación de la primera release nueva desde v1.1.25. Incluye el sistema de [[update-resilience]] (5 capas) + componente `PasswordInput` + normalización prettier. Commit `9b948f6` (feat) + `f0eea4b` (chore bump v1.2.0); tag `v1.2.0` → GitHub Release (build via `release.yml`, windows-latest, artifacts `*.exe` + `latest.yml`).
+- **Páginas tocadas**: [[log]], [[index]], [[update-resilience]] (estado actualizado).
+- **Resuelve**: pendiente de la iteración 09-09 "decidir bump de versión y release". Se eligió **1.2.0** (minor) por tratarse de features estructurales, no solo fixes.
+- **Nota**: la versión requiere que electron-updater encuentre `latest.yml` marcado como `--latest` en la release; el flujo CI/CD ya lo hace.
+
 ## [2026-09-09] build | Sistema de resiliencia de actualizaciones (v1.2.x en desarrollo)
 - **Descripción**: implementación completa del plan de **update resilience** en 5 capas para que la app siga descargando/aplicando updates aunque esté rota (UI inutilizable, backend caído o update malo). Concepto documentado en [[update-resilience]].
 - **Páginas creadas/actualizadas**: [[update-resilience]] (creada), [[index]], [[log]].
@@ -20,7 +26,7 @@ updated: 2026-09-09
   - **SettingsPage**: nuevo panel "Reparación y auto-recuperación" dentro de Actualizaciones (botón "Reinstalar última versión en caché" vía `recovery:install-cached`); el estado `available` muestra "Descargando actualización..." (auto-download).
 - **Tests**: nuevos `bootState.spec.ts` (10), `installerCache.spec.ts` (10), `offlineUpdate.spec.ts` (12), `watchdog.spec.ts` (5), `recovery.ts` cubierto vía integración; `updater.spec.ts` ampliado (autoDownload, cache+pendingUpgrade, `onDownloaded`, `downloadAndInstall`). Total **280 tests (25 archivos)** en verde.
 - **Verificación**: `npm run typecheck:node` y `typecheck:web` limpios; `npm test` 280/280; eslint **0 errores** en todos los archivos tocados (se normalizó `index.ts`/`watchdog.spec.ts` del CRLF legacy a LF para salir del prettier-warning).
-- **Pendiente**: decidir bump de versión y release; confirmar el E2E del watchdog/rollback en máquina desplegada (fuera de alcance en esta iteración).
+- **Pendiente**: ~~decidir bump de versión y release~~ (resuelto 2026-09-09: **v1.2.0** publicada); confirmar el E2E del watchdog/rollback en máquina desplegada (fuera de alcance en esta iteración).
 
 ## [2026-08-30] release-prep | v1.1.25 - E2E máquina desplegada + empaquetado reset-root + bump
 - **Descripción**: cierre del fix [[diagnostico-login-root-drift]]. Se validó **end-to-end** en esta máquina el flujo de máquina desplegada: editar `ROOT_PIN` en `%APPDATA%\silver-knight\config\.env` -> reiniciar/reconstruir el server -> `autoCreateRoot()` **reconcilia el root desde el `.env` en arranque** -> login con el PIN nuevo funciona sin tocar la BD (confirmado también por hash bcrypt en BD). Se revertió a `7vThdmg3StSm` (login OK de nuevo). El drift ya **no se replica** y la remediación está en la propia máquina.
