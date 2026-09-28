@@ -2,7 +2,7 @@
 type: concept
 tags: [updates, resilience, recovery, watchdog, offline, boot]
 created: 2026-09-09
-updated: 2026-09-09
+updated: 2026-09-28
 sources: [plan-vision]
 ---
 
@@ -66,3 +66,4 @@ En Ajustes > Actualizaciones > **Reparación y auto-recuperación** (SettingsPag
 
 - Implementado y probado: Capas 0–5 completas sobre el código real, 280 tests (25 archivos) en verde, typecheck node+web limpio, y SettingsPage con panel de auto-recuperación.
 - **Publicado**: v1.2.0 (tag `v1.2.0`, GitHub Release con `latest.yml` + instalador). Es la primera versión en la que la auto-descarga/caché/watchdog están operativos. Pendiente: confirmar el E2E del watchdog/rollback en máquina desplegada (fuera de alcance).
+- **v1.3.0 (2026-09-28)**: release publicada (tag `v1.3.0`). Al cambiar la versión de la app, `ensureServerImage` reconstruye la imagen del servidor por sentinel `.server-version` (online); en updates offline con imagen vieja, el cliente cae de `/active` a `?latest=true` (fallback de compat). Schema forward-only: el rollback reinstala la app pero conserva la columna `effectiveDate` (el código viejo la tolera).

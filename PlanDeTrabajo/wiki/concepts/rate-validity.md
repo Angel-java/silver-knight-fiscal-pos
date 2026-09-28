@@ -110,3 +110,5 @@ normaliza a Caracas.
 - [[dual-currency]], [[exchange-rate]],
   [[log#2026-09-28-build--vigencia-de-tasa-anclada-a-la-fecha-del-bcv-panel-inline-y-confirmacion-para-cobrar-con-tasa-vieja|log 2026-09-28]]
   (entrada de log de esta implementación).
+- [[log#2026-09-28-release--v130-publicada--vigencia-de-tasa-anclada-a-la-fecha-del-bcv--fallback-de-compatibilidad|log 2026-09-28 — release v1.3.0]]
+  (publicación de esta implementación; incluye fallback de compat `/active` → `?latest=true` ante 404).

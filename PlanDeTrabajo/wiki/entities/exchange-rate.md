@@ -43,4 +43,5 @@ Un **[[exchange-rate|ExchangeRate]]** captura la tasa de cambio en un momento da
 ## Hitos
 
 - **2026-09-28 (iteración 3)**: campo `effectiveDate` (fecha de la tasa desde la fuente), regla simple "vigente hasta que se acabe su día", estado `old` no bloqueante con confirmación en el cobro, eliminadas `rateValidityMode`/`rateStaleWarningDays`. Detalle en [[rate-validity]].
+- **2026-09-28 (release v1.3.0)**: publicada la implementación (tag `v1.3.0` → GitHub Release). Fallback de compat en el cliente: `GET /exchange-rates/active` → `?latest=true` ante 404 (imagen de servidor vieja en updates offline).
 - **2026-09-28 (iteración 2, supercedida)**: vigencia data-driven por timestamps + estrategias (`rateValidityMode`), endpoint `/active`, panel inline en el cobro, scheduler con fetch-on-start + recarga en caliente.
