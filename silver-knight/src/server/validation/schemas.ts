@@ -159,7 +159,8 @@ export const updateUserSchema = z.object({
 export const createExchangeRateSchema = z.object({
   rate: z.number().positive('Tasa debe ser positiva'),
   source: z.string().default('manual'),
-  date: z.string().optional()
+  date: z.string().optional(),
+  effectiveDate: z.string().optional()
 })
 
 export const createInventoryEntrySchema = z.object({

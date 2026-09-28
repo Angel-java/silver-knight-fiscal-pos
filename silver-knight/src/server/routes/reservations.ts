@@ -10,6 +10,7 @@ import {
 } from '../validation/schemas'
 import { asyncHandler, AppError } from '../middleware/errorHandler'
 import { computeInvoiceTotals, createFiscalInvoiceFromReservation } from './invoices'
+import { getActiveExchangeRate } from '../utils/rateResolver'
 import { DEFAULT_INVOICE_PAGE_SIZE } from '../config'
 
 const router = Router()
@@ -94,15 +95,17 @@ router.post('/', validate(createReservationSchema), asyncHandler(async (req: Req
 
   let rate = Number(exchangeRate) || 0
   if (rate <= 0) {
-    const latest = await prisma.exchangeRate.findFirst({ orderBy: { date: 'desc' } })
-    if (!latest) {
+    // Misma resolución que facturación: tasa activa = captura más reciente; `old`
+    // (pasó el fin del día de su fecha) no bloquea. Solo RATE_MISSING es bloqueo.
+    const resolved = await getActiveExchangeRate()
+    if (!resolved.rate) {
       throw new AppError(
         400,
         'No hay una tasa de cambio configurada. Regístrala en Ajustes > Tasa BCV.',
         { errorCode: 'RATE_MISSING' }
       )
     }
-    rate = latest.rate
+    rate = resolved.rate.rate
   }
 
   const totals = computeInvoiceTotals(items, rate)

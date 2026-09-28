@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-09-09
+updated: 2026-09-28
 ---
 
 # Ãndice de la Wiki â€” Silver Knight
@@ -31,6 +31,7 @@ updated: 2026-09-09
 - [[architectural-decision-003|ADR-003: Native Dual Currency]] â€” DecisiÃ³n formal (stub, ver [[dual-currency]])
 - [[data-migration|Data Migration]] â€” Export/import CSV + JSON (backup v1), todo-o-nada con pre-vuelo, estrategias, import root-only
 - [[dual-currency|Dual Currency]] â€” Manejo de USD/VES: catÃ¡logo solo USD, factura dual con tasa congelada
+- [[rate-validity|Rate Validity]] â€” Vigencia de la tasa anclada a la **fecha que publica el BCV** (`effectiveDate`): vigente hasta que se acabe su dia; tasa vieja pide actualizar dentro del cobro pero permite cobrar con confirmacion; scheduler con fetch-on-start
 - [[fiscal-compliance|Fiscal Compliance (SENIAT)]] â€” Cumplimiento fiscal venezolano
 - [[layaway|Apartado de Productos (Layaway)]] â€” Reserva de stock con abonos; factura fiscal solo al liquidar
 - [[offline-first|Offline-first]] â€” Arquitectura sin dependencia de internet
@@ -39,6 +40,8 @@ updated: 2026-09-09
 - [[update-resilience|Update Resilience]] â€” Sistema en 5 capas para descargar/aplicar updates aunque la app estÃ© rota (auto-descarga, boot state, recuperaciÃ³n, cachÃ© de instaladores, watchdog y paquete offline/USB)
 
 ## Hitos recientes
+- [[log#2026-09-28-build--vigencia-de-tasa-anclada-a-la-fecha-del-bcv-regla-simple-panel-inline-con-confirmacion-para-tasa-vieja|2026-09-28 — Vigencia de tasa anclada a la fecha del BCV (regla simple)]] — Se elimina la estrategia configurable (`rateValidityMode`) por una **regla simple**: la fecha de la tasa sale de la fuente (DolarAPI `fechaActualizacion` / sitio BCV / manual) y la tasa es vigente hasta que se acabe ese día; pasada la fecha queda **vieja** y el POS pide actualizarla dentro del cobro pero permite cobrar igual con confirmación. `old` nunca bloquea; solo `RATE_MISSING`. Supercede la iteración de "3 estrategias" del mismo día ([[rate-validity]]).
+- [[log#2026-09-28-build--vigencia-de-tasa-data-driven-3-estrategias-panel-inline-en-el-cobro-scheduler-m1|2026-09-28 — Vigencia de tasa data-driven (3 estrategias)]] — Primera iteración del día (supercedida por la regla de fecha): motor por marcas de tiempo + estrategia configurable, antigüedad sin bloqueo, panel inline en el cobro, scheduler con fetch-on-start y recarga en caliente. Detalle histórico en [[rate-validity]].
 - [[log#2026-09-09-release--v120-publicada--update-resilience-5-capas--bootstrap|2026-09-09 — Release v1.2.0]] — Sistema de [[update-resilience]] publicado: 5 capas implementadas y verificadas (280 tests), auto-descarga, boot state, ventana de recuperación, caché de instaladores verificado por sha512, watchdog fuera-de-banda y paquete offline/USB. Tag `v1.2.0` → GitHub Release.
 - [[log#2026-09-09-build--sistema-de-resiliencia-de-actualizaciones-v12x-en-desarrollo|2026-09-09 — Sistema de resiliencia de actualizaciones]] — 5 capas implementadas y verificadas (280 tests): auto-descarga, boot state, ventana de recuperación, caché de instaladores verificado por sha512, watchdog fuera-de-banda y paquete offline/USB. Detalle en [[update-resilience]].
 - [[diagnostico-login-root-drift|2026-08-30 — v1.1.25: E2E máquina desplegada + empaquetado reset-root]] — Validado end-to-end el flujo de máquina desplegada (editar `.env` + reiniciar → self-heal del root). `reset-root.js` empaquetado como `extraResource`; guard `ROOT_PIN` vacío (no-op); bump a 1.1.25 (sin publicar).

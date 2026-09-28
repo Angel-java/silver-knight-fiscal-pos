@@ -26,13 +26,15 @@ export default function POSPage(): JSX.Element {
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [lastInvoice, setLastInvoice] = useState<Invoice | null>(null)
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(
+    null
+  )
 
   useEffect(() => {
     const init = async (): Promise<void> => {
       try {
         const [rateRes, prodRes, invRes] = await Promise.all([
-          api.exchangeRates.getLatest(),
+          api.exchangeRates.active(),
           api.products.list({ page: 1 }),
           api.invoices.list()
         ])
@@ -57,16 +59,16 @@ export default function POSPage(): JSX.Element {
 
   const addToCart = (product: Product): void => {
     if (product.stock <= 0) {
-      setMessage(`"${product.name}" no tiene stock disponible`)
-      setTimeout(() => setMessage(''), 3000)
+      setMessage({ text: `"${product.name}" no tiene stock disponible`, type: 'error' })
+      setTimeout(() => setMessage(null), 3000)
       return
     }
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id)
       if (existing) {
         if (existing.quantity >= product.stock) {
-          setMessage(`Stock insuficiente para "${product.name}"`)
-          setTimeout(() => setMessage(''), 3000)
+          setMessage({ text: `Stock insuficiente para "${product.name}"`, type: 'error' })
+          setTimeout(() => setMessage(null), 3000)
           return prev
         }
         return prev.map((i) =>
@@ -107,8 +109,8 @@ export default function POSPage(): JSX.Element {
     setLastInvoice(invoice)
     setCart([])
     setCustomer(null)
-    setMessage(`Factura ${invoice.number} creada exitosamente`)
-    setTimeout(() => setMessage(''), 5000)
+    setMessage({ text: `Factura ${invoice.number} creada exitosamente`, type: 'success' })
+    setTimeout(() => setMessage(null), 5000)
   }
 
   return (
@@ -138,11 +140,13 @@ export default function POSPage(): JSX.Element {
       {message && (
         <div
           className={`px-4 py-2 text-sm text-center shrink-0 flex items-center justify-center gap-3 ${
-            lastInvoice ? 'bg-green-100 text-green-800' : 'bg-green-100 text-green-800'
+            message.type === 'success'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-red-100 text-red-800'
           }`}
         >
-          <span>{message}</span>
-          {lastInvoice && (
+          <span>{message.text}</span>
+          {message.type === 'success' && lastInvoice && (
             <button
               onClick={() => navigate(`/invoices/${lastInvoice.id}`)}
               className="underline font-medium hover:text-green-900"
@@ -195,7 +199,7 @@ export default function POSPage(): JSX.Element {
         exchangeRate={exchangeRate}
         customer={customer}
         onSubmit={handleInvoiceCreated}
-        onError={(msg) => setMessage(msg)}
+        onError={(msg) => setMessage({ text: msg, type: 'error' })}
       />
     </div>
   )

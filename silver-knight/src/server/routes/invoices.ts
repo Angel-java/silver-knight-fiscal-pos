@@ -6,7 +6,7 @@ import { createInvoiceSchema, cancelInvoiceSchema } from '../validation/schemas'
 import { asyncHandler, AppError } from '../middleware/errorHandler'
 import { nextControlNumber, buildInvoiceNumber } from '../utils/controlNumbers'
 import { DEFAULT_INVOICE_PAGE_SIZE } from '../config'
-import { parseVigencyDays } from '../utils/rateSettings'
+import { getActiveExchangeRate } from '../utils/rateResolver'
 
 const router = Router()
 router.use(authMiddleware)
@@ -134,35 +134,19 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
 
   let rate = Number(exchangeRate) || 0
   if (rate <= 0) {
-    const [latest, settings] = await Promise.all([
-      prisma.exchangeRate.findFirst({ orderBy: { date: 'desc' } }),
-      prisma.setting.findMany()
-    ])
-    const map: Record<string, string> = {}
-    for (const s of settings) map[s.key] = s.value
-    const vigencyDays = parseVigencyDays(map['bcvRateVigencyDays'])
-
-    if (latest) {
-      const ageDays = (Date.now() - new Date(latest.date).getTime()) / (24 * 60 * 60 * 1000)
-      if (ageDays <= vigencyDays) {
-        rate = latest.rate
-      } else {
-        throw new AppError(
-          400,
-          `La tasa de cambio registrada (${latest.rate.toFixed(2)} Bs/USD) ya no está en vigencia ` +
-            `(${vigencyDays} día(s)). Regístrala de nuevo en Ajustes > Tasa BCV.`,
-          { errorCode: 'RATE_EXPIRED' }
-        )
-      }
-    }
-
-    if (rate <= 0) {
+    // Regla de tasa (data-driven): activa = captura más reciente; `old` = ya pasó el
+    // fin del día de la fecha de la tasa (BCV/DolarAPI o la elegida al ingresar
+    // manual). `old` es informativo y NUNCA bloquea: solo se bloquea con RATE_MISSING
+    // (cero tasas). El valor confirmado en el panel (body exchangeRate) es autoritativo.
+    const resolved = await getActiveExchangeRate()
+    if (!resolved.rate) {
       throw new AppError(
         400,
         'No hay una tasa de cambio configurada. Regístrala en Ajustes > Tasa BCV.',
         { errorCode: 'RATE_MISSING' }
       )
     }
+    rate = resolved.rate.rate
   }
 
   const docType = documentType || 'FACT'

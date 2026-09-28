@@ -253,6 +253,24 @@ export interface InvoiceInput {
   payments?: Array<{ method: string; amount: number; currency: string }>
 }
 
+export interface ExchangeRateRecord {
+  id: string
+  rate: number
+  source: string
+  date: string
+  /** Inicio del día (Caracas) al que corresponde la tasa; null en capturas antiguas. */
+  effectiveDate?: string | null
+  validFrom?: string | null
+  /** Fin del día (Caracas) de la fecha de la tasa; después de este instante es vieja. */
+  validUntil?: string | null
+}
+
+export interface ActiveExchangeRateResponse {
+  rate: ExchangeRateRecord | null
+  /** true cuando la tasa activa ya pasó el fin del día de su fecha (tasa vieja). */
+  old: boolean
+}
+
 export interface ReservationItem {
   id: string
   productId: string | null
@@ -768,22 +786,22 @@ export const api = {
   },
 
   exchangeRates: {
-    getLatest: () =>
-      request<{
-        rate: { id: string; rate: number; source: string; date: string } | null
-      }>('/exchange-rates?latest=true'),
+    active: () => request<ActiveExchangeRateResponse>('/exchange-rates/active'),
 
-    create: (rate: number, source?: string) =>
-      request<{ rate: { id: string; rate: number; source: string; date: string } }>(
+    getLatest: () =>
+      request<{ rate: ExchangeRateRecord | null; old: boolean }>('/exchange-rates?latest=true'),
+
+    create: (rate: number, source?: string, effectiveDate?: string) =>
+      request<{ rate: ExchangeRateRecord }>(
         '/exchange-rates',
         {
           method: 'POST',
-          body: JSON.stringify({ rate, source })
+          body: JSON.stringify({ rate, source, effectiveDate })
         }
       ),
 
     fetchBcv: () =>
-      request<{ rate: { id: string; rate: number; source: string; date: string } }>(
+      request<{ rate: ExchangeRateRecord; source: string }>(
         '/exchange-rates/bcv',
         { method: 'POST' }
       )

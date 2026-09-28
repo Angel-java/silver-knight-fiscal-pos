@@ -23,7 +23,10 @@ vi.mock('../../database/prisma', () => ({
       create: vi.fn()
     },
     exchangeRate: {
-      findFirst: vi.fn()
+      findMany: vi.fn()
+    },
+    setting: {
+      findMany: vi.fn()
     },
     fiscalControl: {
       findFirst: vi.fn(),
@@ -143,9 +146,10 @@ function mockTransaction() {
 describe('POST /api/reservations', () => {
   it('creates a reservation and reserves stock', async () => {
     const mockTx = mockTransaction()
-    vi.mocked(prisma.exchangeRate.findFirst).mockResolvedValue({
-      id: 'er-1', rate: 36.5, source: 'manual', date: new Date()
-    } as any)
+    vi.mocked(prisma.exchangeRate.findMany).mockResolvedValue([
+      { id: 'er-1', rate: 36.5, source: 'manual', date: new Date() }
+    ] as any)
+    vi.mocked(prisma.setting.findMany).mockResolvedValue([])
     vi.mocked(prisma.reservation.findFirst).mockResolvedValue(null)
     vi.mocked(mockTx.product.findUnique).mockResolvedValue({
       id: 'prod-1', name: 'Product A', stock: 10
@@ -169,7 +173,7 @@ describe('POST /api/reservations', () => {
       })
 
     expect(res.status).toBe(201)
-    expect(prisma.exchangeRate.findFirst).toHaveBeenCalled()
+    expect(prisma.exchangeRate.findMany).toHaveBeenCalled()
     expect(mockTx.product.update).toHaveBeenCalledWith({
       where: { id: 'prod-1' },
       data: { stock: { decrement: 2 } }
@@ -181,9 +185,6 @@ describe('POST /api/reservations', () => {
 
   it('returns 400 when stock is insufficient', async () => {
     const mockTx = mockTransaction()
-    vi.mocked(prisma.exchangeRate.findFirst).mockResolvedValue({
-      id: 'er-1', rate: 36.5, source: 'manual', date: new Date()
-    } as any)
     vi.mocked(mockTx.product.findUnique).mockResolvedValue({
       id: 'prod-1', name: 'Product A', stock: 1
     } as any)
@@ -203,9 +204,6 @@ describe('POST /api/reservations', () => {
 
   it('returns 400 when deposit is not less than total', async () => {
     const mockTx = mockTransaction()
-    vi.mocked(prisma.exchangeRate.findFirst).mockResolvedValue({
-      id: 'er-1', rate: 36.5, source: 'manual', date: new Date()
-    } as any)
     vi.mocked(mockTx.product.findUnique).mockResolvedValue({
       id: 'prod-1', name: 'Product A', stock: 10
     } as any)

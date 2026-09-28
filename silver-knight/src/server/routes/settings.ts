@@ -2,8 +2,12 @@ import { Router, Request, Response } from 'express'
 import { prisma } from '../database/prisma'
 import { authMiddleware, requirePermission } from '../middleware/auth'
 import { asyncHandler } from '../middleware/errorHandler'
+import { reloadBcvSchedule } from '../scheduler'
 
 const SYSTEM_KEYS = ['profile']
+
+// Settings cuyo cambio debe re-aplicarse en caliente (sin reiniciar el servidor).
+const HOT_RELOAD_KEYS = ['bcvAutoFetch', 'bcvFetchTimes']
 
 const router = Router()
 router.use(authMiddleware)
@@ -31,6 +35,12 @@ router.put('/:key', requirePermission('settings'), asyncHandler(async (req: Requ
     update: { value: String(value) },
     create: { key, value: String(value) }
   })
+
+  if (HOT_RELOAD_KEYS.includes(key)) {
+    // M1: aplicar cambios de auto-fetch/config del scheduler sin reiniciar.
+    void reloadBcvSchedule()
+  }
+
   res.json({ setting })
 }))
 

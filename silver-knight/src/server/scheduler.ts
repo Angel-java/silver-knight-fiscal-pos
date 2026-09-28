@@ -1,11 +1,10 @@
 import { schedule, type ScheduledTask } from 'node-cron'
 import { prisma } from './database/prisma'
 import { logger } from './utils/logger'
-import { connectionFailureMessage } from './utils/connectionError'
+import { obtainBcvRate } from './routes/exchangeRates'
 
-const DOLARAPI_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
-
-const jobs: ScheduledTask[] = []
+const bcvJobs: ScheduledTask[] = []
+let reservationJob: ScheduledTask | null = null
 
 async function recordBcvStatus(status: string, error?: string): Promise<void> {
   try {
@@ -33,34 +32,20 @@ async function recordBcvStatus(status: string, error?: string): Promise<void> {
 
 async function fetchBcvRate(): Promise<void> {
   try {
-    const res = await fetch(DOLARAPI_URL, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(10000)
-    })
-    if (!res.ok) {
-      await recordBcvStatus('error', `HTTP ${res.status}`)
-      return
-    }
-    const data = (await res.json()) as {
-      promedio?: number
-      promedio_real?: number
-      precio?: number
-    }
-    const rate = data.promedio || data.promedio_real || data.precio
-    if (rate && typeof rate === 'number' && rate > 0) {
-      await prisma.exchangeRate.create({
-        data: { rate: parseFloat(rate.toFixed(2)), source: 'bcv-auto', date: new Date() }
-      })
+    // Aprovecha el mismo pipeline de la ruta manual (DolarAPI + fallback a scrape del
+    // sitio del BCV) para que el auto-fetch no dependa de un solo origen.
+    const result = await obtainBcvRate('bcv-auto')
+    if (result.ok) {
       await recordBcvStatus('ok')
-      logger.info('scheduler', `BCV auto-fetch: Bs. ${rate.toFixed(2)}`)
+      logger.info('scheduler', `BCV auto-fetch: Bs. ${result.rate.rate.toFixed(2)} (${result.source})`)
     } else {
-      await recordBcvStatus('error', 'Respuesta del BCV sin tasa válida')
+      await recordBcvStatus('error', result.errors.join(' | '))
+      logger.warn('scheduler', `BCV auto-fetch failed: ${result.errors.join(' | ')}`)
     }
   } catch (err) {
-    const message =
-      connectionFailureMessage(err) ?? (err instanceof Error ? err.message : 'sin conexión')
+    const message = err instanceof Error ? err.message : 'sin conexión'
     await recordBcvStatus('error', message)
-    logger.warn('scheduler', `BCV auto-fetch failed (offline?): ${message}`)
+    logger.warn('scheduler', `BCV auto-fetch failed: ${message}`)
   }
 }
 
@@ -84,8 +69,8 @@ function timeToCron(time: string): string | null {
 }
 
 function scheduleJobs(times: string[]): void {
-  for (const job of jobs) job.stop()
-  jobs.length = 0
+  for (const job of bcvJobs) job.stop()
+  bcvJobs.length = 0
 
   const seen = new Set<string>()
   for (const time of times) {
@@ -96,7 +81,7 @@ function scheduleJobs(times: string[]): void {
       fetchBcvRate()
     })
     job.start()
-    jobs.push(job)
+    bcvJobs.push(job)
     logger.info('scheduler', `Scheduled BCV fetch at ${time} (${cronExpr})`)
   }
 }
@@ -108,13 +93,20 @@ async function loadAndSchedule(): Promise<void> {
     for (const s of all) map[s.key] = s.value
 
     if (map['bcvAutoFetch'] !== 'true') {
+      // Desactivado: detén cualquier job previo (recarga en caliente).
+      for (const job of bcvJobs) job.stop()
+      bcvJobs.length = 0
       logger.info('scheduler', 'BCV auto-fetch is disabled')
       return
     }
 
     const times = parseTimes(map['bcvFetchTimes'])
+    // Fetch on start: la UI promete "al iniciar la aplicación", así que aunque no
+    // haya horarios configurados, se intenta una vez al arrancar.
+    void fetchBcvRate()
+
     if (times.length === 0) {
-      logger.info('scheduler', 'No BCV fetch times configured')
+      logger.info('scheduler', 'No BCV fetch times configured (fetch-on-start only)')
       return
     }
 
@@ -130,9 +122,21 @@ export async function startBcvScheduler(): Promise<void> {
   logger.info('scheduler', 'BCV auto-fetch scheduler started')
 }
 
+/**
+ * Re-aplica la configuración del scheduler sin reiniciar el servidor. Se invoca al
+ * guardar `bcvAutoFetch`/`bcvFetchTimes` en Ajustes (M1: zero-restart).
+ */
+export async function reloadBcvSchedule(): Promise<void> {
+  await loadAndSchedule()
+}
+
 export function stopBcvScheduler(): void {
-  for (const job of jobs) job.stop()
-  jobs.length = 0
+  for (const job of bcvJobs) job.stop()
+  bcvJobs.length = 0
+  if (reservationJob) {
+    reservationJob.stop()
+    reservationJob = null
+  }
   logger.info('scheduler', 'BCV auto-fetch scheduler stopped')
 }
 
@@ -179,10 +183,10 @@ async function expireDueReservations(): Promise<void> {
 }
 
 function scheduleExpiredReservations(): void {
-  const job = schedule('0 0 * * *', () => {
+  if (reservationJob) reservationJob.stop()
+  reservationJob = schedule('0 0 * * *', () => {
     expireDueReservations()
   })
-  job.start()
-  jobs.push(job)
+  reservationJob.start()
   logger.info('scheduler', 'Scheduled reservation expiry sweep (daily 00:00)')
 }

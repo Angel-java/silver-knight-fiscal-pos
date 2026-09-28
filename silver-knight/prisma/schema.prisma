@@ -34,12 +34,16 @@ model User {
 }
 
 model ExchangeRate {
-  id        String   @id @default(cuid())
-  date      DateTime @default(now())
-  rate      Float
-  source    String   @default("manual")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  id            String    @id @default(cuid())
+  date          DateTime  @default(now())
+  rate          Float
+  source        String    @default("manual")
+  // Fecha efectiva de la tasa (el día al que corresponde), tomada del BCV/DolarAPI
+  // o elegida por el operador en capturas manuales. NULL => se usa el día de `date`.
+  // Se guarda normalizada al inicio del día en Caracas (UTC-4).
+  effectiveDate DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
 }
 
 model Category {

@@ -14,6 +14,9 @@ export default function SettingsPage(): JSX.Element {
     rate: number
     source: string
     date: string
+    effectiveDate?: string | null
+    validFrom?: string | null
+    validUntil?: string | null
   } | null>(null)
   const [margin, setMargin] = useState('')
   const [savedMargin, setSavedMargin] = useState<number | null>(null)
@@ -33,7 +36,10 @@ export default function SettingsPage(): JSX.Element {
   const [bcvAutoFetch, setBcvAutoFetch] = useState(false)
   const [bcvFetchTimes, setBcvFetchTimes] = useState<string[]>([])
   const [newBcvTime, setNewBcvTime] = useState('09:00')
-  const [bcvVigencyDays, setBcvVigencyDays] = useState('1')
+  const [rateEffectiveDate, setRateEffectiveDate] = useState(() => {
+    const d = new Date()
+    return d.toLocaleDateString('en-CA') // YYYY-MM-DD (zona local)
+  })
   const [bcvLastFetchStatus, setBcvLastFetchStatus] = useState('')
   const [bcvLastFetchAt, setBcvLastFetchAt] = useState('')
   const [bcvLastFetchError, setBcvLastFetchError] = useState('')
@@ -116,7 +122,7 @@ export default function SettingsPage(): JSX.Element {
   const load = async (): Promise<void> => {
     try {
       const [rateRes, settingsRes, companyRes] = await Promise.all([
-        api.exchangeRates.getLatest(),
+        api.exchangeRates.active(),
         api.settings.getAll(),
         api.company.get()
       ])
@@ -143,7 +149,6 @@ export default function SettingsPage(): JSX.Element {
       if (sett['posTerminalEnabled']) setPosEnabled(sett['posTerminalEnabled'] === 'true')
       if (sett['posTerminalPort']) setPosPort(sett['posTerminalPort'])
       if (sett['posTerminalBaudRate']) setPosBaudRate(sett['posTerminalBaudRate'])
-      if (sett['bcvRateVigencyDays']) setBcvVigencyDays(sett['bcvRateVigencyDays'])
       if (sett['bcvLastFetchStatus']) setBcvLastFetchStatus(sett['bcvLastFetchStatus'])
       if (sett['bcvLastFetchAt']) setBcvLastFetchAt(sett['bcvLastFetchAt'])
       if (sett['bcvLastFetchError']) setBcvLastFetchError(sett['bcvLastFetchError'])
@@ -173,7 +178,7 @@ export default function SettingsPage(): JSX.Element {
     const init = async (): Promise<void> => {
       try {
         const [rateRes, settingsRes, companyRes] = await Promise.all([
-          api.exchangeRates.getLatest(),
+          api.exchangeRates.active(),
           api.settings.getAll(),
           api.company.get()
         ])
@@ -200,7 +205,6 @@ export default function SettingsPage(): JSX.Element {
         if (sett['posTerminalEnabled']) setPosEnabled(sett['posTerminalEnabled'] === 'true')
         if (sett['posTerminalPort']) setPosPort(sett['posTerminalPort'])
         if (sett['posTerminalBaudRate']) setPosBaudRate(sett['posTerminalBaudRate'])
-        if (sett['bcvRateVigencyDays']) setBcvVigencyDays(sett['bcvRateVigencyDays'])
         if (sett['bcvLastFetchStatus']) setBcvLastFetchStatus(sett['bcvLastFetchStatus'])
         if (sett['bcvLastFetchAt']) setBcvLastFetchAt(sett['bcvLastFetchAt'])
         if (sett['bcvLastFetchError']) setBcvLastFetchError(sett['bcvLastFetchError'])
@@ -344,7 +348,7 @@ export default function SettingsPage(): JSX.Element {
     }
     setSaving(true)
     try {
-      await api.exchangeRates.create(parseFloat(rate))
+      await api.exchangeRates.create(parseFloat(rate), 'manual', rateEffectiveDate || undefined)
       setRate('')
       await load()
       showSuccess('Tasa guardada')
@@ -360,7 +364,7 @@ export default function SettingsPage(): JSX.Element {
     showError('')
     try {
       const res = await api.exchangeRates.fetchBcv()
-      setCurrentRate(res.rate)
+      await load() // refresca la tarjeta de tasa con la ventana de validez
       showSuccess(`Tasa BCV obtenida: Bs. ${res.rate.rate.toFixed(2)}`)
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Error al obtener tasa BCV')
@@ -471,17 +475,6 @@ export default function SettingsPage(): JSX.Element {
       showSuccess(`Hora ${time} eliminada`)
     } catch (err) {
       setBcvFetchTimes(bcvFetchTimes)
-      showError(err instanceof Error ? err.message : 'Error al guardar')
-    }
-  }
-
-  const handleVigencySubmit = async (): Promise<void> => {
-    const days = Math.max(1, Math.floor(Number(bcvVigencyDays) || 1))
-    setBcvVigencyDays(String(days))
-    try {
-      await api.settings.set('bcvRateVigencyDays', String(days))
-      showSuccess(`Vigencia de la tasa: ${days} día(s)`)
-    } catch (err) {
       showError(err instanceof Error ? err.message : 'Error al guardar')
     }
   }
@@ -700,8 +693,29 @@ export default function SettingsPage(): JSX.Element {
               <p className="text-sm text-blue-600">Tasa actual</p>
               <p className="text-2xl font-bold text-blue-800">Bs. {currentRate.rate.toFixed(2)}</p>
               <p className="text-xs text-blue-500">
-                {currentRate.source === 'bcv' ? 'Fuente: BCV' : 'Fuente: Manual'} —{' '}
-                {new Date(currentRate.date).toLocaleDateString()}
+                {currentRate.source === 'bcv' ||
+                currentRate.source === 'bcv-auto' ||
+                currentRate.source === 'bcv-scrape'
+                  ? 'Fuente: BCV'
+                  : 'Fuente: Manual'}{' '}
+                — {new Date(currentRate.date).toLocaleDateString()}
+              </p>
+              <p className="text-xs text-blue-500 mt-0.5">
+                {currentRate.effectiveDate
+                  ? `Fecha de la tasa: ${new Date(currentRate.effectiveDate).toLocaleDateString(
+                      'es-VE',
+                      { weekday: 'short', day: 'numeric', month: 'short' }
+                    )}`
+                  : 'Fecha de la tasa: día de captura'}
+              </p>
+              <p className="text-xs text-blue-500 mt-0.5">
+                {currentRate.validUntil
+                  ? `Válida hasta ${new Date(currentRate.validUntil).toLocaleDateString('es-VE', {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short'
+                    })} (fin de su día)`
+                  : 'Vigente hasta nueva actualización'}
               </p>
             </div>
           )}
@@ -728,6 +742,21 @@ export default function SettingsPage(): JSX.Element {
                   placeholder="0.00"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha de la tasa
+              </label>
+              <input
+                type="date"
+                value={rateEffectiveDate}
+                onChange={(e) => setRateEffectiveDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Será válida hasta que se acabe el día de esta fecha. Si la dejas vacía (o es una
+                captura del BCV), se usa la fecha que trae la fuente.
+              </p>
             </div>
             <div className="flex gap-2">
               <button
@@ -841,27 +870,26 @@ export default function SettingsPage(): JSX.Element {
 
         {/* Vigencia de la tasa */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-bold mb-4">Vigencia de la tasa</h2>
-          <p className="text-sm text-gray-500 mb-3">
-            La factura se emite en bolívares. Si la tasa registrada supera esta vigencia, el POS
-            solicitará ingresar una nueva tasa manualmente antes de emitir.
+          <h2 className="text-lg font-bold mb-1">Vigencia de la tasa</h2>
+          <p className="text-sm text-gray-500">
+            Cada tasa es vigente hasta que se acabe el día de su fecha:
           </p>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 w-40">Días de vigencia</label>
-            <input
-              type="number"
-              min={1}
-              value={bcvVigencyDays}
-              onChange={(e) => setBcvVigencyDays(e.target.value)}
-              className="w-24 px-3 py-2 border border-gray-300 rounded-md text-sm"
-            />
-            <button
-              onClick={handleVigencySubmit}
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors text-sm"
-            >
-              Guardar
-            </button>
-          </div>
+          <ul className="text-sm text-gray-600 mt-2 space-y-1 list-disc list-inside">
+            <li>
+              La fecha sale de la fuente: <span className="font-medium">DolarAPI</span> (campo{' '}
+              <code>fechaActualizacion</code>) o el sitio del BCV; al ingresar manual puedes
+              elegirla.
+            </li>
+            <li>
+              Si se publica con anticipación (ej.: el viernes con fecha del lunes), es vigente
+              hasta que se acabe el lunes.
+            </li>
+            <li>
+              Cuando ese día termina, la tasa queda <span className="font-medium">vieja</span>:
+              el POS pide actualizarla dentro del cobro (Consultar BCV / Ingresar manual) pero
+              permite cobrar igual si el operador confirma.
+            </li>
+          </ul>
         </div>
 
         {/* 1.9.5 — Datos de la Empresa */}
