@@ -10,6 +10,8 @@ const DEFAULT_TIMEOUT_MS = 15000
 
 export interface ApiError extends Error {
   details?: unknown
+  /** Código HTTP de la respuesta cuando el servidor respondió con error. */
+  status?: number
 }
 
 export interface MigrationEntityErrors {
@@ -57,6 +59,7 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
       const err = await res.json().catch(() => ({ error: 'Error de conexión' }))
       const e = new Error(err.error || `HTTP ${res.status}`) as ApiError
       if (err.details !== undefined) e.details = err.details
+      e.status = res.status
       throw e
     }
     return res.json()
@@ -786,7 +789,19 @@ export const api = {
   },
 
   exchangeRates: {
-    active: () => request<ActiveExchangeRateResponse>('/exchange-rates/active'),
+    active: async (): Promise<ActiveExchangeRateResponse> => {
+      try {
+        return await request<ActiveExchangeRateResponse>('/exchange-rates/active')
+      } catch (err) {
+        // Compat: servidor viejo (imagen Docker de versions anteriores, e.g. update
+        // offline sin rebuild) no expone /active. Caer a ?latest=true para que el
+        // POS nunca se bloquee por un 404 ante una imagen de servidor antigua.
+        if ((err as ApiError)?.status === 404) {
+          return await request<ActiveExchangeRateResponse>('/exchange-rates?latest=true')
+        }
+        throw err
+      }
+    },
 
     getLatest: () =>
       request<{ rate: ExchangeRateRecord | null; old: boolean }>('/exchange-rates?latest=true'),
