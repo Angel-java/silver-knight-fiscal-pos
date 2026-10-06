@@ -2,7 +2,7 @@
 type: overview
 tags: [index, catalog]
 created: 2026-06-30
-updated: 2026-09-28
+updated: 2026-10-06
 ---
 
 # Ãndice de la Wiki â€” Silver Knight
@@ -14,7 +14,8 @@ updated: 2026-09-28
 ## Entidades
 - [[category|Category]] â€” CategorÃ­a de productos
 - [[company|Company]] â€” Empresa propietaria del sistema
-- [[customer|Customer]] â€” Cliente / receptor de factura
+- [[customer|Customer]] — Cliente / receptor de factura
+- [[discount-code|Discount Code]] — Código de descuento porcentual con vigencia, condiciones, límites de uso y alcance (productos/categorías)
 - [[exchange-rate|Exchange Rate]] â€” Tasas de cambio USD/VES
 - [[inventory-movement|Inventory Movement]] â€” Movimiento de inventario (audit trail)
 - [[invoice|Invoice]] â€” Factura fiscal
@@ -40,6 +41,7 @@ updated: 2026-09-28
 - [[update-resilience|Update Resilience]] â€” Sistema en 5 capas para descargar/aplicar updates aunque la app estÃ© rota (auto-descarga, boot state, recuperaciÃ³n, cachÃ© de instaladores, watchdog y paquete offline/USB)
 
 ## Hitos recientes
+- [[log#2026-10-06-build--panel-de-gestion-de-codigos-de-descuento|2026-10-06 — Panel de gestión de códigos de descuento]] — Rebuild de `/discount-codes` como panel completo: todos los parámetros configurables (incluida selección de productos/categorías para códigos con alcance restringido, antes imposible desde UI), tabs por estado + búsqueda + paginación, toggle activo/inactivo, copiar código y acceso desde Ajustes. Fix POS: el carrito envía `categoryId` al validar (alcance por categorías funcionaba solo en backend). Detalle en [[discount-code]].
 - [[log#2026-09-28-release--v130-publicada--vigencia-de-tasa-anclada-a-la-fecha-del-bcv--fallback-de-compatibilidad|2026-09-28 — Release v1.3.0]] — Publicada la primera release desde v1.2.0 con el rework de vigencia de tasa (fecha del BCV + `effectiveDate` + tasa vieja no bloqueante) y un fallback de compatibilidad `/active` → `?latest=true` ante 404 (updates offline con imagen de servidor vieja). Tag `v1.3.0` → GitHub Release (`latest.yml` con `version: 1.3.0`). Detalle en [[rate-validity]].
 - [[log#2026-09-28-build--vigencia-de-tasa-anclada-a-la-fecha-del-bcv-regla-simple-panel-inline-con-confirmacion-para-tasa-vieja|2026-09-28 — Vigencia de tasa anclada a la fecha del BCV (regla simple)]] — Se elimina la estrategia configurable (`rateValidityMode`) por una **regla simple**: la fecha de la tasa sale de la fuente (DolarAPI `fechaActualizacion` / sitio BCV / manual) y la tasa es vigente hasta que se acabe ese día; pasada la fecha queda **vieja** y el POS pide actualizarla dentro del cobro pero permite cobrar igual con confirmación. `old` nunca bloquea; solo `RATE_MISSING`. Supercede la iteración de "3 estrategias" del mismo día ([[rate-validity]]).
 - [[log#2026-09-28-build--vigencia-de-tasa-data-driven-3-estrategias-panel-inline-en-el-cobro-scheduler-m1|2026-09-28 — Vigencia de tasa data-driven (3 estrategias)]] — Primera iteración del día (supercedida por la regla de fecha): motor por marcas de tiempo + estrategia configurable, antigüedad sin bloqueo, panel inline en el cobro, scheduler con fetch-on-start y recarga en caliente. Detalle histórico en [[rate-validity]].

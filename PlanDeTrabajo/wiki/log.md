@@ -2,7 +2,7 @@
 type: overview
 tags: [log, chronology]
 created: 2026-06-30
-updated: 2026-09-28
+updated: 2026-10-06
 ---
 
 # Log de operaciones â€” Silver Knight
@@ -546,3 +546,16 @@ pm run build antes de electron-builder â€” los CI de v1.1.9/v1.1.10 fallaba
 - **Verificacion post-release**: workflow `Release` OK en ~3 min (19:40 -> 19:43 UTC); release `v1.3.0` marcada como latest, prerelease=false; `latest.yml` con `version: 1.3.0`, sha512 y `releaseDate` correctos; assets `silver-knight-1.3.0-setup.exe` (152 MB) + `.blockmap` + `latest.yml`. Las instalaciones v1.2.0 detectaran el update (provider github, autoDownload, autoInstallOnAppQuit).
 - **Notas de compatibilidad**: cliente nuevo <> servidor viejo (v1.2.0) cubierto por el fallback (`status === 404` -> `?latest=true`, `old:false`; se agrego `ApiError.status`); cliente viejo <> servidor nuevo compatible (campos opcionales, settings legacy ignorados). Schema forward-only (rollback no revierte `effectiveDate`; codigo viejo tolera columnas extra).
 - **Pendiente**: E2E en maquina desplegada (post-publicacion): auto-update v1.2.0 -> v1.3.0 (rebuild online de la imagen del servidor por sentinel `.server-version` -> `prisma db push` por hash -> panel con "Fecha de la tasa"/"Valida hasta"); flujo de tasa vieja con confirmacion; (opcional) arranque offline con imagen cacheada validando el fallback.
+
+## [2026-10-06] build | Panel de gestion de codigos de descuento
+- **Descripcion**: rebuild de la pagina `/discount-codes` como **panel de gestion completo**: ahora se pueden configurar **todos los parametros** de un codigo de descuento, incluida la seleccion de productos/categorias para codigos con alcance restringido (`scope: PRODUCTS|CATEGORIES`), que antes era imposible desde la UI (el formulario no enviaba `productIds`/`categoryIds`) aunque el backend ya los soportaba (`DiscountCode` en `schema.prisma`, CRUD en `discountCodes.ts`, validacion en `utils/discounts.ts`).
+- **Paginas creadas**: [[discount-code]]
+- **Paginas actualizadas**: [[index]], [[log]]
+- **Cambios**:
+  - `DiscountCodesPage.tsx` (rewrite): tabs por estado (Todos/Activos/Inactivos/Expirados) + busqueda + **paginacion** server-side; tabla con alcance, condiciones, usos (% de limite) y validez; toggle rapido activo/inactivo por fila; copiar codigo al portapapeles; formulario en secciones (Identidad, Validez, Descuento y condiciones, Limites de uso, Alcance, Estado) con **selector de productos** (busqueda incremental) y **categorias** (checkbox list); boton de generacion automatica de codigo; validacion cliente (1-100%, hasta >= desde, alcance no vacio); fechas "desde" al inicio del dia y "hasta" al fin del dia (antes `validUntil` medianoche UTC = caducaba el mismo dia).
+  - `SettingsPage.tsx`: nueva card "Codigos de Descuento" (gated por `discount-codes`/root/admin) -> `/discount-codes` (la pagina estaba **huerfana**: ruta registrada en `App.tsx` pero sin ningun link).
+  - Fix POS: `CartItem` ahora incluye `categoryId` (`components/pos/types.ts`) y `POSPage.tsx` lo envia en `api.discountCodes.validate({ items })` -> el alcance por **categorias** ahora aplica end-to-end (antes `eligibleSubtotal` nunca matcheaba porque el frontend no mandaba `categoryId`).
+  - `api.ts`: `DiscountCode.createdBy?` (opcional, ya venia en las respuestas del server).
+- **Backend**: sin cambios (CRUD + validacion ya completos).
+- **Verificacion**: `typecheck:node` + `typecheck:web` limpios; `npm test` 290/290 (25 archivos); eslint **0 errores** en los 5 archivos tocados (persisten solo los warnings CRLF prettier por `core.autocrlf`, pre-existentes en todo el repo).
+- **Pendiente**: probar el panel en el dev app (crear codigo con alcance por categorias + validarlo en POS con un producto de esa categoria; confirmar que `NO_ELIGIBLE_ITEMS` no aparece al enviar `categoryId`); considerar persisitir el tipo `FIXED` (monto fijo) en el futuro (hoy solo `PERCENTAGE`).
