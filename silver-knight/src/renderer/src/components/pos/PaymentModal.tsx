@@ -15,6 +15,7 @@ interface PaymentModalProps {
   }>
   exchangeRate: number
   customer: { id: string; name: string; rif?: string | null } | null
+  discountCodeId: string | null
   onSubmit: (invoice: Invoice) => void
   onError: (msg: string) => void
 }
@@ -34,6 +35,7 @@ export default function PaymentModal({
   cart,
   exchangeRate,
   customer,
+  discountCodeId,
   onSubmit,
   onError
 }: PaymentModalProps): JSX.Element | null {
@@ -213,6 +215,7 @@ export default function PaymentModal({
         customerId: customer?.id || null,
         currency: payCurrency,
         exchangeRate: rate,
+        discountCodeId: discountCodeId,
         items: cart.map((i) => ({
           productId: i.productId,
           productName: i.productName,

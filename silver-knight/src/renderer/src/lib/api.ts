@@ -100,7 +100,8 @@ export const PERMISSION_MODULES = [
   'fiscal-control',
   'users',
   'data-migration',
-  'apartados'
+  'apartados',
+  'discount-codes'
 ] as const
 
 export type PermissionModule = (typeof PERMISSION_MODULES)[number]
@@ -238,6 +239,10 @@ export interface Invoice {
   exchangeRate: number
   status: string
   payments: string | null
+  discountCodeId: string | null
+  discountValue: number | null
+  discountAmountUsd: number | null
+  discountAmountVes: number | null
   createdAt: string
 }
 
@@ -254,6 +259,64 @@ export interface InvoiceInput {
   exchangeRate: number
   documentType?: string
   payments?: Array<{ method: string; amount: number; currency: string }>
+  discountCodeId?: string | null
+}
+
+export interface DiscountCode {
+  id: string
+  code: string
+  description: string | null
+  discountType: string
+  discountValue: number
+  validFrom: string | null
+  validUntil: string | null
+  minSubtotal: number | null
+  minQuantity: number | null
+  currency: string
+  isActive: boolean
+  usageLimit: number | null
+  usedCount: number
+  usagePerCustomer: number | null
+  requireCustomer: boolean
+  scope: 'ALL' | 'PRODUCTS' | 'CATEGORIES'
+  productIds: string[] | null
+  categoryIds: string[] | null
+  maxDiscountAmount: number | null
+  createdById: string | null
+  createdBy?: { username: string; fullName: string | null } | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DiscountCodeInput {
+  code?: string
+  description?: string | null
+  discountValue: number
+  validFrom?: string | null
+  validUntil?: string | null
+  minSubtotal?: number | null
+  minQuantity?: number | null
+  currency?: 'USD' | 'VES'
+  usageLimit?: number | null
+  usagePerCustomer?: number | null
+  requireCustomer?: boolean
+  scope?: 'ALL' | 'PRODUCTS' | 'CATEGORIES'
+  productIds?: string[] | null
+  categoryIds?: string[] | null
+  maxDiscountAmount?: number | null
+  isActive?: boolean
+}
+
+export interface ValidatedDiscount {
+  valid: boolean
+  discountCodeId: string
+  code: string
+  description: string | null
+  discountValue: number
+  discountAmountUsd: number
+  discountAmountVes: number
+  subtotalAfterDiscountUsd: number
+  subtotalAfterDiscountVes: number
 }
 
 export interface ExchangeRateRecord {
@@ -1083,6 +1146,62 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ reason })
       })
+  },
+
+  discountCodes: {
+    list: (params?: { search?: string; isActive?: boolean; expired?: boolean; page?: number; limit?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      if (params?.isActive !== undefined) q.set('isActive', String(params.isActive))
+      if (params?.expired !== undefined) q.set('expired', String(params.expired))
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.limit) q.set('limit', String(params.limit))
+      const qs = q.toString()
+      return request<{ codes: DiscountCode[]; total: number; page: number; pages: number }>(
+        `/discount-codes${qs ? '?' + qs : ''}`
+      )
+    },
+
+    get: (id: string) => request<{ code: DiscountCode }>(`/discount-codes/${id}`),
+
+    generate: (data?: { prefix?: string; length?: number; separator?: string; groups?: number }) =>
+      request<{ code: string }>('/discount-codes/generate', {
+        method: 'POST',
+        body: JSON.stringify(data || {})
+      }),
+
+    create: (data: DiscountCodeInput) =>
+      request<{ code: DiscountCode }>('/discount-codes', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    update: (id: string, data: Partial<DiscountCodeInput>) =>
+      request<{ code: DiscountCode }>(`/discount-codes/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      }),
+
+    delete: (id: string) => request<{ ok?: boolean; code?: DiscountCode; softDeleted?: boolean }>(`/discount-codes/${id}`, {
+      method: 'DELETE'
+    }),
+
+    validate: (data: {
+      code: string
+      customerId?: string | null
+      currency: 'USD' | 'VES'
+      subtotal: number
+      quantity: number
+      items?: Array<{
+        productId?: string | null
+        categoryId?: string | null
+        quantity: number
+        subtotalLine: number
+      }>
+    }) => request<ValidatedDiscount>('/discount-codes/validate', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
   },
 
   getApiBase,

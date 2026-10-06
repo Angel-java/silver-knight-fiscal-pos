@@ -29,6 +29,10 @@ export default function POSPage(): JSX.Element {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(
     null
   )
+  const [discountCodeId, setDiscountCodeId] = useState<string | null>(null)
+  const [discountAmountUsd, setDiscountAmountUsd] = useState<number>(0)
+  const [discountAmountVes, setDiscountAmountVes] = useState<number>(0)
+  const [discountCodeLabel, setDiscountCodeLabel] = useState<string | null>(null)
 
   useEffect(() => {
     const init = async (): Promise<void> => {
@@ -79,6 +83,7 @@ export default function POSPage(): JSX.Element {
         ...prev,
         {
           productId: product.id,
+          categoryId: product.categoryId,
           productName: product.name,
           quantity: 1,
           unitPriceUsd: product.priceUsd,
@@ -96,19 +101,78 @@ export default function POSPage(): JSX.Element {
     setCart((prev) => prev.map((i) => (i.productId === productId ? { ...i, quantity: qty } : i)))
   }
 
-  const subtotalUsd = cart.reduce((s, i) => s + i.unitPriceUsd * i.quantity, 0)
-  const subtotalVes = cart.reduce((s, i) => s + i.unitPriceUsd * exchangeRate * i.quantity, 0)
-  const ivaUsd = cart.reduce((s, i) => s + i.unitPriceUsd * i.quantity * (i.ivaRate / 100), 0)
-  const ivaVes = cart.reduce(
-    (s, i) => s + i.unitPriceUsd * exchangeRate * i.quantity * (i.ivaRate / 100),
-    0
+  const round2 = (n: number): number => Math.round(n * 100) / 100
+
+  const subtotalUsd = round2(cart.reduce((s, i) => s + i.unitPriceUsd * i.quantity, 0))
+  const subtotalVes = round2(cart.reduce((s, i) => s + i.unitPriceUsd * exchangeRate * i.quantity, 0))
+  let ivaUsd = round2(cart.reduce((s, i) => s + i.unitPriceUsd * i.quantity * (i.ivaRate / 100), 0))
+  let ivaVes = round2(
+    cart.reduce(
+      (s, i) => s + i.unitPriceUsd * exchangeRate * i.quantity * (i.ivaRate / 100),
+      0
+    )
   )
-  const totalDisplay = currency === 'USD' ? subtotalUsd + ivaUsd : subtotalVes + ivaVes
+
+  if (discountAmountUsd > 0 || discountAmountVes > 0) {
+    // Ajustar IVA proporcionalmente si hay descuento
+    if (subtotalUsd > 0) {
+      ivaUsd = round2(ivaUsd * ((subtotalUsd - discountAmountUsd) / subtotalUsd))
+    }
+    if (subtotalVes > 0) {
+      ivaVes = round2(ivaVes * ((subtotalVes - discountAmountVes) / subtotalVes))
+    }
+  }
+
+  const totalUsd = round2((subtotalUsd - discountAmountUsd) + ivaUsd)
+  const totalVes = round2((subtotalVes - discountAmountVes) + ivaVes)
+  const totalDisplay = currency === 'USD' ? totalUsd : totalVes
+
+  const handleApplyDiscount = async (code: string): Promise<void> => {
+    if (!code.trim() || cart.length === 0) return
+    try {
+      const qty = cart.reduce((s, i) => s + i.quantity, 0)
+      const res = await api.discountCodes.validate({
+        code: code.trim(),
+        customerId: customer?.id || null,
+        currency: currency,
+        subtotal: currency === 'USD' ? subtotalUsd : subtotalVes,
+        quantity: qty,
+        items: cart.map((i) => ({
+          productId: i.productId,
+          categoryId: i.categoryId,
+          quantity: i.quantity,
+          subtotalLine: currency === 'USD'
+            ? i.unitPriceUsd * i.quantity
+            : i.unitPriceUsd * exchangeRate * i.quantity
+        }))
+      })
+      setDiscountCodeId(res.discountCodeId)
+      setDiscountAmountUsd(res.discountAmountUsd)
+      setDiscountAmountVes(res.discountAmountVes)
+      setDiscountCodeLabel(`${res.code} (${res.discountValue}%)`)
+      setMessage({ text: `Descuento ${res.code} aplicado`, type: 'success' })
+      setTimeout(() => setMessage(null), 3000)
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : 'Código inválido', type: 'error' })
+      setTimeout(() => setMessage(null), 5000)
+    }
+  }
+
+  const handleRemoveDiscount = (): void => {
+    setDiscountCodeId(null)
+    setDiscountAmountUsd(0)
+    setDiscountAmountVes(0)
+    setDiscountCodeLabel(null)
+  }
 
   const handleInvoiceCreated = (invoice: Invoice): void => {
     setLastInvoice(invoice)
     setCart([])
     setCustomer(null)
+    setDiscountCodeId(null)
+    setDiscountAmountUsd(0)
+    setDiscountAmountVes(0)
+    setDiscountCodeLabel(null)
     setMessage({ text: `Factura ${invoice.number} creada exitosamente`, type: 'success' })
     setTimeout(() => setMessage(null), 5000)
   }
@@ -171,9 +235,17 @@ export default function POSPage(): JSX.Element {
           subtotalVes={subtotalVes}
           ivaUsd={ivaUsd}
           ivaVes={ivaVes}
+          totalUsd={totalUsd}
+          totalVes={totalVes}
+          discountAmountUsd={discountAmountUsd}
+          discountAmountVes={discountAmountVes}
+          hasDiscount={!!discountCodeId}
+          discountCodeLabel={discountCodeLabel}
           customer={customer}
           onUpdateQty={updateQty}
           onOpenCustomerModal={() => setShowCustomerModal(true)}
+          onApplyDiscount={handleApplyDiscount}
+          onRemoveDiscount={handleRemoveDiscount}
           onOpenPayment={() => {
             if (cart.length > 0) setShowPaymentModal(true)
           }}
@@ -198,6 +270,7 @@ export default function POSPage(): JSX.Element {
         cart={cart}
         exchangeRate={exchangeRate}
         customer={customer}
+        discountCodeId={discountCodeId}
         onSubmit={handleInvoiceCreated}
         onError={(msg) => setMessage({ text: msg, type: 'error' })}
       />

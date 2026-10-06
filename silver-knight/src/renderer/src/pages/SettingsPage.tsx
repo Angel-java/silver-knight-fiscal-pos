@@ -6,9 +6,10 @@ import PasswordInput from '../components/PasswordInput'
 
 export default function SettingsPage(): JSX.Element {
   const navigate = useNavigate()
-  const { hasPermission } = useAuth()
+  const { user, hasPermission } = useAuth()
   const isAdmin = hasPermission('settings')
   const canMigrate = hasPermission('data-migration')
+  const canManageDiscounts = user?.role === 'root' || user?.role === 'admin' || hasPermission('discount-codes')
   const [rate, setRate] = useState('')
   const [currentRate, setCurrentRate] = useState<{
     rate: number
@@ -1635,6 +1636,23 @@ export default function SettingsPage(): JSX.Element {
             Consulta el Libro de Ventas y Libro de Compras para la declaración del IVA.
           </p>
         </div>
+
+        {canManageDiscounts && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Códigos de Descuento</h2>
+              <button
+                onClick={() => navigate('/discount-codes')}
+                className="text-sm text-primary hover:text-primary-dark font-medium"
+              >
+                Gestionar códigos →
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">
+              Crea y configura códigos de descuento: porcentaje, vigencia, condiciones, límites de uso y alcance.
+            </p>
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">Margen de Ganancia</h2>

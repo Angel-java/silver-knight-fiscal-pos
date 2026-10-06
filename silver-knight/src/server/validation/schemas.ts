@@ -54,7 +54,8 @@ export const createInvoiceSchema = z.object({
     )
     .optional()
     .nullable(),
-  documentType: z.enum(['FACT', 'NCR', 'NDB']).default('FACT')
+  documentType: z.enum(['FACT', 'NCR', 'NDB']).default('FACT'),
+  discountCodeId: z.string().optional().nullable()
 })
 
 export const cancelInvoiceSchema = z.object({
@@ -134,7 +135,7 @@ const PERMISSION_MODULES = [
   'dashboard', 'pos', 'products', 'categories', 'inventory',
   'inventory-entries', 'customers', 'invoices', 'reports',
   'settings', 'exchange-rates', 'iva-books', 'fiscal-control', 'users',
-  'data-migration', 'apartados'
+  'data-migration', 'apartados', 'discount-codes'
 ] as const
 
 export const permissionModules = PERMISSION_MODULES
@@ -215,4 +216,49 @@ export const finalizeReservationSchema = z.object({
 
 export const cancelReservationSchema = z.object({
   reason: z.string().min(1, 'Motivo de cancelación requerido')
+})
+
+export const discountCodeSchema = z.object({
+  code: z.string().trim().min(3, 'Código muy corto').max(50, 'Código muy largo').optional(),
+  description: z.string().trim().max(255, 'Descripción muy larga').optional().nullable(),
+  discountValue: z.coerce.number().min(1, 'Mínimo 1%').max(100, 'Máximo 100%'),
+  validFrom: z.coerce.date().optional().nullable(),
+  validUntil: z.coerce.date().optional().nullable(),
+  minSubtotal: z.coerce.number().min(0, 'El monto mínimo no puede ser negativo').optional().nullable(),
+  minQuantity: z.coerce.number().int().positive('La cantidad mínima debe ser mayor a 0').optional().nullable(),
+  currency: z.enum(['USD', 'VES']).default('VES'),
+  usageLimit: z.coerce.number().int().positive('El límite de usos debe ser mayor a 0').optional().nullable(),
+  usagePerCustomer: z.coerce.number().int().positive('El límite por cliente debe ser mayor a 0').optional().nullable(),
+  requireCustomer: z.boolean().default(false),
+  scope: z.enum(['ALL', 'PRODUCTS', 'CATEGORIES']).default('ALL'),
+  productIds: z.array(z.string()).optional().nullable(),
+  categoryIds: z.array(z.string()).optional().nullable(),
+  maxDiscountAmount: z.coerce.number().min(0, 'El tope no puede ser negativo').optional().nullable(),
+  isActive: z.boolean().default(true)
+}).refine(
+  (data) => !data.validFrom || !data.validUntil || data.validUntil >= data.validFrom,
+  { message: 'Válido Hasta debe ser mayor o igual a Válido Desde', path: ['validUntil'] }
+)
+
+export const generateDiscountCodeSchema = z.object({
+  prefix: z.string().trim().max(10).optional(),
+  length: z.coerce.number().int().min(4).max(20).default(8),
+  separator: z.string().max(1).optional(),
+  groups: z.coerce.number().int().min(1).max(4).default(2)
+})
+
+const validateDiscountItemSchema = z.object({
+  productId: z.string().optional().nullable(),
+  categoryId: z.string().optional().nullable(),
+  quantity: z.coerce.number().min(0),
+  subtotalLine: z.coerce.number().min(0)
+})
+
+export const validateDiscountCodeSchema = z.object({
+  code: z.string().trim().min(1, 'Código requerido'),
+  customerId: z.string().optional().nullable(),
+  currency: z.enum(['USD', 'VES']).default('VES'),
+  subtotal: z.coerce.number().min(0),
+  quantity: z.coerce.number().int().min(0),
+  items: z.array(validateDiscountItemSchema).optional().nullable()
 })

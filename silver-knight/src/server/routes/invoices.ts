@@ -7,6 +7,7 @@ import { asyncHandler, AppError } from '../middleware/errorHandler'
 import { nextControlNumber, buildInvoiceNumber } from '../utils/controlNumbers'
 import { DEFAULT_INVOICE_PAGE_SIZE } from '../config'
 import { getActiveExchangeRate } from '../utils/rateResolver'
+import { validateDiscountCode, calculateDiscountedTotals } from '../utils/discounts'
 
 const router = Router()
 router.use(authMiddleware)
@@ -20,10 +21,7 @@ export interface CreateInvoiceLine {
   ivaRate: number
 }
 
-export function computeInvoiceTotals(
-  items: CreateInvoiceLine[],
-  rate: number
-): {
+export interface InvoiceTotals {
   invoiceItems: Array<{
     productId: string | null
     productName: string
@@ -34,13 +32,24 @@ export function computeInvoiceTotals(
     totalUsd: number
     totalVes: number
   }>
-  totalUsd: number
-  totalVes: number
+  subtotalUsd: number
+  subtotalVes: number
   ivaUsd: number
   ivaVes: number
-} {
-  let totalUsd = 0
-  let totalVes = 0
+  totalUsd: number
+  totalVes: number
+  discountValue: number | null
+  discountAmountUsd: number
+  discountAmountVes: number
+}
+
+export function computeInvoiceTotals(
+  items: CreateInvoiceLine[],
+  rate: number,
+  discount?: { discountValue: number; maxDiscountAmount?: number | null } | null
+): InvoiceTotals {
+  let subtotalUsd = 0
+  let subtotalVes = 0
   let ivaUsd = 0
   let ivaVes = 0
 
@@ -55,8 +64,8 @@ export function computeInvoiceTotals(
     const ivaRate = Number(item.ivaRate) || 0
     const lineIvaUsd = lineUsd * (ivaRate / 100)
     const lineIvaVes = lineVes * (ivaRate / 100)
-    totalUsd += lineUsd
-    totalVes += lineVes
+    subtotalUsd += lineUsd
+    subtotalVes += lineVes
     ivaUsd += lineIvaUsd
     ivaVes += lineIvaVes
     return {
@@ -71,12 +80,47 @@ export function computeInvoiceTotals(
     }
   })
 
+  subtotalUsd = round2(subtotalUsd)
+  subtotalVes = round2(subtotalVes)
+  ivaUsd = round2(ivaUsd)
+  ivaVes = round2(ivaVes)
+
+  let discountValue: number | null = null
+  let discountAmountUsd = 0
+  let discountAmountVes = 0
+  let totalUsd = round2(subtotalUsd + ivaUsd)
+  let totalVes = round2(subtotalVes + ivaVes)
+
+  if (discount && discount.discountValue > 0) {
+    discountValue = discount.discountValue
+    const discounted = calculateDiscountedTotals({
+      subtotalUsd,
+      subtotalVes,
+      ivaUsd,
+      ivaVes,
+      discountValue: discount.discountValue,
+      maxDiscountAmount: discount.maxDiscountAmount,
+      exchangeRate: rate
+    })
+    discountAmountUsd = discounted.discountAmountUsd
+    discountAmountVes = discounted.discountAmountVes
+    ivaUsd = discounted.ivaAfterDiscountUsd
+    ivaVes = discounted.ivaAfterDiscountVes
+    totalUsd = discounted.totalUsd
+    totalVes = discounted.totalVes
+  }
+
   return {
     invoiceItems,
-    totalUsd: Math.round(totalUsd * 100) / 100,
-    totalVes: Math.round(totalVes * 100) / 100,
-    ivaUsd: Math.round(ivaUsd * 100) / 100,
-    ivaVes: Math.round(ivaVes * 100) / 100
+    subtotalUsd,
+    subtotalVes,
+    ivaUsd,
+    ivaVes,
+    totalUsd,
+    totalVes,
+    discountValue,
+    discountAmountUsd,
+    discountAmountVes
   }
 }
 
@@ -130,7 +174,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request, res: Response) => {
-  const { customerId, items, currency, exchangeRate, payments, documentType } = req.body
+  const { customerId, items, currency, exchangeRate, payments, documentType, discountCodeId } = req.body
 
   let rate = Number(exchangeRate) || 0
   if (rate <= 0) {
@@ -153,9 +197,46 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
   const { number: controlNumber, fiscalControlId } = await nextControlNumber(docType)
   const number = buildInvoiceNumber(docType, controlNumber)
 
-  const totals = computeInvoiceTotals(items, rate)
+  const invoiceCurrency = currency || 'USD'
 
   const invoice = await prisma.$transaction(async (tx) => {
+    let discountCode: Awaited<ReturnType<typeof tx.discountCode.findUnique>> = null
+    let discountInput: { discountValue: number; maxDiscountAmount?: number | null } | null = null
+
+    if (discountCodeId) {
+      discountCode = await tx.discountCode.findUnique({ where: { id: discountCodeId } })
+      if (!discountCode || discountCode.deletedAt) {
+        throw new AppError(400, 'Código de descuento no encontrado', { errorCode: 'NOT_FOUND' })
+      }
+
+      // Re-validar dentro de la transacción para evitar race conditions
+      const subtotal = items.reduce(
+        (s: number, i: CreateInvoiceLine) => s + Number(i.unitPriceUsd || 0) * Number(i.quantity || 1) * (invoiceCurrency === 'VES' ? rate : 1),
+        0
+      )
+      const quantity = items.reduce((s: number, i: CreateInvoiceLine) => s + Number(i.quantity || 1), 0)
+
+      const validated = await validateDiscountCode({
+        code: discountCode.code,
+        customerId: customerId || null,
+        currency: invoiceCurrency,
+        subtotal,
+        quantity,
+        items: items.map((i: CreateInvoiceLine) => ({
+          productId: i.productId || null,
+          quantity: Number(i.quantity || 1),
+          subtotalLine: Number(i.unitPriceUsd || 0) * Number(i.quantity || 1) * (invoiceCurrency === 'VES' ? rate : 1)
+        }))
+      })
+
+      discountInput = {
+        discountValue: validated.discountValue,
+        maxDiscountAmount: discountCode.maxDiscountAmount
+      }
+    }
+
+    const totals = computeInvoiceTotals(items, rate, discountInput)
+
     for (const item of items) {
       if (item.productId) {
         const product = await tx.product.findUnique({ where: { id: item.productId } })
@@ -176,17 +257,37 @@ router.post('/', validate(createInvoiceSchema), asyncHandler(async (req: Request
         fiscalControlId,
         customerId: customerId || null,
         userId: req.user?.userId || null,
-        currency: currency || 'USD',
+        currency: invoiceCurrency,
         exchangeRate: rate,
         totalUsd: totals.totalUsd,
         totalVes: totals.totalVes,
         ivaUsd: totals.ivaUsd,
         ivaVes: totals.ivaVes,
+        discountCodeId: discountCode?.id || null,
+        discountValue: totals.discountValue,
+        discountAmountUsd: totals.discountAmountUsd,
+        discountAmountVes: totals.discountAmountVes,
         payments: payments ? JSON.stringify(payments) : null,
         items: { create: totals.invoiceItems }
       },
       include: { items: true, customer: true, fiscalControl: true }
     })
+
+    if (discountCode) {
+      await tx.discountCode.update({
+        where: { id: discountCode.id },
+        data: { usedCount: { increment: 1 } }
+      })
+      await tx.discountUsage.create({
+        data: {
+          discountCodeId: discountCode.id,
+          customerId: customerId || null,
+          invoiceId: inv.id,
+          discountAmountUsd: totals.discountAmountUsd,
+          discountAmountVes: totals.discountAmountVes
+        }
+      })
+    }
 
     for (const item of items) {
       if (item.productId) {

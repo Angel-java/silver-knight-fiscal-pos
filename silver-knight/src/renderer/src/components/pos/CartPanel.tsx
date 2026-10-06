@@ -1,4 +1,4 @@
-import { type JSX } from 'react'
+import { type JSX, useState } from 'react'
 import type { CartItem } from './types'
 
 interface CartPanelProps {
@@ -8,9 +8,17 @@ interface CartPanelProps {
   subtotalVes: number
   ivaUsd: number
   ivaVes: number
+  totalUsd: number
+  totalVes: number
+  discountAmountUsd: number
+  discountAmountVes: number
+  hasDiscount: boolean
+  discountCodeLabel: string | null
   customer: { id: string; name: string; rif?: string | null } | null
   onUpdateQty: (productId: string, qty: number) => void
   onOpenCustomerModal: () => void
+  onApplyDiscount: (code: string) => void
+  onRemoveDiscount: () => void
   onOpenPayment: () => void
 }
 
@@ -21,14 +29,23 @@ export default function CartPanel({
   subtotalVes,
   ivaUsd,
   ivaVes,
+  totalUsd,
+  totalVes,
+  discountAmountUsd,
+  discountAmountVes,
+  hasDiscount,
+  discountCodeLabel,
   customer,
   onUpdateQty,
   onOpenCustomerModal,
+  onApplyDiscount,
+  onRemoveDiscount,
   onOpenPayment
 }: CartPanelProps): JSX.Element {
   const unitPriceVes = (item: CartItem): number => item.unitPriceUsd * exchangeRate
-  const formatVes = (value: number): string =>
-    exchangeRate > 0 ? value.toFixed(2) : '—'
+  const formatVes = (value: number): string => (exchangeRate > 0 ? value.toFixed(2) : '—')
+  const [discountCode, setDiscountCode] = useState('')
+
   return (
     <div className="w-full lg:w-80 xl:w-96 bg-white shadow-lg flex flex-col lg:border-l max-h-[45vh] lg:max-h-none border-t lg:border-t-0">
       <div className="p-3 sm:p-4 border-b shrink-0">
@@ -90,6 +107,54 @@ export default function CartPanel({
             <span className="text-yellow-600 font-semibold">Sin tasa registrada</span>
           )}
         </div>
+
+        <div className="space-y-2">
+          {hasDiscount ? (
+            <div className="bg-green-50 border border-green-200 rounded-md p-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-green-700">Descuento aplicado</p>
+                  <p className="text-xs text-green-600 truncate">{discountCodeLabel}</p>
+                </div>
+                <button
+                  onClick={onRemoveDiscount}
+                  className="text-xs text-green-700 hover:text-green-900 underline"
+                >
+                  Quitar
+                </button>
+              </div>
+              <div className="flex justify-between text-xs text-green-700 mt-1">
+                <span>Descuento</span>
+                <span>
+                  -${discountAmountUsd.toFixed(2)} · Bs. {formatVes(discountAmountVes)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                placeholder="Código descuento"
+                className="flex-1 px-2 py-1 border border-gray-300 rounded-md text-xs"
+              />
+              <button
+                onClick={() => {
+                  if (discountCode.trim()) {
+                    onApplyDiscount(discountCode.trim())
+                    setDiscountCode('')
+                  }
+                }}
+                disabled={!discountCode.trim()}
+                className="px-2 py-1 bg-primary text-white rounded-md text-xs hover:bg-primary-dark disabled:opacity-50"
+              >
+                Aplicar
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="flex justify-between text-sm text-gray-500">
           <span>Subtotal</span>
           <span className="text-right">
@@ -97,6 +162,15 @@ export default function CartPanel({
             <span className="text-gray-400"> · Bs.{formatVes(subtotalVes)}</span>
           </span>
         </div>
+        {hasDiscount && (
+          <div className="flex justify-between text-sm text-green-600">
+            <span>Descuento</span>
+            <span className="text-right">
+              -${discountAmountUsd.toFixed(2)}
+              <span className="text-green-500"> · Bs.{formatVes(discountAmountVes)}</span>
+            </span>
+          </div>
+        )}
         <div className="flex justify-between text-sm text-gray-500">
           <span>IVA</span>
           <span className="text-right">
@@ -107,8 +181,7 @@ export default function CartPanel({
         <div className="flex flex-col items-end text-lg font-bold text-gray-800 border-t pt-2">
           <span>Total</span>
           <span className="text-right">
-            ${(subtotalUsd + ivaUsd).toFixed(2)} · Bs.
-            {formatVes(subtotalVes + ivaVes)}
+            ${totalUsd.toFixed(2)} · Bs.{formatVes(totalVes)}
           </span>
         </div>
         <button

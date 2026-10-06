@@ -21,6 +21,7 @@ import InvoiceViewPage from './pages/InvoiceViewPage'
 import SuppliersPage from './pages/SuppliersPage'
 import DataMigrationPage from './pages/DataMigrationPage'
 import ApartadosPage from './pages/ApartadosPage'
+import DiscountCodesPage from './pages/DiscountCodesPage'
 
 const rlog = (tag: string, msg: string): void => {
   try { window.electron?.send('renderer-log', 'INFO', tag, msg) } catch {}
@@ -194,6 +195,14 @@ function App(): React.JSX.Element {
           element={
             <ProtectedRoute module="reports">
               <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/discount-codes"
+          element={
+            <ProtectedRoute module="discount-codes">
+              <DiscountCodesPage />
             </ProtectedRoute>
           }
         />

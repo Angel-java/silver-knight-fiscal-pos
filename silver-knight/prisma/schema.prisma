@@ -29,6 +29,7 @@ model User {
   invoices    Invoice[]
   reservations Reservation[]
   reservationPayments ReservationPayment[]
+  discountCodesCreated DiscountCode[] @relation("DiscountCodeCreatedBy")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -100,6 +101,7 @@ model Customer {
   creditLimitUsd Float?
   invoices      Invoice[]
   reservations  Reservation[]
+  discountUsages DiscountUsage[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -145,6 +147,15 @@ model Invoice {
   status          String        @default("active")
   payments        String?       // JSON string with payment methods
   importedFrom    String?       // 'backup' cuando la factura vino de una importación (histórica)
+
+  // Descuentos
+  discountCodeId  String?
+  discountCode    DiscountCode? @relation("InvoiceDiscountCode", fields: [discountCodeId], references: [id])
+  discountValue   Float?        // Porcentaje aplicado (0-100)
+  discountAmountUsd Float?      @default(0)
+  discountAmountVes Float?      @default(0)
+  discountUsage   DiscountUsage?
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -154,6 +165,7 @@ model Invoice {
   @@index([customerId])
   @@index([fiscalControlId])
   @@index([userId])
+  @@index([discountCodeId])
 
   reservationFrom Reservation[]
 }
@@ -305,4 +317,64 @@ model ReservationPayment {
   createdAt     DateTime    @default(now())
 
   @@index([reservationId])
+}
+
+model DiscountCode {
+  id                String         @id @default(cuid())
+  code              String         @unique
+  description       String?
+  discountType      String         @default("PERCENTAGE") // PERCENTAGE
+  discountValue     Float          // 0 - 100
+
+  // Condiciones de validez
+  validFrom         DateTime?
+  validUntil        DateTime?
+  minSubtotal       Float?
+  minQuantity       Int?
+  currency          String         @default("VES") // USD | VES — moneda para evaluar minSubtotal
+
+  // Restricciones de uso
+  isActive          Boolean        @default(true)
+  usageLimit        Int?           // null = ilimitado
+  usedCount         Int            @default(0)
+  usagePerCustomer  Int?           // null = sin límite
+  requireCustomer   Boolean        @default(false)
+
+  // Alcance
+  scope             String         @default("ALL") // ALL | PRODUCTS | CATEGORIES
+  productIds        Json?
+  categoryIds       Json?
+
+  // Protección de margen
+  maxDiscountAmount Float?         // tope máximo en la moneda de la factura
+
+  createdById       String?
+  createdBy         User?          @relation("DiscountCodeCreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  deletedAt         DateTime?
+
+  invoices          Invoice[]      @relation("InvoiceDiscountCode")
+  discountUsages    DiscountUsage[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+}
+
+model DiscountUsage {
+  id              String       @id @default(cuid())
+  discountCodeId  String
+  discountCode    DiscountCode @relation(fields: [discountCodeId], references: [id], onDelete: Cascade)
+  customerId      String?
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+  invoiceId       String       @unique
+  invoice         Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  usedAt          DateTime     @default(now())
+  discountAmountUsd Float
+  discountAmountVes Float
+
+  @@index([discountCodeId, customerId])
+  @@index([discountCodeId])
+  @@index([invoiceId])
 }
