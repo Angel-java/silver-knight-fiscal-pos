@@ -574,3 +574,11 @@ pm run build antes de electron-builder â€” los CI de v1.1.9/v1.1.10 fallaba
 - **Verificacion**: `typecheck:node` + `typecheck:web` limpios (EXIT=0). Endpoint `/bulk` confirmado activo en el contenedor tras `docker compose build server && docker compose up -d server`.
 - **Nota de despliegue**: el backend corre en el contenedor `silverknight-server` (`tsx src/server/standalone.ts`). Los cambios en `src/server` requieren **reconstruir la imagen y recrear el contenedor**; la UI (renderer) si toma HMR en dev.
 - **Pendiente**: probar la generacion masiva (p. ej. 50 codigos con prefijo) y el reporte/PDF en el dev app; opcional: exponer en la UI los parametros avanzados de formato (separador/grupos).
+
+## [2026-10-06] release | v1.4.0 publicada (codigos de descuento: generacion en masa + reporte PDF)
+- **Descripcion**: release publicada con el feature de codigos de descuento (generacion en masa + reporte imprimible/PDF + refactor en componentes + drawers de probar/ver).
+- **Version**: `1.4.0` (`silver-knight/package.json`).
+- **Flujo**: push a `main` (CI + Build Windows Installer) y push del tag `vX.Y.Z` -> `.github/workflows/release.yml` en `windows-latest`: `npm run build` + `electron-builder --win --publish never` + `gh release create "$TAG" dist/*.exe dist/*.blockmap dist/latest.yml --generate-notes --latest`.
+- **Release**: tag `v1.4.0`, release publicada (no draft) y marcada **Latest** el 2026-10-07T02:49:43Z. Action run de Release: **success**. Assets: `silver-knight-1.4.0-setup.exe` (159,863,212 bytes), `silver-knight-1.4.0-setup.exe.blockmap` (152.360 bytes) y `latest.yml` con `version: 1.4.0`.
+- **Paginas actualizadas**: [[index]], [[log]], [[update-resilience]].
+- **Pendiente/fuera de alcance**: el fix del **rollback automatico** de updates (`markUpdateApplied()` nunca se llama en produccion, por lo que `failuresAfterUpdate` siempre queda en 0 y `maybeAutoRepair()` no dispara) quedo fuera de esta release.
