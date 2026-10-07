@@ -7,6 +7,10 @@ import {
   type Product
 } from '../lib/api'
 import { useAuth } from '../contexts/useAuth'
+import DiscountCodesFiltersBar from '../components/discount-codes/DiscountCodesFiltersBar'
+import DiscountCodesTable from '../components/discount-codes/DiscountCodesTable'
+import DiscountCodeValidateDrawer from '../components/discount-codes/DiscountCodeValidateDrawer'
+import DiscountCodeDetailsDrawer from '../components/discount-codes/DiscountCodeDetailsDrawer'
 
 const CURRENCY_OPTIONS = [
   { value: 'VES', label: 'Bolívares (VES)' },
@@ -21,13 +25,8 @@ const SCOPE_OPTIONS = [
 
 type Scope = 'ALL' | 'PRODUCTS' | 'CATEGORIES'
 type StatusFilter = 'all' | 'active' | 'inactive' | 'expired'
-
-const STATUS_TABS: Array<{ key: StatusFilter; label: string }> = [
-  { key: 'all', label: 'Todos' },
-  { key: 'active', label: 'Activos' },
-  { key: 'inactive', label: 'Inactivos' },
-  { key: 'expired', label: 'Expirados' }
-]
+type ScopeFilter = 'ALL' | 'PRODUCTS' | 'CATEGORIES' | 'all'
+type TriState = 'all' | 'yes' | 'no'
 
 const toDateInput = (d: string | null): string => {
   if (!d) return ''
@@ -46,7 +45,7 @@ const formatDate = (d: string | null): string => {
 
 export default function DiscountCodesPage(): JSX.Element {
   const navigate = useNavigate()
-  const { user, hasPermission } = useAuth()
+  const { user, company, hasPermission } = useAuth()
   const canManage = user?.role === 'root' || user?.role === 'admin' || hasPermission('discount-codes')
 
   // Listado
@@ -58,14 +57,29 @@ export default function DiscountCodesPage(): JSX.Element {
   const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('all')
+  const [requireCustomerFilter, setRequireCustomerFilter] = useState<TriState>('all')
+  const [hasUsageLimitFilter, setHasUsageLimitFilter] = useState<TriState>('all')
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [showTestDrawer, setShowTestDrawer] = useState(false)
+  const [testCode, setTestCode] = useState('')
+  const [showDetailsDrawer, setShowDetailsDrawer] = useState(false)
+  const [detailsCodeId, setDetailsCodeId] = useState<string | null>(null)
+  const [printing, setPrinting] = useState(false)
 
   // Modal
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<DiscountCode | null>(null)
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // Generación en masa
+  const [bulkMode, setBulkMode] = useState(false)
+  const [bulkQuantity, setBulkQuantity] = useState('10')
+  const [bulkPrefix, setBulkPrefix] = useState('')
+  const [bulkResult, setBulkResult] = useState<{ count: number; codes: string[] } | null>(null)
+  const [bulkCopied, setBulkCopied] = useState(false)
 
   const [code, setCode] = useState('')
   const [description, setDescription] = useState('')
@@ -172,6 +186,11 @@ export default function DiscountCodesPage(): JSX.Element {
 
   const openCreate = async (): Promise<void> => {
     setEditing(null)
+    setBulkMode(false)
+    setBulkQuantity('10')
+    setBulkPrefix('')
+    setBulkResult(null)
+    setBulkCopied(false)
     setCode('')
     setDescription('')
     setDiscountValue('20')
@@ -201,8 +220,17 @@ export default function DiscountCodesPage(): JSX.Element {
     setShowModal(true)
   }
 
+  const openBulk = (): void => {
+    void openCreate()
+    setBulkMode(true)
+    setBulkQuantity('10')
+    setBulkPrefix('')
+  }
+
   const openEdit = (c: DiscountCode): void => {
     setEditing(c)
+    setBulkMode(false)
+    setBulkResult(null)
     setCode(c.code)
     setDescription(c.description || '')
     setDiscountValue(String(c.discountValue))
@@ -238,17 +266,16 @@ export default function DiscountCodesPage(): JSX.Element {
       setFormError('"Válido hasta" debe ser mayor o igual a "Válido desde"')
       return
     }
-    if (scope !== 'ALL' && scope === 'PRODUCTS' && selectedProductIds.length === 0) {
+    if (scope === 'PRODUCTS' && selectedProductIds.length === 0) {
       setFormError('Selecciona al menos un producto para este alcance')
       return
     }
-    if (scope !== 'ALL' && scope === 'CATEGORIES' && selectedCategoryIds.length === 0) {
+    if (scope === 'CATEGORIES' && selectedCategoryIds.length === 0) {
       setFormError('Selecciona al menos una categoría para este alcance')
       return
     }
 
-    const payload: DiscountCodeInput = {
-      code: code.trim().toUpperCase(),
+    const baseConfig: Omit<DiscountCodeInput, 'code'> = {
       description: description.trim() || null,
       discountValue: numValue,
       // Fecha "desde" al inicio del día y "hasta" al final del día (según intención del operador)
@@ -266,6 +293,31 @@ export default function DiscountCodesPage(): JSX.Element {
       maxDiscountAmount: maxDiscountAmount ? parseFloat(maxDiscountAmount) : null,
       isActive
     }
+
+    if (bulkMode && !editing) {
+      const qty = parseInt(bulkQuantity)
+      if (Number.isNaN(qty) || qty < 1 || qty > 500) {
+        setFormError('La cantidad a generar debe estar entre 1 y 500')
+        return
+      }
+      setSubmitting(true)
+      try {
+        const res = await api.discountCodes.bulkGenerate({
+          ...baseConfig,
+          quantity: qty,
+          prefix: bulkPrefix.trim() ? bulkPrefix.trim().toUpperCase() : undefined
+        })
+        setBulkResult({ count: res.count, codes: res.codes })
+        await load()
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : 'Error al generar códigos')
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    const payload: DiscountCodeInput = { code: code.trim().toUpperCase(), ...baseConfig }
 
     setSubmitting(true)
     try {
@@ -315,19 +367,187 @@ export default function DiscountCodesPage(): JSX.Element {
     }
   }
 
-  const getStatusBadge = (c: DiscountCode): { text: string; className: string } => {
-    if (!c.isActive) return { text: 'Inactivo', className: 'bg-gray-100 text-gray-700' }
+  const handleCopyAllBulk = async (): Promise<void> => {
+    if (!bulkResult) return
+    try {
+      await navigator.clipboard.writeText(bulkResult.codes.join('\n'))
+      setBulkCopied(true)
+      setTimeout(() => setBulkCopied(false), 1500)
+    } catch {
+      setBulkCopied(false)
+    }
+  }
+
+  const downloadBulkCsv = (): void => {
+    if (!bulkResult) return
+    const csv = 'codigo\n' + bulkResult.codes.join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `codigos-descuento-${bulkResult.count}-${Date.now()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const getStatusText = (c: DiscountCode): string => {
     const now = new Date()
-    if (c.validFrom && new Date(c.validFrom) > now) {
-      return { text: 'Programado', className: 'bg-yellow-100 text-yellow-700' }
+    if (c.deletedAt) return 'Eliminado'
+    if (!c.isActive) return 'Inactivo'
+    if (c.validFrom && new Date(c.validFrom) > now) return 'Programado'
+    if (c.validUntil && new Date(c.validUntil) < now) return 'Expirado'
+    if (c.usageLimit !== null && c.usedCount >= c.usageLimit) return 'Agotado'
+    return 'Activo'
+  }
+
+  const applyClientFilters = (list: DiscountCode[]): DiscountCode[] =>
+    list.filter((c) => {
+      if (scopeFilter !== 'all' && c.scope !== scopeFilter) return false
+      if (requireCustomerFilter !== 'all' && c.requireCustomer !== (requireCustomerFilter === 'yes')) return false
+      if (hasUsageLimitFilter !== 'all' && (c.usageLimit !== null) !== (hasUsageLimitFilter === 'yes')) return false
+      return true
+    })
+
+  const escapeHtml = (value: string): string =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+
+  const handlePrint = async (): Promise<void> => {
+    setPrinting(true)
+    setLoadError('')
+    try {
+      // Reúne todos los códigos que cumplen los filtros de servidor (paginando).
+      const all: DiscountCode[] = []
+      let currentPage = 1
+      let totalPages = 1
+      do {
+        const params: {
+          search?: string
+          isActive?: boolean
+          expired?: boolean
+          page: number
+          limit: number
+        } = { page: currentPage, limit: 100 }
+        if (search) params.search = search
+        if (statusFilter === 'active') params.isActive = true
+        if (statusFilter === 'inactive') params.isActive = false
+        if (statusFilter === 'expired') params.expired = true
+        const res = await api.discountCodes.list(params)
+        all.push(...res.codes)
+        totalPages = res.pages || 1
+        currentPage++
+      } while (currentPage <= totalPages && currentPage <= 50)
+
+      const filtered = applyClientFilters(all)
+
+      const filterDescriptions: string[] = []
+      if (search) filterDescriptions.push(`Búsqueda: "${search}"`)
+      if (statusFilter !== 'all') filterDescriptions.push(`Estado: ${statusFilter}`)
+      if (scopeFilter !== 'all') filterDescriptions.push(`Alcance: ${scopeFilter}`)
+      if (requireCustomerFilter !== 'all')
+        filterDescriptions.push(`Requiere cliente: ${requireCustomerFilter === 'yes' ? 'Sí' : 'No'}`)
+      if (hasUsageLimitFilter !== 'all')
+        filterDescriptions.push(`Con límite de usos: ${hasUsageLimitFilter === 'yes' ? 'Sí' : 'No'}`)
+
+      const conditionText = (c: DiscountCode): string =>
+        [
+          c.minSubtotal !== null ? `Mín ${c.minSubtotal} ${c.currency}` : '',
+          c.minQuantity !== null ? `Cant ${c.minQuantity}` : '',
+          c.maxDiscountAmount !== null ? `Tope ${c.maxDiscountAmount}` : ''
+        ]
+          .filter(Boolean)
+          .join(' · ') || '—'
+
+      const rows = filtered
+        .map(
+          (c) => `
+        <tr>
+          <td class="mono">${escapeHtml(c.code)}</td>
+          <td>${escapeHtml(c.description || '')}</td>
+          <td class="center">${c.discountValue}%</td>
+          <td>${getStatusText(c)}</td>
+          <td>${c.validFrom ? formatDate(c.validFrom) : 'Inmediato'}${c.validUntil ? ' → ' + formatDate(c.validUntil) : ''}</td>
+          <td class="center">${c.usageLimit !== null ? `${c.usedCount}/${c.usageLimit}` : `${c.usedCount}/∞`}</td>
+          <td>${escapeHtml(scopeLabel(c))}</td>
+          <td>${escapeHtml(conditionText(c))}</td>
+        </tr>`
+        )
+        .join('')
+
+      const generatedAt = new Date().toLocaleString('es-VE')
+      const companyName = company?.name || 'Silver Knight'
+      const companyRif = company?.rif ? `RIF: ${company.rif}` : ''
+
+      const html = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Códigos de Descuento</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; margin: 24px; }
+  h1 { font-size: 18px; margin: 0 0 2px; }
+  .sub { color: #6b7280; font-size: 12px; }
+  h2 { font-size: 15px; margin: 16px 0 0; }
+  .meta { margin: 10px 0; font-size: 11px; color: #4b5563; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+  th, td { border: 1px solid #d1d5db; padding: 5px 6px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; }
+  td.center, th.center { text-align: center; }
+  td.mono { font-family: "Courier New", monospace; font-weight: bold; }
+  .foot { margin-top: 16px; font-size: 10px; color: #9ca3af; text-align: right; }
+  @media print { body { margin: 10mm; } }
+</style></head>
+<body>
+  <h1>${escapeHtml(companyName)}</h1>
+  <div class="sub">${escapeHtml(companyRif)}</div>
+  <h2>Reporte de Códigos de Descuento</h2>
+  <div class="meta">
+    Generado: ${generatedAt} · Total: ${filtered.length} código${filtered.length === 1 ? '' : 's'}
+    ${filterDescriptions.length ? `<br>Filtros: ${escapeHtml(filterDescriptions.join(' · '))}` : ''}
+  </div>
+  <table>
+    <thead><tr>
+      <th>Código</th><th>Descripción</th><th class="center">%</th><th>Estado</th>
+      <th>Vigencia</th><th class="center">Usos</th><th>Alcance</th><th>Condiciones</th>
+    </tr></thead>
+    <tbody>${rows || '<tr><td colspan="8" class="center">Sin códigos para los filtros seleccionados</td></tr>'}</tbody>
+  </table>
+  <div class="foot">Silver Knight POS</div>
+</body></html>`
+
+      const iframe = document.createElement('iframe')
+      iframe.style.position = 'fixed'
+      iframe.style.right = '0'
+      iframe.style.bottom = '0'
+      iframe.style.width = '0'
+      iframe.style.height = '0'
+      iframe.style.border = '0'
+      iframe.setAttribute('aria-hidden', 'true')
+      document.body.appendChild(iframe)
+
+      const cleanup = (): void => {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
+      }
+
+      const doc = iframe.contentWindow?.document
+      if (!doc) throw new Error('No se pudo preparar la impresión')
+      doc.open()
+      doc.write(html)
+      doc.close()
+
+      iframe.contentWindow!.onafterprint = cleanup
+      setTimeout(() => {
+        iframe.contentWindow?.focus()
+        iframe.contentWindow?.print()
+        // Respaldo por si onafterprint no se dispara (p. ej. cancelado).
+        setTimeout(cleanup, 60000)
+      }, 300)
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Error al generar el reporte')
+    } finally {
+      setPrinting(false)
     }
-    if (c.validUntil && new Date(c.validUntil) < now) {
-      return { text: 'Expirado', className: 'bg-red-100 text-red-700' }
-    }
-    if (c.usageLimit !== null && c.usedCount >= c.usageLimit) {
-      return { text: 'Agotado', className: 'bg-orange-100 text-orange-700' }
-    }
-    return { text: 'Activo', className: 'bg-green-100 text-green-700' }
   }
 
   const scopeLabel = (c: DiscountCode): string => {
@@ -350,6 +570,8 @@ export default function DiscountCodesPage(): JSX.Element {
 
   if (loading && codes.length === 0) return <p className="text-gray-500 p-4">Cargando...</p>
 
+  const visibleCodes = applyClientFilters(codes)
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -364,269 +586,286 @@ export default function DiscountCodesPage(): JSX.Element {
             </p>
           </div>
         </div>
-        {canManage && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={openCreate}
-            className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors"
+            onClick={() => void handlePrint()}
+            disabled={printing}
+            title="Generar reporte imprimible o exportar a PDF"
+            className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            + Nuevo Código
+            {printing ? 'Generando…' : '🖨 Imprimir / PDF'}
           </button>
-        )}
+          {canManage && (
+            <>
+              <button
+                onClick={openBulk}
+                className="border border-primary text-primary px-4 py-2 rounded-md hover:bg-primary/5 transition-colors"
+              >
+                ⚡ Generar en masa
+              </button>
+              <button
+                onClick={openCreate}
+                className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors"
+              >
+                + Nuevo Código
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="flex rounded-md border border-gray-300 overflow-hidden">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setStatusFilter(tab.key)
-                setPage(1)
-              }}
-              className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                statusFilter === tab.key
-                  ? 'bg-primary text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1 min-w-[220px] max-w-md">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              setPage(1)
-            }}
-            placeholder="Buscar por código o descripción"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-          />
-        </div>
-      </div>
+      <DiscountCodesFiltersBar
+        search={search}
+        setSearch={(v) => {
+          setSearch(v)
+          setPage(1)
+        }}
+        status={statusFilter}
+        setStatus={(v) => {
+          setStatusFilter(v)
+          setPage(1)
+        }}
+        scope={scopeFilter}
+        setScope={(v) => {
+          setScopeFilter(v)
+          setPage(1)
+        }}
+        requireCustomer={requireCustomerFilter}
+        setRequireCustomer={(v) => {
+          setRequireCustomerFilter(v)
+          setPage(1)
+        }}
+        hasUsageLimit={hasUsageLimitFilter}
+        setHasUsageLimit={(v) => {
+          setHasUsageLimitFilter(v)
+          setPage(1)
+        }}
+        onClear={() => {
+          setScopeFilter('all')
+          setRequireCustomerFilter('all')
+          setHasUsageLimitFilter('all')
+          setPage(1)
+        }}
+      />
 
       {loadError && (
         <div className="bg-red-50 text-red-700 text-sm p-3 rounded-md mb-4">{loadError}</div>
       )}
 
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Código</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Descripción</th>
-                <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">% Desc.</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Validez</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Condiciones</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Alcance</th>
-                <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Usos</th>
-                <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Estado</th>
-                {canManage && <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {codes.map((c) => {
-                const badge = getStatusBadge(c)
-                const usagePct =
-                  c.usageLimit !== null ? Math.min(100, Math.round((c.usedCount / c.usageLimit) * 100)) : null
-                return (
-                  <tr key={c.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-medium">{c.code}</span>
-                        {canManage && (
-                          <button
-                            onClick={() => handleCopy(c.code)}
-                            title="Copiar código"
-                            className="text-gray-400 hover:text-gray-600 text-xs"
-                          >
-                            {copiedCode === c.code ? '✓' : '⧉'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate">
-                      {c.description || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm font-medium">{c.discountValue}%</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {c.validFrom || c.validUntil ? (
-                        <span className="block text-xs">
-                          {c.validFrom ? `Desde ${formatDate(c.validFrom)}` : 'Sin inicio'}
-                          <br />
-                          {c.validUntil ? `Hasta ${formatDate(c.validUntil)}` : 'Sin fin'}
-                        </span>
-                      ) : (
-                        'Ilimitado'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      {c.minSubtotal !== null && `Mín: ${c.minSubtotal} ${c.currency}`}
-                      {c.minSubtotal !== null && c.minQuantity !== null && ' · '}
-                      {c.minQuantity !== null && `Cant: ${c.minQuantity}`}
-                      {c.maxDiscountAmount !== null && (
-                        <>
-                          {c.minSubtotal !== null || c.minQuantity !== null ? ' · ' : ''}
-                          Tope: {c.maxDiscountAmount}
-                        </>
-                      )}
-                      {c.minSubtotal === null && c.minQuantity === null && c.maxDiscountAmount === null && '-'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-600">{scopeLabel(c)}</td>
-                    <td className="px-4 py-3 text-center text-sm">
-                      {c.usageLimit !== null ? (
-                        <span title={`${usagePct}% del límite consumido`}>
-                          {c.usedCount}/{c.usageLimit}
-                        </span>
-                      ) : (
-                        `${c.usedCount} / ∞`
-                      )}
-                      {c.usagePerCustomer !== null && (
-                        <span className="block text-[10px] text-gray-400">
-                          {c.usagePerCustomer}/cliente
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badge.className}`}>
-                        {badge.text}
-                      </span>
-                    </td>
-                    {canManage && (
-                      <td className="px-4 py-3 text-right text-sm whitespace-nowrap">
-                        <button
-                          onClick={() => handleToggleActive(c)}
-                          disabled={togglingId === c.id}
-                          title={c.isActive ? 'Desactivar' : 'Activar'}
-                          className={`mr-3 text-xs px-2 py-1 rounded-md border transition-colors disabled:opacity-50 ${
-                            c.isActive
-                              ? 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                              : 'border-green-300 text-green-700 hover:bg-green-50'
-                          }`}
-                        >
-                          {togglingId === c.id ? '...' : c.isActive ? 'Desactivar' : 'Activar'}
-                        </button>
-                        <button onClick={() => openEdit(c)} className="text-blue-600 hover:text-blue-800 mr-3">
-                          Editar
-                        </button>
-                        <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:text-red-800">
-                          Eliminar
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                )
-              })}
-              {codes.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={canManage ? 9 : 8} className="px-4 py-8 text-center text-gray-400">
-                    No hay códigos de descuento para este filtro
-                  </td>
-                </tr>
-              )}
-              {codes.length === 0 && loading && (
-                <tr>
-                  <td colSpan={canManage ? 9 : 8} className="px-4 py-8 text-center text-gray-400">
-                    Cargando...
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <DiscountCodesTable
+        codes={visibleCodes}
+        loading={loading}
+        canManage={canManage}
+        copiedCode={copiedCode}
+        togglingId={togglingId}
+        onCopy={handleCopy}
+        onToggleActive={handleToggleActive}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        onView={(id) => {
+          setDetailsCodeId(id)
+          setShowDetailsDrawer(true)
+        }}
+        onTest={(c) => {
+          setTestCode(c)
+          setShowTestDrawer(true)
+        }}
+      />
 
-        {/* Paginación */}
-        {pages > 1 && (
-          <div className="p-3 border-t flex items-center justify-between text-sm text-gray-600">
-            <span>
-              Página {page} de {pages} · {total} código{total === 1 ? '' : 's'}
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="px-3 py-1.5 border border-gray-300 rounded-md disabled:opacity-40 hover:bg-gray-50"
-              >
-                ← Anterior
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page >= pages}
-                className="px-3 py-1.5 border border-gray-300 rounded-md disabled:opacity-40 hover:bg-gray-50"
-              >
-                Siguiente →
-              </button>
-            </div>
+      {pages > 1 && (
+        <div className="p-3 border-t flex items-center justify-between text-sm text-gray-600">
+          <span>
+            Página {page} de {pages} · {total} código{total === 1 ? '' : 's'}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1.5 border border-gray-300 rounded-md disabled:opacity-40 hover:bg-gray-50"
+            >
+              ← Anterior
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(pages, p + 1))}
+              disabled={page >= pages}
+              className="px-3 py-1.5 border border-gray-300 rounded-md disabled:opacity-40 hover:bg-gray-50"
+            >
+              Siguiente →
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[92vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-1">
-              {editing ? 'Editar Código de Descuento' : 'Nuevo Código de Descuento'}
+              {editing
+                ? 'Editar Código de Descuento'
+                : bulkMode
+                  ? 'Generar Códigos en Masa'
+                  : 'Nuevo Código de Descuento'}
             </h2>
             <p className="text-xs text-gray-500 mb-4">
-              Configura todos los parámetros del código. Los campos vacíos de condiciones/límites se interpretan como
-              «sin restricción».
+              {bulkMode
+                ? 'La configuración se aplica a todos los códigos generados. Se crearán códigos únicos y consecutivos.'
+                : 'Configura todos los parámetros del código. Los campos vacíos de condiciones/límites se interpretan como «sin restricción».'}
             </p>
+            {bulkMode && bulkResult ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
+                  <p className="text-sm text-green-800 font-medium">
+                    ✓ Se generaron {bulkResult.count} código{bulkResult.count === 1 ? '' : 's'} correctamente.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setBulkResult(null)}
+                    className="text-xs text-green-700 hover:text-green-900 underline"
+                  >
+                    Generar otro lote
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyAllBulk}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                  >
+                    {bulkCopied ? '✓ Copiado' : 'Copiar todos'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadBulkCsv}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                  >
+                    Descargar CSV
+                  </button>
+                  <span className="text-xs text-gray-400 ml-auto">
+                    Mismo descuento, vigencia y condiciones
+                  </span>
+                </div>
+
+                <div className="max-h-72 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100 bg-gray-50">
+                  {bulkResult.codes.map((c) => (
+                    <div key={c} className="px-3 py-1.5 font-mono text-sm text-gray-800">
+                      {c}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModal(false)
+                      setBulkResult(null)
+                      setBulkMode(false)
+                    }}
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Identidad */}
               <div className="border border-gray-200 rounded-md p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-gray-700">Identidad</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Código *</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
-                        disabled={!!editing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono disabled:bg-gray-100"
-                        required
-                      />
-                      {!editing && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              const res = await api.discountCodes.generate({})
-                              setCode(res.code)
-                            } catch {
-                              setFormError('No se pudo generar un código automático')
-                            }
-                          }}
-                          title="Generar código automático"
-                          className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
-                        >
-                          🎲
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">% Descuento *</label>
-                    <div className="flex items-center gap-2">
+                {bulkMode && !editing ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad a generar *</label>
                       <input
                         type="number"
                         min="1"
-                        max="100"
-                        step="0.1"
-                        value={discountValue}
-                        onChange={(e) => setDiscountValue(e.target.value)}
+                        max="500"
+                        value={bulkQuantity}
+                        onChange={(e) => setBulkQuantity(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         required
                       />
-                      <span className="text-sm text-gray-500">%</span>
+                      <p className="text-[11px] text-gray-400 mt-1">Máximo 500 por lote.</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Prefijo (opcional)</label>
+                      <input
+                        type="text"
+                        value={bulkPrefix}
+                        onChange={(e) => setBulkPrefix(e.target.value.toUpperCase())}
+                        maxLength={10}
+                        placeholder="Ej: PROMO"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono"
+                      />
+                      <p className="text-[11px] text-gray-400 mt-1">Se antepone a cada código generado.</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">% Descuento *</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          step="0.1"
+                          value={discountValue}
+                          onChange={(e) => setDiscountValue(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          required
+                        />
+                        <span className="text-sm text-gray-500">%</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Código *</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={code}
+                          onChange={(e) => setCode(e.target.value.toUpperCase())}
+                          disabled={!!editing}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono disabled:bg-gray-100"
+                          required
+                        />
+                        {!editing && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await api.discountCodes.generate({})
+                                setCode(res.code)
+                              } catch {
+                                setFormError('No se pudo generar un código automático')
+                              }
+                            }}
+                            title="Generar código automático"
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                          >
+                            🎲
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">% Descuento *</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          step="0.1"
+                          value={discountValue}
+                          onChange={(e) => setDiscountValue(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          required
+                        />
+                        <span className="text-sm text-gray-500">%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                   <input
@@ -639,7 +878,6 @@ export default function DiscountCodesPage(): JSX.Element {
                 </div>
               </div>
 
-              {/* Validez */}
               <div className="border border-gray-200 rounded-md p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-gray-700">Validez</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -662,12 +900,9 @@ export default function DiscountCodesPage(): JSX.Element {
                     />
                   </div>
                 </div>
-                <p className="text-xs text-gray-400">
-                  Vacíos = sin límite de fechas. «Hasta» se interpreta hasta el fin de ese día.
-                </p>
+                <p className="text-xs text-gray-400">Vacíos = sin límite de fechas.</p>
               </div>
 
-              {/* Descuento y condiciones */}
               <div className="border border-gray-200 rounded-md p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-gray-700">Descuento y condiciones</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -711,9 +946,7 @@ export default function DiscountCodesPage(): JSX.Element {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tope máximo por factura
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tope máximo por factura</label>
                     <input
                       type="number"
                       min="0"
@@ -727,7 +960,6 @@ export default function DiscountCodesPage(): JSX.Element {
                 </div>
               </div>
 
-              {/* Límites de uso */}
               <div className="border border-gray-200 rounded-md p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-gray-700">Límites de uso</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -767,7 +999,6 @@ export default function DiscountCodesPage(): JSX.Element {
                 </div>
               </div>
 
-              {/* Alcance */}
               <div className="border border-gray-200 rounded-md p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-gray-700">Alcance</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -828,10 +1059,7 @@ export default function DiscountCodesPage(): JSX.Element {
                     {!productsLoading && productResults.length > 0 && (
                       <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md divide-y">
                         {productResults.map((p) => (
-                          <label
-                            key={p.id}
-                            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                          >
+                          <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={selectedProductIds.includes(p.id)}
@@ -843,9 +1071,6 @@ export default function DiscountCodesPage(): JSX.Element {
                           </label>
                         ))}
                       </div>
-                    )}
-                    {!productsLoading && productSearch && productResults.length === 0 && (
-                      <p className="text-xs text-gray-400">Sin productos que coincidan con la búsqueda.</p>
                     )}
                   </div>
                 )}
@@ -875,10 +1100,7 @@ export default function DiscountCodesPage(): JSX.Element {
                     {!categoriesLoading && categories.length > 0 && (
                       <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md divide-y">
                         {categories.map((cat) => (
-                          <label
-                            key={cat.id}
-                            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                          >
+                          <label key={cat.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={selectedCategoryIds.includes(cat.id)}
@@ -890,14 +1112,10 @@ export default function DiscountCodesPage(): JSX.Element {
                         ))}
                       </div>
                     )}
-                    {!categoriesLoading && categories.length === 0 && (
-                      <p className="text-xs text-gray-400">No hay categorías registradas.</p>
-                    )}
                   </div>
                 )}
               </div>
 
-              {/* Estado */}
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm text-gray-700">
                   <input
@@ -926,13 +1144,41 @@ export default function DiscountCodesPage(): JSX.Element {
                   disabled={submitting}
                   className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50"
                 >
-                  {submitting ? 'Guardando...' : editing ? 'Guardar' : 'Crear'}
+                  {submitting
+                    ? bulkMode
+                      ? 'Generando...'
+                      : 'Guardando...'
+                    : editing
+                      ? 'Guardar'
+                      : bulkMode
+                        ? `Generar ${bulkQuantity || '0'} códigos`
+                        : 'Crear'}
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}
+
+      <DiscountCodeValidateDrawer
+        key={showTestDrawer ? 'validate-open' : 'validate-closed'}
+        open={showTestDrawer}
+        code={testCode}
+        onClose={() => {
+          setShowTestDrawer(false)
+          setTestCode('')
+        }}
+      />
+
+      <DiscountCodeDetailsDrawer
+        open={showDetailsDrawer}
+        codeId={detailsCodeId}
+        onClose={() => {
+          setShowDetailsDrawer(false)
+          setDetailsCodeId(null)
+        }}
+      />
     </div>
   )
 }

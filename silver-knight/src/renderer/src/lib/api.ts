@@ -266,7 +266,6 @@ export interface DiscountCode {
   id: string
   code: string
   description: string | null
-  discountType: string
   discountValue: number
   validFrom: string | null
   validUntil: string | null
@@ -286,6 +285,25 @@ export interface DiscountCode {
   createdBy?: { username: string; fullName: string | null } | null
   createdAt: string
   updatedAt: string
+  deletedAt: string | null
+  discountUsages?: Array<{
+    id: string
+    customerId: string | null
+    customer: { id: string; name: string; rif: string | null } | null
+    invoiceId: string
+    invoice: { id: string; number: string; totalUsd: number; totalVes: number; status: string; createdAt: string }
+    discountAmountUsd: number
+    discountAmountVes: number
+    usedAt: string
+  }>
+  invoices?: Array<{
+    id: string
+    number: string
+    totalUsd: number
+    totalVes: number
+    status: string
+    createdAt: string
+  }>
 }
 
 export interface DiscountCodeInput {
@@ -305,6 +323,14 @@ export interface DiscountCodeInput {
   categoryIds?: string[] | null
   maxDiscountAmount?: number | null
   isActive?: boolean
+}
+
+export interface DiscountCodeBulkInput extends Omit<DiscountCodeInput, 'code'> {
+  quantity: number
+  prefix?: string
+  length?: number
+  separator?: string
+  groups?: number
 }
 
 export interface ValidatedDiscount {
@@ -1168,6 +1194,12 @@ export const api = {
       request<{ code: string }>('/discount-codes/generate', {
         method: 'POST',
         body: JSON.stringify(data || {})
+      }),
+
+    bulkGenerate: (data: DiscountCodeBulkInput) =>
+      request<{ count: number; codes: string[] }>('/discount-codes/bulk', {
+        method: 'POST',
+        body: JSON.stringify(data)
       }),
 
     create: (data: DiscountCodeInput) =>

@@ -42,6 +42,7 @@ El modelo vive en `prisma/schema.prisma` (`DiscountCode` + `DiscountUsage`) y el
 ## Historial
 
 - **2026-10-06**: panel de gestión completo en `/discount-codes` (rebuild de la página): todos los parámetros configurables, incluida la selección de **productos/categorías** para códigos con alcance restringido (antes imposible desde UI — el formulario no enviaba `productIds`/`categoryIds`). Tabs por estado + búsqueda + paginación, toggle rápido activo/inactivo, copiar código. Acceso desde Ajustes. Fix en el **POS**: el carrito ahora envía `categoryId` en el `validate` (antes el alcance por categorías nunca aplicaba).
+- **2026-10-06 (ampliación)**: **generación en masa** vía `POST /api/discount-codes/bulk` (`quantity` 1–500 + `prefix`/`length`/`separator`/`groups`; todos los códigos comparten la configuración del formulario). La página se refactoriza en componentes (`DiscountCodeStatusBadge`, `DiscountCodeScopeTags`, `DiscountCodesFiltersBar`, `DiscountCodesTable`, `DiscountCodeValidateDrawer`, `DiscountCodeDetailsDrawer`) y se agrega **reporte imprimible / exportar a PDF** del listado con los filtros activos (HTML en iframe oculto + `window.print()`; incluye empresa/RIF, fecha y filtros). `GET /:id` ahora incluye `discountUsages` (cliente + factura) y las últimas 20 `invoices`. Detalle en [[log]].
 
 ## Relaciones
 

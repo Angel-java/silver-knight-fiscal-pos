@@ -1,19 +1,51 @@
 import { Router, Request, Response } from 'express'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../database/prisma'
 import { authMiddleware, requirePermission } from '../middleware/auth'
 import { validate } from '../middleware/validate'
 import { asyncHandler, AppError } from '../middleware/errorHandler'
 import {
+  bulkDiscountCodeSchema,
   discountCodeSchema,
   generateDiscountCodeSchema,
   validateDiscountCodeSchema
 } from '../validation/schemas'
 import { z } from 'zod'
-import { generateUniqueDiscountCode, validateDiscountCode } from '../utils/discounts'
+import {
+  generateUniqueDiscountCode,
+  generateUniqueDiscountCodeBatch,
+  validateDiscountCode
+} from '../utils/discounts'
 
 const router = Router()
 router.use(authMiddleware)
 router.use(requirePermission('discount-codes'))
+
+/** Campos compartidos entre creación individual y en masa. */
+function buildDiscountCodeData(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any,
+  createdById: string | null
+): Omit<Prisma.DiscountCodeUncheckedCreateInput, 'code'> {
+  return {
+    description: data.description || null,
+    discountValue: Number(data.discountValue),
+    validFrom: data.validFrom || null,
+    validUntil: data.validUntil || null,
+    minSubtotal: data.minSubtotal ?? null,
+    minQuantity: data.minQuantity ?? null,
+    currency: data.currency,
+    isActive: data.isActive,
+    usageLimit: data.usageLimit ?? null,
+    usagePerCustomer: data.usagePerCustomer ?? null,
+    requireCustomer: data.requireCustomer,
+    scope: data.scope,
+    productIds: data.productIds || null,
+    categoryIds: data.categoryIds || null,
+    maxDiscountAmount: data.maxDiscountAmount ?? null,
+    createdById
+  }
+}
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const search = (req.query.search as string) || ''
@@ -57,7 +89,21 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string
   const code = await prisma.discountCode.findUnique({
     where: { id, deletedAt: null },
-    include: { createdBy: { select: { username: true, fullName: true } } }
+    include: {
+      createdBy: { select: { username: true, fullName: true } },
+      discountUsages: {
+        orderBy: { usedAt: 'desc' },
+        include: {
+          customer: { select: { id: true, name: true, rif: true } },
+          invoice: { select: { id: true, number: true, totalUsd: true, totalVes: true, status: true, createdAt: true } }
+        }
+      },
+      invoices: {
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: { id: true, number: true, totalUsd: true, totalVes: true, status: true, createdAt: true }
+      }
+    }
   })
   if (!code) {
     res.status(404).json({ error: 'Código no encontrado' })
@@ -70,6 +116,27 @@ router.post('/generate', validate(generateDiscountCodeSchema), asyncHandler(asyn
   const { prefix, length, separator, groups } = req.body
   const code = await generateUniqueDiscountCode(prefix, length, separator, groups)
   res.json({ code })
+}))
+
+router.post('/bulk', validate(bulkDiscountCodeSchema), asyncHandler(async (req: Request, res: Response) => {
+  const data = req.body
+  const quantity = Number(data.quantity)
+
+  const codes = await generateUniqueDiscountCodeBatch(
+    quantity,
+    data.prefix,
+    data.length,
+    data.separator,
+    data.groups
+  )
+
+  const shared = buildDiscountCodeData(data, req.user?.userId ?? null)
+
+  await prisma.discountCode.createMany({
+    data: codes.map((code) => ({ ...shared, code }))
+  })
+
+  res.status(201).json({ count: codes.length, codes })
 }))
 
 router.post('/', validate(discountCodeSchema), asyncHandler(async (req: Request, res: Response) => {
@@ -86,22 +153,7 @@ router.post('/', validate(discountCodeSchema), asyncHandler(async (req: Request,
   const created = await prisma.discountCode.create({
     data: {
       code,
-      description: data.description || null,
-      discountValue: Number(data.discountValue),
-      validFrom: data.validFrom || null,
-      validUntil: data.validUntil || null,
-      minSubtotal: data.minSubtotal ?? null,
-      minQuantity: data.minQuantity ?? null,
-      currency: data.currency,
-      isActive: data.isActive,
-      usageLimit: data.usageLimit ?? null,
-      usagePerCustomer: data.usagePerCustomer ?? null,
-      requireCustomer: data.requireCustomer,
-      scope: data.scope,
-      productIds: data.productIds || null,
-      categoryIds: data.categoryIds || null,
-      maxDiscountAmount: data.maxDiscountAmount ?? null,
-      createdById: req.user?.userId || null
+      ...buildDiscountCodeData(data, req.user?.userId || null)
     }
   })
 

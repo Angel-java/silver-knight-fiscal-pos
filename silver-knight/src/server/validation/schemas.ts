@@ -218,7 +218,7 @@ export const cancelReservationSchema = z.object({
   reason: z.string().min(1, 'Motivo de cancelación requerido')
 })
 
-export const discountCodeSchema = z.object({
+const discountCodeBase = z.object({
   code: z.string().trim().min(3, 'Código muy corto').max(50, 'Código muy largo').optional(),
   description: z.string().trim().max(255, 'Descripción muy larga').optional().nullable(),
   discountValue: z.coerce.number().min(1, 'Mínimo 1%').max(100, 'Máximo 100%'),
@@ -235,10 +235,30 @@ export const discountCodeSchema = z.object({
   categoryIds: z.array(z.string()).optional().nullable(),
   maxDiscountAmount: z.coerce.number().min(0, 'El tope no puede ser negativo').optional().nullable(),
   isActive: z.boolean().default(true)
-}).refine(
-  (data) => !data.validFrom || !data.validUntil || data.validUntil >= data.validFrom,
-  { message: 'Válido Hasta debe ser mayor o igual a Válido Desde', path: ['validUntil'] }
-)
+})
+
+const validDateRange = (data: { validFrom?: Date | null; validUntil?: Date | null }): boolean =>
+  !data.validFrom || !data.validUntil || data.validUntil >= data.validFrom
+
+export const discountCodeSchema = discountCodeBase.refine(validDateRange, {
+  message: 'Válido Hasta debe ser mayor o igual a Válido Desde',
+  path: ['validUntil']
+})
+
+/** Configuración compartida + generación de N códigos con prefijo/segmentación. */
+export const bulkDiscountCodeSchema = discountCodeBase
+  .omit({ code: true })
+  .extend({
+    quantity: z.coerce.number().int().min(1, 'Mínimo 1 código').max(500, 'Máximo 500 códigos'),
+    prefix: z.string().trim().max(10).optional(),
+    length: z.coerce.number().int().min(4).max(20).default(8),
+    separator: z.string().max(1).optional(),
+    groups: z.coerce.number().int().min(1).max(4).default(2)
+  })
+  .refine(validDateRange, {
+    message: 'Válido Hasta debe ser mayor o igual a Válido Desde',
+    path: ['validUntil']
+  })
 
 export const generateDiscountCodeSchema = z.object({
   prefix: z.string().trim().max(10).optional(),

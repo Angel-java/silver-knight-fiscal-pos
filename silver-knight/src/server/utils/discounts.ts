@@ -94,6 +94,53 @@ export async function generateUniqueDiscountCode(
   throw new AppError(500, 'No se pudo generar un código único')
 }
 
+/**
+ * Genera `count` códigos únicos en lote. Verifica colisiones contra la BD
+ * en consultas agrupadas para mantener el rendimiento con cantidades grandes.
+ */
+export async function generateUniqueDiscountCodeBatch(
+  count: number,
+  prefix?: string,
+  length = 8,
+  separator?: string,
+  groups = 2
+): Promise<string[]> {
+  const selected: string[] = []
+  const selectedSet = new Set<string>()
+  let guard = 0
+
+  while (selected.length < count && guard < 50) {
+    guard++
+    const remaining = count - selected.length
+    const batchSize = Math.ceil(remaining * 1.5) + 10
+    const candidates = new Set<string>()
+    for (let i = 0; i < batchSize; i++) {
+      candidates.add(generateRandomCode(prefix, length, separator, groups).toUpperCase())
+    }
+    const list = [...candidates].filter((c) => !selectedSet.has(c))
+    if (list.length === 0) continue
+
+    const existing = await prisma.discountCode.findMany({
+      where: { code: { in: list } },
+      select: { code: true }
+    })
+    const existingSet = new Set(existing.map((e) => e.code))
+
+    for (const code of list) {
+      if (selected.length >= count) break
+      if (existingSet.has(code)) continue
+      selected.push(code)
+      selectedSet.add(code)
+    }
+  }
+
+  if (selected.length < count) {
+    throw new AppError(500, 'No se pudieron generar suficientes códigos únicos. Amplía la longitud del código.')
+  }
+
+  return selected
+}
+
 function eligibleSubtotal(
   scope: DiscountScope,
   productIds: unknown,

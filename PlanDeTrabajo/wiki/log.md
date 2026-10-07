@@ -559,3 +559,18 @@ pm run build antes de electron-builder â€” los CI de v1.1.9/v1.1.10 fallaba
 - **Backend**: sin cambios (CRUD + validacion ya completos).
 - **Verificacion**: `typecheck:node` + `typecheck:web` limpios; `npm test` 290/290 (25 archivos); eslint **0 errores** en los 5 archivos tocados (persisten solo los warnings CRLF prettier por `core.autocrlf`, pre-existentes en todo el repo).
 - **Pendiente**: probar el panel en el dev app (crear codigo con alcance por categorias + validarlo en POS con un producto de esa categoria; confirmar que `NO_ELIGIBLE_ITEMS` no aparece al enviar `categoryId`); considerar persisitir el tipo `FIXED` (monto fijo) en el futuro (hoy solo `PERCENTAGE`).
+
+## [2026-10-06] build | Codigos de descuento: generacion en masa + reporte imprimible/PDF + refactor en componentes
+- **Descripcion**: ampliacion del panel `/discount-codes`. Se agrega **generacion en masa** (N codigos unicos con la misma configuracion) y **reporte imprimible / exportar a PDF** del listado con los filtros activos. Ademas se refactoriza la pagina monolitica en componentes reutilizables y se suman utilidades de **probar codigo** (validacion contra el endpoint del POS) y **ver detalles/auditoria** (usos + facturas asociadas).
+- **Paginas actualizadas**: [[discount-code]], [[index]], [[log]].
+- **Cambios**:
+  - Backend `src/server/routes/discountCodes.ts`: nuevo `POST /api/discount-codes/bulk` (reutiliza `buildDiscountCodeData`, compartido con el create individual). `GET /:id` ahora incluye `discountUsages` (con cliente + factura) y las ultimas 20 `invoices`.
+  - `src/server/utils/discounts.ts`: `generateUniqueDiscountCodeBatch(count, prefix, length, separator, groups)` — genera codigos unicos en lote verificando colisiones en consultas agrupadas (`in: [...]`) para mantener rendimiento (hasta 500 por lote).
+  - `src/server/validation/schemas.ts`: `discountCodeBase` refactorizado (`.refine` de rango de fechas reutilizable) + `bulkDiscountCodeSchema` (`omit({code})` + `quantity` 1-500 + `prefix`/`length`/`separator`/`groups`).
+  - Renderer `DiscountCodesPage.tsx`: modo individual/masa en el mismo formulario (cantidad + prefijo) y panel de resultados con **copiar todos** y **descargar CSV**; botones de cabecera "Generar en masa" e "Imprimir / PDF"; los filtros de alcance / requiere-cliente / limite ahora aplican de forma consistente en la tabla y en el reporte.
+  - Nuevos componentes `src/renderer/src/components/discount-codes/`: `DiscountCodeStatusBadge`, `DiscountCodeScopeTags`, `DiscountCodesFiltersBar`, `DiscountCodesTable`, `DiscountCodeValidateDrawer` (prueba con carrito: cliente/items/moneda) y `DiscountCodeDetailsDrawer` (condiciones, vigencia, limites, usos y facturas).
+  - `api.ts`: `DiscountCodeBulkInput` + `api.discountCodes.bulkGenerate`; `DiscountCode` limpio (`discountType` fuera, `deletedAt`, `discountUsages`, `invoices`).
+  - Reporte PDF: HTML en iframe oculto + `window.print()` (el dialogo de Chromium/Electron permite "Guardar como PDF"); incluye encabezado con empresa/RIF, fecha, filtros aplicados y tabla de codigos.
+- **Verificacion**: `typecheck:node` + `typecheck:web` limpios (EXIT=0). Endpoint `/bulk` confirmado activo en el contenedor tras `docker compose build server && docker compose up -d server`.
+- **Nota de despliegue**: el backend corre en el contenedor `silverknight-server` (`tsx src/server/standalone.ts`). Los cambios en `src/server` requieren **reconstruir la imagen y recrear el contenedor**; la UI (renderer) si toma HMR en dev.
+- **Pendiente**: probar la generacion masiva (p. ej. 50 codigos con prefijo) y el reporte/PDF en el dev app; opcional: exponer en la UI los parametros avanzados de formato (separador/grupos).
